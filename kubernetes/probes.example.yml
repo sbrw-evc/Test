@@ -1,0 +1,66 @@
+# Requires an existing blackbox-exporter Service and http_2xx module.
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: teamcity-readiness
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  jobName: cicd-http
+  interval: 30s
+  scrapeTimeout: 15s
+  module: http_2xx
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - https://teamcity.example.internal/healthCheck/ready
+      labels:
+        env: prod
+        component: teamcity
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: jenkins-readiness
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  jobName: cicd-http
+  interval: 30s
+  scrapeTimeout: 15s
+  module: http_2xx
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - https://jenkins.example.internal/login
+      labels:
+        env: prod
+        component: jenkins
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: octopus-readiness
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  jobName: cicd-http
+  interval: 30s
+  scrapeTimeout: 15s
+  module: http_2xx
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+  targets:
+    staticConfig:
+      static:
+        - https://octopus.example.internal/
+      labels:
+        env: prod
+        component: octopus

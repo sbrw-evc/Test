@@ -1,28 +1,13 @@
-# CI/CD Health — Grafana
+# Мониторинг TeamCity Jenkins и Octopus в Kubernetes
 
-Комплект мониторинга TeamCity, Jenkins и Octopus: общий operational dashboard, конфигурации сбора, recording rules и Grafana Alerting.
+Готовый комплект для первой рабочей версии Grafana CI/CD Health: dashboard, recording rules, Grafana-managed alerts, REST adapter и Kubernetes templates.
 
-![Превью с демонстрационными данными](cicd-health/cicd-health-preview.png)
+Начать с [пошаговой инструкции DevOps](docs/SETUP-RU.md). Для пересылки: [документ Word](docs/devops-cicd-monitoring-request.docx).
 
-## Файлы
-
-- [Запрос в DevOps по настройке Prometheus и Kubernetes](docs/devops-cicd-monitoring-request.docx)
-- [Пошаговая инструкция внедрения](cicd-health/README-RU.md)
-- [Grafana Dashboard JSON](cicd-health/cicd-health-dashboard.json)
-- [Правила Grafana Alerting](cicd-health/grafana-alert-rules.yml)
-- [Prometheus recording rules](cicd-health/prometheus-recording-rules.yml)
-- [Пример Prometheus scrape](cicd-health/prometheus-scrape.example.yml)
-- [Пример Blackbox Exporter](cicd-health/blackbox.example.yml)
-- [Пример Grafana datasource](cicd-health/grafana-datasource.example.yml)
-- [Контракт нормализующего адаптера](cicd-health/METRICS-CONTRACT.md)
+- [Dashboard и rules](cicd-health)
+- [Код адаптера и тесты](adapter)
+- [Манифесты Kubernetes](kubernetes)
+- [Точный контракт метрик и ограничения](cicd-health/METRICS-CONTRACT.md)
 - [Архив комплекта](cicd-health-grafana-kit.zip)
 
-## Подключение
-
-1. Настроить адреса, авторизацию и сбор штатных метрик TeamCity/Jenkins.
-2. Реализовать адаптер по контракту `ci_*` для общего обзора и Octopus. Код адаптера в комплект не входит.
-3. Подключить HTTP-проверки и recording rules.
-4. Импортировать dashboard JSON в Grafana и выбрать Prometheus datasource.
-5. Настроить Grafana Alerting, Teams/PagerDuty и провести сценарии приёмки из инструкции.
-
-Это шаблон, не развёрнутая система. JSON/YAML проверены структурно; импорт в работающую Grafana и выполнение PromQL требуют проверки в целевой инфраструктуре. Превью содержит демонстрационные значения, dashboard JSON — только запросы к реальным источникам.
+Первая версия показывает последние результаты, длительность, очереди выбранных pipeline, online agents TeamCity/Jenkins, HTTP/API health и свежесть. Недостоверные пока KPI (p95, процент запусков за период, Octopus free slots) исключены. Все параметры, image registry, IDs и secrets необходимо задать для своего кластера. Файлы являются шаблонами внедрения; в реальном кластере ничего не установлено.

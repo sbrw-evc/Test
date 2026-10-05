@@ -33,8 +33,9 @@ scrape_configs:
   honor_labels: true
   static_configs:
   - targets:
-    - cicd-adapter:9108
+    - cicd-adapter.monitoring.svc.cluster.local:8000
 - job_name: cicd-http
+  scrape_timeout: 15s
   metrics_path: /probe
   params:
     module:

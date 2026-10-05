@@ -18,15 +18,17 @@ groups:
       env: prod
       component: octopus
   - record: ci:probe_up
-    expr: max by (env, component) (probe_success{job="cicd-http"}) or on (env, component)
-      ci:expected_component
+    expr: max by (env, component) (probe_success{job="cicd-http"} and (time()-timestamp(probe_success{job="cicd-http"})
+      < 90)) or on (env, component) ci:expected_component
   - record: ci:api_up
-    expr: max by (env, component) (ci_api_up) or on (env, component) ci:expected_component
+    expr: max by (env, component) (ci_api_up and (time()-timestamp(ci_api_up) < 90))
+      or on (env, component) ci:expected_component
   - record: ci:observation_missing
-    expr: (ci:expected_component unless on (env, component) max by (env, component)
-      (probe_success{job="cicd-http"})) or on (env, component) (ci:expected_component
-      unless on (env, component) max by (env, component) (ci_api_up)) or on (env,
-      component) (0 * ci:expected_component)
+    expr: (ci:expected_component unless on (env, component) (max by (env, component)
+      (probe_success{job="cicd-http"} and (time()-timestamp(probe_success{job="cicd-http"})
+      < 90)))) or on (env, component) (ci:expected_component unless on (env, component)
+      (max by (env, component) (ci_api_up and (time()-timestamp(ci_api_up) < 90))))
+      or on (env, component) (0 * ci:expected_component)
   - record: ci:data_age_seconds
     expr: (time() - max by (env, component) (ci_collection_last_success_timestamp_seconds))
       or on (env, component) (1000000000 * ci:expected_component)
@@ -41,12 +43,13 @@ groups:
   - record: ci:degraded
     expr: clamp_max((max by (env, component) (ci_queue_oldest_age_seconds > bool 300)
       or on (env, component) (0 * ci:expected_component)) + on (env, component) (max
-      by (env, component) (ci_capacity_free == bool 0) * on (env, component) max by
-      (env, component) (ci_queue_length > bool 0) or on (env, component) (0 * ci:expected_component))
-      + on (env, component) (max by (env, component) (ci_resource_online == bool 0)
-      or on (env, component) (0 * ci:expected_component)) + on (env, component) (sum
-      by (env, component) (increase(ci_operations_total{status=~"failed|timed_out"}[15m]))
-      > bool 0 or on (env, component) (0 * ci:expected_component)), 1)
+      by (env, component) (ci_queue_length > bool ci_queue_limit) or on (env, component)
+      (0 * ci:expected_component)) + on (env, component) (max by (env, component)
+      (ci_resource_online == bool 0) or on (env, component) (0 * ci:expected_component))
+      + on (env, component) (max by (env, component) (ci_agents_online < bool ci_agents_minimum)
+      or on (env, component) (0 * ci:expected_component)) + on (env, component) (max
+      by (env, component) (ci_last_operation_status > bool 0) or on (env, component)
+      (0 * ci:expected_component)), 1)
   - record: ci:operational_state
     expr: ci:component_available * on (env, component) (3 - 2 * ci:data_stale - (1
       - ci:data_stale) * on (env, component) ci:degraded)

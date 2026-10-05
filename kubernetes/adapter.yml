@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cicd-adapter
+  namespace: monitoring
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # Avoid double-counting gauges during rolling overlap.
+  selector:
+    matchLabels:
+      app: cicd-adapter
+  template:
+    metadata:
+      labels:
+        app: cicd-adapter
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+        - name: adapter
+          image: registry.example.internal/monitoring/cicd-adapter:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: metrics
+              containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: cicd-api-credentials
+          env:
+            - name: PYTHONDONTWRITEBYTECODE
+              value: '1'
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: metrics
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+      volumes:
+        - name: config
+          configMap:
+            name: cicd-adapter-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cicd-adapter
+  namespace: monitoring
+  labels:
+    app: cicd-adapter
+    scrape-job: cicd-adapter
+spec:
+  selector:
+    app: cicd-adapter
+  ports:
+    - name: metrics
+      port: 8000
+      targetPort: metrics
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cicd-adapter
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack # Replace with actual Prometheus selector label.
+spec:
+  jobLabel: scrape-job
+  selector:
+    matchLabels:
+      app: cicd-adapter
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      honorLabels: true # Preserve env and component from multi-source exporter.

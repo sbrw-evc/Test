@@ -1,71 +1,34 @@
-# Контракт адаптера — пользовательские ci_* метрики
+# Контракт snapshot адаптера версии 1
 
-Эти имена НЕ являются встроенными метриками TeamCity, Jenkins или Octopus. Это обязательная спецификация адаптера, реализацию которого нужно добавить при внедрении. Один логический источник на component/env; active/passive реплики не должны одновременно экспортировать те же counters. Все длительности в секундах, timestamps — Unix seconds UTC. Label env обозначает окружение мониторинга (пример prod). Deployment environment включать в стабильный pipeline ID или добавить отдельный label с доработкой queries/alerts.
+Реализация: `adapter/exporter.py`. Все `ci_*` — Gauges. Нет counters и histogram. Scrape каждые 30 s, polling по source в отдельных threads каждые 30 s после завершения предыдущего poll. Labels `env`, `component` обязательны. `component`: teamcity / jenkins / octopus, ровно по одному экземпляру источника.
 
-## Component, pool, resource gauges
-
-| Имя | Дополнительные labels к env,component | Семантика |
+| Метрика | Дополнительные labels | Значение |
 |---|---|---|
-| ci_api_up | — | 1: authenticated read API успешно и схема проверена; 0: отказ. На частичной ошибке API может быть up, но complete=0 |
-| ci_collection_complete | — | 1: все обязательные метрики/inventory получены; 0: неполный цикл/ошибка/необработанная pagination |
-| ci_collection_last_success_timestamp_seconds | — | Время последнего успешного полного цикла; на ошибке не обновлять |
-| ci_agents_online | pool | Число online enabled authorized CI agents; только TeamCity/Jenkins, не executors |
-| ci_capacity_free | pool | Свободные совместимые слоты: TC agents / Jenkins executors / Octopus worker slots |
-| ci_queue_length | pool | Полная ожидающая очередь на pool, включая несовместимые/blocked по согласованной модели; не выполнять двойной счёт задачи между pools |
-| ci_queue_oldest_age_seconds | pool | now - queued_at старейшей задачи; 0 при пустой очереди |
-| ci_queue_limit | pool | Согласованный threshold размера очереди (стартовый пример 10), не ёмкость сервера |
-| ci_resource_online | resource_id,resource_kind,pool | 0/1, только ожидаемые non-ephemeral resources; resource_kind agent/worker/target. Исчезнувший ожидаемый resource остаётся со значением 0. Disabled/maintenance исключаются по конфигурации |
+| ci_api_up | — | 1 после успешных чтений API; 0 при HTTP/auth/network failure. При ошибке схемы/лимита страниц после ответа API остаётся 1 |
+| ci_collection_complete | — | 1 только если собран весь настроенный scope |
+| ci_collection_last_success_timestamp_seconds | — | Unix seconds последнего полностью успешного poll; 0 до первого полного poll |
+| ci_queue_length | — | Очередь только настроенных pipeline scopes |
+| ci_queue_oldest_age_seconds | — | Максимальное ожидание queued task/build; 0 при пустой очереди |
+| ci_queue_limit | — | Порог из config.yml |
+| ci_agents_online | — | Только TC/Jenkins; не свободные слоты |
+| ci_agents_minimum | — | Порог online count TC/Jenkins |
+| ci_resource_online | resource_id | Только явно заданные expected_agents TC/Jenkins; отсутствующий ID = 0 |
+| ci_last_operation_status | project, pipeline, operation | 0 success, 1 unstable, 2 failed, 3 canceled, 4 timed out, 5 unknown/not-built |
+| ci_last_operation_completed_timestamp_seconds | project, pipeline, operation | Unix seconds завершения выбранного terminal result |
+| ci_last_operation_duration_seconds | project, pipeline, operation | Start→finish в секундах; отсутствует, если StartTime неизвестен |
+| ci_running_elapsed_seconds | project, pipeline, operation | Максимальный возраст активного запуска, 0 если активных нет |
+| ci_operation_timeout_seconds | project, pipeline, operation | Порог длительности из config |
 
-Pool должен быть стабильным и одинаковым в queue/capacity/limit series. Для queue, которую могут обработать несколько pools, выбрать один логический eligibility pool либо отдельный dispatcher; простое дублирование ломает sums. Idle executors с неподходящими labels не являются свободной совместимой ёмкостью. Для autoscaling проверять minimum desired capacity и pending provisioning отдельно.
+`operation`: build для TC/Jenkins, deploy для Octopus. `env` — контур мониторинга; отдельные deployment environments описываются отдельными scope/pipeline labels.
 
-ci_api_up/complete/timestamp экспортировать и на пустой системе; gauges pool также публиковать с 0. Pool inventory должен быть получен полностью. Если необходимой метрики нет, complete=0, а не выдуманное значение 0. Все отсутствующие counter status-series должны быть заранее созданы с нулём.
+**Статусы и частота.** Это снимок, а не журнал каждого события. TC выбирает newest terminal build, Jenkins lastCompletedBuild, Octopus newest-created terminal Deploy task с project/environment фильтрами. Octopus не выбирает max CompletedTime; concurrent tasks могут завершаться в другом порядке. Failure gauge остаётся до следующего terminal result. Fail→success между опросами может не быть замечен. Доля успеха — доля выбранных pipeline с успешным последним результатом; без run history она не является success rate за период. Pipeline без completed runs не публикует last_*; нельзя считать его успешным.
 
-## Operations
+**Scope агентов.** TC: connected AND authorized AND enabled на всём доступном token scope. Jenkins: offline=false и numExecutors>0, controller displayName Built-In Node/master исключён по умолчанию; для нестандартного имени контроллера задать agent_names явно. enabled TC/Jenkins agents могут быть заняты или несовместимы с ожидающим job. Minimum count не заменяет capacity alert. Expected stable IDs отсутствующие в API считаются offline; исключить динамические agent Pods и проверять права token.
 
-Общие labels: env,component,project,pipeline,operation. Project и pipeline — стабильные IDs/имена; operation=build/deploy. Pipeline включает реальный deployment environment, если это нужно для разделения. Между TC/Jenkins/Octopus projects заранее определить mapping; фильтр project должен иметь единую бизнес-семантику.
+**Ошибки.** Poll публикуется атомарно по компоненту. При ошибке сохраняется предыдущий snapshot, complete=0, last_success не меняется. Dashboard KPI фильтруются через fresh+available recordings. Missing probe/exporter или данные старше180 s → UNKNOWN. Наблюдаемая HTTP/API ошибка → DOWN, в том числе 403/404, которые могут означать права/конфигурацию, а не отказ сервера. На /metrics всегда 200 даже при source failure.
 
-| Имя | Дополнительные labels | Тип / значение |
-|---|---|---|
-| ci_operations_total | status | Counter завершённых операций. status success/failed/unstable/canceled/timed_out. Все пять series существуют даже при нуле |
-| ci_operation_duration_seconds | histogram: le | Histogram длительности start→finish, один observe на terminal event. В /metrics нужны _bucket, _sum, _count |
-| ci_last_operation_status | — | Gauge последней завершённой операции: 0 success, 1 unstable, 2 failed, 3 canceled, 4 timed_out |
-| ci_last_operation_completed_timestamp_seconds | — | Unix timestamp последнего завершения; до первой операции series отсутствует |
-| ci_running_elapsed_seconds | — | Gauge максимального elapsed среди одновременно выполняющихся операций этого pipeline; series удалить после завершения всех |
-| ci_operation_timeout_seconds | — | Индивидуальный threshold выполнения; labels точно совпадают с running elapsed. Передавать series только для активных pipelines либо постоянные thresholds |
+**Пагинация.** TC follows same-origin nextHref. Octopus active tasks skip/take100 до TotalResults; filter Deploy/project/environment. Jenkins active scan обходит retained builds по tree ranges100. max_pages по умолчанию50; превышение не превращается в частичный успешный snapshot. Частота запросов и ограничения оцениваются DevOps. Пагинация API не является транзакционным снимком при concurrent changes.
 
-Buckets пример: 30,60,120,300,600,900,1800,3600,7200,+Inf. Одинаковые buckets на всех exporters, иначе объединённый p95 некорректен. Отменённые операции можно учитывать в duration histogram, если это согласовано; документировать этот выбор.
+**Код безопасности.** GET only, credentials из env Secret, TLS verified, optional CA file. Redirects и cross-origin pagination запрещены. Logs не выводят URLs/токены. Kubernetes Pod не нуждается в API token, RBAC, PVC или write filesystem.
 
-Не добавлять run ID, commit, arbitrary branch, task URL в labels долгоживущих counters/histograms. Такой event context хранить в event store/logs. Для гарантированных per-run Teams/PagerDuty уведомлений использовать events с дедупликацией и отдельным routing; metric alert сообщает о наличии failures pipeline в окне, а не отправляет гарантированно каждый run.
-
-Не вычислять counter путём пересчёта первых N API результатов на каждом опросе. Нужны persistent watermark, pagination, overlap window для запоздавших событий и dedup. Инициализация counters до первой failure нужна, иначе первая scrape уже с counter=1 может не дать наблюдаемого increase.
-
-## Сопоставление штатных источников
-
-| Наш KPI | Источник / замечание |
-|---|---|
-| TC agents | agents_connected_authorized_number — только connected/authorized; enabled/idle и per-resource API могут требовать REST |
-| TC queue/running | builds_queued_number/builds_running_number + REST timestamps/status |
-| Jenkins free slots | default_jenkins_executors_idle; проверить совместимость labels/pool |
-| Jenkins runnable queue | default_jenkins_executors_queue_length — не считать автоматически полной blocked queue |
-| Jenkins strict success | ordinal=0, а не boolean last_build_result=1 (тот включает UNSTABLE). Counters plugin можно сопоставить при согласованной семантике retention/restarts |
-| Jenkins duration | *_milliseconds → seconds делением на 1000. Summary нельзя превратить в histogram записью quantile; получить individual duration events |
-| Octopus deployment | deployment.TaskId → task.State + StartTime/CompletedTime; получить все страницы |
-| Octopus targets | machines HealthStatus и disabled/maintenance; отдельно от worker capacity |
-| API доступность | Реальный authenticated GET + валидация схемы ответа, не login page |
-
-Штатные metrics нужны для server health/details; normalized events нужны для одинаковых KPI. Включение per-build Jenkins metrics с номером запуска не отменяет необходимость контроля cardinality и истории.
-
-## Пример строк (только иллюстрация формата)
-
-```text
-ci_api_up{env="prod",component="teamcity"} 1
-ci_collection_complete{env="prod",component="teamcity"} 1
-ci_collection_last_success_timestamp_seconds{env="prod",component="teamcity"} 1791200000
-ci_capacity_free{env="prod",component="teamcity",pool="linux"} 3
-ci_queue_length{env="prod",component="teamcity",pool="linux"} 2
-ci_queue_limit{env="prod",component="teamcity",pool="linux"} 10
-ci_queue_oldest_age_seconds{env="prod",component="teamcity",pool="linux"} 45
-ci_operations_total{env="prod",component="teamcity",project="billing",pipeline="billing-main",operation="build",status="success"} 120
-```
-
-Не scrape этот пример вместо источников. Dashboard не содержит sample metric data.
+**Исключены:** ci_operations_total, histogram, p95, free compatible capacity, Octopus workers/targets/agents, webhook event delivery. Не добавлять recording/alert queries к ним до появления проверенного источника.

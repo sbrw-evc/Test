@@ -1,4 +1,9 @@
 apiVersion: 1
+deleteRules:
+- orgId: 1
+  uid: cicd-capacity
+- orgId: 1
+  uid: cicd-native-scrape
 groups:
 - orgId: 1
   name: CI-CD Health
@@ -6,7 +11,7 @@ groups:
   interval: 30s
   rules:
   - uid: cicd-server-down
-    title: CI/CD · Service unavailable
+    title: CI/CD · HTTP or API unavailable
     condition: B
     for: 2m
     noDataState: OK
@@ -17,10 +22,10 @@ groups:
       severity: critical
       team: platform
     annotations:
-      summary: An observed HTTP readiness or authenticated API check is failing.
-      runbook_url: https://wiki.example.internal/cicd-monitoring
+      summary: Observed HTTP/API check failed. API failure may also indicate credentials,
+        permissions or an unavailable pipeline.
       __dashboardUid__: cicd-health
-      __panelId__: '1'
+      __panelId__: '2'
     data:
     - refId: A
       datasourceUid: cicd-prometheus
@@ -33,8 +38,6 @@ groups:
         instant: true
         range: false
         format: time_series
-        intervalMs: 1000
-        maxDataPoints: 43200
         datasource:
           type: prometheus
           uid: cicd-prometheus
@@ -50,8 +53,6 @@ groups:
         datasource:
           type: __expr__
           uid: __expr__
-        intervalMs: 1000
-        maxDataPoints: 43200
   - uid: cicd-data-stale
     title: CI/CD · Data stale or incomplete
     condition: B
@@ -64,10 +65,10 @@ groups:
       severity: warning
       team: platform
     annotations:
-      summary: Collector data is older than 180s or collection is incomplete.
-      runbook_url: https://wiki.example.internal/cicd-monitoring
+      summary: No complete snapshot within 180 s, missing probe/exporter, or incomplete
+        API pagination.
       __dashboardUid__: cicd-health
-      __panelId__: '1'
+      __panelId__: '2'
     data:
     - refId: A
       datasourceUid: cicd-prometheus
@@ -80,8 +81,6 @@ groups:
         instant: true
         range: false
         format: time_series
-        intervalMs: 1000
-        maxDataPoints: 43200
         datasource:
           type: prometheus
           uid: cicd-prometheus
@@ -97,10 +96,8 @@ groups:
         datasource:
           type: __expr__
           uid: __expr__
-        intervalMs: 1000
-        maxDataPoints: 43200
   - uid: cicd-build-failed
-    title: CI/CD · Build failed
+    title: CI/CD · Last build failed
     condition: B
     for: 0s
     noDataState: OK
@@ -111,11 +108,10 @@ groups:
       severity: warning
       team: platform
     annotations:
-      summary: A failed or timed out build was observed in the last 5 minutes. Multiple
-        failures may be grouped; use the event channel for each individual run.
-      runbook_url: https://wiki.example.internal/cicd-monitoring
+      summary: Latest observed terminal result is failed or timed out. Resolves when
+        a later terminal result replaces it. Polling can miss intermediate failures.
       __dashboardUid__: cicd-health
-      __panelId__: '1'
+      __panelId__: '2'
     data:
     - refId: A
       datasourceUid: cicd-prometheus
@@ -124,14 +120,12 @@ groups:
         to: 0
       model:
         refId: A
-        expr: (sum by (env, component, project, pipeline, operation) (increase(ci_operations_total{operation="build",status=~"failed|timed_out"}[5m]))
-          > bool 0) and on (env, component) (ci:data_stale == 0) and on (env, component)
+        expr: (ci_last_operation_status{operation="build"} == 2 or ci_last_operation_status{operation="build"}
+          == 4) and on (env, component) (ci:data_stale == 0) and on (env, component)
           (ci:component_available == 1)
         instant: true
         range: false
         format: time_series
-        intervalMs: 1000
-        maxDataPoints: 43200
         datasource:
           type: prometheus
           uid: cicd-prometheus
@@ -147,10 +141,8 @@ groups:
         datasource:
           type: __expr__
           uid: __expr__
-        intervalMs: 1000
-        maxDataPoints: 43200
   - uid: cicd-deploy-failed
-    title: CI/CD · Deployment failed
+    title: CI/CD · Last deploy failed
     condition: B
     for: 0s
     noDataState: OK
@@ -161,10 +153,10 @@ groups:
       severity: critical
       team: platform
     annotations:
-      summary: A failed or timed out deployment was observed in the last 5 minutes.
-      runbook_url: https://wiki.example.internal/cicd-monitoring
+      summary: Latest observed terminal result is failed or timed out. Resolves when
+        a later terminal result replaces it. Polling can miss intermediate failures.
       __dashboardUid__: cicd-health
-      __panelId__: '1'
+      __panelId__: '2'
     data:
     - refId: A
       datasourceUid: cicd-prometheus
@@ -173,14 +165,12 @@ groups:
         to: 0
       model:
         refId: A
-        expr: (sum by (env, component, project, pipeline, operation) (increase(ci_operations_total{operation="deploy",status=~"failed|timed_out"}[5m]))
-          > bool 0) and on (env, component) (ci:data_stale == 0) and on (env, component)
+        expr: (ci_last_operation_status{operation="deploy"} == 2 or ci_last_operation_status{operation="deploy"}
+          == 4) and on (env, component) (ci:data_stale == 0) and on (env, component)
           (ci:component_available == 1)
         instant: true
         range: false
         format: time_series
-        intervalMs: 1000
-        maxDataPoints: 43200
         datasource:
           type: prometheus
           uid: cicd-prometheus
@@ -196,10 +186,8 @@ groups:
         datasource:
           type: __expr__
           uid: __expr__
-        intervalMs: 1000
-        maxDataPoints: 43200
   - uid: cicd-agent-down
-    title: CI/CD · Expected resource offline
+    title: CI/CD · Expected agent unavailable
     condition: B
     for: 5m
     noDataState: OK
@@ -210,10 +198,9 @@ groups:
       severity: warning
       team: platform
     annotations:
-      summary: An expected non-ephemeral agent, worker, or deployment target is offline.
-      runbook_url: https://wiki.example.internal/cicd-monitoring
+      summary: Explicitly expected stable agent is missing, disconnected or disabled.
       __dashboardUid__: cicd-health
-      __panelId__: '1'
+      __panelId__: '2'
     data:
     - refId: A
       datasourceUid: cicd-prometheus
@@ -227,8 +214,6 @@ groups:
         instant: true
         range: false
         format: time_series
-        intervalMs: 1000
-        maxDataPoints: 43200
         datasource:
           type: prometheus
           uid: cicd-prometheus
@@ -244,10 +229,8 @@ groups:
         datasource:
           type: __expr__
           uid: __expr__
-        intervalMs: 1000
-        maxDataPoints: 43200
-  - uid: cicd-capacity
-    title: CI/CD · No free compatible capacity
+  - uid: cicd-agents-low
+    title: CI/CD · Too few online agents
     condition: B
     for: 5m
     noDataState: OK
@@ -258,10 +241,10 @@ groups:
       severity: warning
       team: platform
     annotations:
-      summary: A pool has queued work and no free compatible executor/worker slots.
-      runbook_url: https://wiki.example.internal/cicd-monitoring
+      summary: Online agent count below configured minimum. Not a compatibility or
+        free-slot guarantee.
       __dashboardUid__: cicd-health
-      __panelId__: '1'
+      __panelId__: '2'
     data:
     - refId: A
       datasourceUid: cicd-prometheus
@@ -270,14 +253,12 @@ groups:
         to: 0
       model:
         refId: A
-        expr: ((ci_capacity_free == bool 0) * on (env, component, pool) (ci_queue_length
-          > bool 0)) and on (env, component) (ci:data_stale == 0) and on (env, component)
-          (ci:component_available == 1)
+        expr: (ci_agents_online < bool ci_agents_minimum) and on (env, component)
+          (ci:data_stale == 0) and on (env, component) (ci:component_available ==
+          1)
         instant: true
         range: false
         format: time_series
-        intervalMs: 1000
-        maxDataPoints: 43200
         datasource:
           type: prometheus
           uid: cicd-prometheus
@@ -293,10 +274,8 @@ groups:
         datasource:
           type: __expr__
           uid: __expr__
-        intervalMs: 1000
-        maxDataPoints: 43200
   - uid: cicd-queue-size
-    title: CI/CD · Queue over limit
+    title: CI/CD · Queue exceeds limit
     condition: B
     for: 10m
     noDataState: OK
@@ -307,10 +286,9 @@ groups:
       severity: warning
       team: platform
     annotations:
-      summary: Queue length exceeds the configured limit for the pool.
-      runbook_url: https://wiki.example.internal/cicd-monitoring
+      summary: Selected-pipeline queue above configured limit.
       __dashboardUid__: cicd-health
-      __panelId__: '1'
+      __panelId__: '2'
     data:
     - refId: A
       datasourceUid: cicd-prometheus
@@ -324,8 +302,6 @@ groups:
         instant: true
         range: false
         format: time_series
-        intervalMs: 1000
-        maxDataPoints: 43200
         datasource:
           type: prometheus
           uid: cicd-prometheus
@@ -341,8 +317,6 @@ groups:
         datasource:
           type: __expr__
           uid: __expr__
-        intervalMs: 1000
-        maxDataPoints: 43200
   - uid: cicd-queue-age
     title: CI/CD · Queue waiting too long
     condition: B
@@ -355,10 +329,9 @@ groups:
       severity: critical
       team: platform
     annotations:
-      summary: Oldest queued operation is waiting more than 15 minutes.
-      runbook_url: https://wiki.example.internal/cicd-monitoring
+      summary: Oldest queued operation waiting longer than 15 min.
       __dashboardUid__: cicd-health
-      __panelId__: '1'
+      __panelId__: '2'
     data:
     - refId: A
       datasourceUid: cicd-prometheus
@@ -372,8 +345,6 @@ groups:
         instant: true
         range: false
         format: time_series
-        intervalMs: 1000
-        maxDataPoints: 43200
         datasource:
           type: prometheus
           uid: cicd-prometheus
@@ -389,8 +360,6 @@ groups:
         datasource:
           type: __expr__
           uid: __expr__
-        intervalMs: 1000
-        maxDataPoints: 43200
   - uid: cicd-long-build
     title: CI/CD · Build running too long
     condition: B
@@ -403,10 +372,9 @@ groups:
       severity: warning
       team: platform
     annotations:
-      summary: A running build exceeds its pipeline-specific execution limit.
-      runbook_url: https://wiki.example.internal/cicd-monitoring
+      summary: Current build exceeds configured timeout.
       __dashboardUid__: cicd-health
-      __panelId__: '1'
+      __panelId__: '2'
     data:
     - refId: A
       datasourceUid: cicd-prometheus
@@ -421,8 +389,6 @@ groups:
         instant: true
         range: false
         format: time_series
-        intervalMs: 1000
-        maxDataPoints: 43200
         datasource:
           type: prometheus
           uid: cicd-prometheus
@@ -438,10 +404,8 @@ groups:
         datasource:
           type: __expr__
           uid: __expr__
-        intervalMs: 1000
-        maxDataPoints: 43200
   - uid: cicd-slow-http
-    title: CI/CD · Server response slow
+    title: CI/CD · HTTP response too slow
     condition: B
     for: 5m
     noDataState: OK
@@ -452,10 +416,9 @@ groups:
       severity: warning
       team: platform
     annotations:
-      summary: Synthetic HTTP probe takes longer than 2s.
-      runbook_url: https://wiki.example.internal/cicd-monitoring
+      summary: HTTP probe exceeds 2 s.
       __dashboardUid__: cicd-health
-      __panelId__: '1'
+      __panelId__: '2'
     data:
     - refId: A
       datasourceUid: cicd-prometheus
@@ -464,13 +427,11 @@ groups:
         to: 0
       model:
         refId: A
-        expr: (max by (env, component) (probe_duration_seconds{job="cicd-http"}) >
-          bool 2) and on (env, component) (ci:probe_up == 1)
+        expr: (probe_duration_seconds{job="cicd-http"} > bool 2) and (probe_success{job="cicd-http"}
+          == 1)
         instant: true
         range: false
         format: time_series
-        intervalMs: 1000
-        maxDataPoints: 43200
         datasource:
           type: prometheus
           uid: cicd-prometheus
@@ -486,56 +447,6 @@ groups:
         datasource:
           type: __expr__
           uid: __expr__
-        intervalMs: 1000
-        maxDataPoints: 43200
-  - uid: cicd-native-scrape
-    title: CI/CD · Native metrics missing
-    condition: B
-    for: 3m
-    noDataState: OK
-    execErrState: Error
-    isPaused: false
-    labels:
-      domain: cicd
-      severity: warning
-      team: platform
-    annotations:
-      summary: Native Prometheus metrics scrape is failing. Check auth, endpoint,
-        network, and TLS.
-      runbook_url: https://wiki.example.internal/cicd-monitoring
-      __dashboardUid__: cicd-health
-      __panelId__: '1'
-    data:
-    - refId: A
-      datasourceUid: cicd-prometheus
-      relativeTimeRange:
-        from: 600
-        to: 0
-      model:
-        refId: A
-        expr: 1 - up{job=~"teamcity|jenkins"}
-        instant: true
-        range: false
-        format: time_series
-        intervalMs: 1000
-        maxDataPoints: 43200
-        datasource:
-          type: prometheus
-          uid: cicd-prometheus
-    - refId: B
-      datasourceUid: __expr__
-      relativeTimeRange:
-        from: 0
-        to: 0
-      model:
-        refId: B
-        type: math
-        expression: $A > 0
-        datasource:
-          type: __expr__
-          uid: __expr__
-        intervalMs: 1000
-        maxDataPoints: 43200
   - uid: cicd-rules-missing
     title: CI/CD · Recording rules missing
     condition: B
@@ -548,11 +459,9 @@ groups:
       severity: critical
       team: platform
     annotations:
-      summary: Expected recording rule series is absent. Check rules, evaluation,
-        and inventory configuration.
-      runbook_url: https://wiki.example.internal/cicd-monitoring
+      summary: Expected component inventory rules missing.
       __dashboardUid__: cicd-health
-      __panelId__: '1'
+      __panelId__: '2'
     data:
     - refId: A
       datasourceUid: cicd-prometheus
@@ -566,8 +475,6 @@ groups:
         instant: true
         range: false
         format: time_series
-        intervalMs: 1000
-        maxDataPoints: 43200
         datasource:
           type: prometheus
           uid: cicd-prometheus
@@ -583,5 +490,3 @@ groups:
         datasource:
           type: __expr__
           uid: __expr__
-        intervalMs: 1000
-        maxDataPoints: 43200

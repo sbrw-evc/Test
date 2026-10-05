@@ -1,0 +1,68 @@
+# Adapt namespace, Service selector, named port, TLS serverName and release label.
+# Assumes source Services carry env=prod, component=teamcity|jenkins and named port https.
+# Credentials Secrets and CA ConfigMap must be in the ServiceMonitor namespace.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: teamcity-native
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  jobLabel: component
+  namespaceSelector:
+    matchNames: [cicd]
+  selector:
+    matchLabels:
+      monitoring-source: teamcity
+  targetLabels: [env, component]
+  endpoints:
+    - port: https
+      scheme: https
+      path: /app/metrics
+      interval: 30s
+      authorization:
+        type: Bearer
+        credentials:
+          name: cicd-native-credentials
+          key: TEAMCITY_TOKEN
+      tlsConfig:
+        serverName: teamcity.example.internal
+        ca:
+          configMap:
+            name: cicd-ca
+            key: ca.crt
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: jenkins-native
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  jobLabel: component
+  namespaceSelector:
+    matchNames: [cicd]
+  selector:
+    matchLabels:
+      monitoring-source: jenkins
+  targetLabels: [env, component]
+  endpoints:
+    - port: https
+      scheme: https
+      path: /prometheus/ # Jenkins context path may require a prefix.
+      interval: 30s
+      basicAuth:
+        username:
+          name: cicd-native-credentials
+          key: JENKINS_USER
+        password:
+          name: cicd-native-credentials
+          key: JENKINS_TOKEN
+      tlsConfig:
+        serverName: jenkins.example.internal
+        ca:
+          configMap:
+            name: cicd-ca
+            key: ca.crt

@@ -2,62 +2,41 @@
   "id": null,
   "uid": "cicd-health",
   "title": "CI/CD Health · Operations",
-  "description": "TeamCity / Jenkins / Octopus operational dashboard. Requires normalized adapter contract and recording rules. Native detail panels included. No demo data.",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": true,
   "style": "dark",
   "tags": [
     "cicd",
-    "operations",
-    "teamcity",
-    "jenkins",
-    "octopus"
+    "operations"
   ],
   "timezone": "browser",
   "time": {
-    "from": "now-24h",
+    "from": "now-6h",
     "to": "now"
   },
   "refresh": "30s",
-  "timepicker": {
-    "refresh_intervals": [
-      "15s",
-      "30s",
-      "1m",
-      "5m"
-    ],
-    "time_options": [
-      "1h",
-      "6h",
-      "12h",
-      "24h",
-      "7d"
-    ]
-  },
   "templating": {
     "list": [
       {
         "name": "DS_PROMETHEUS",
-        "label": "Prometheus",
         "type": "datasource",
         "query": "prometheus",
-        "current": {},
-        "refresh": 1
+        "current": {
+          "text": "Prometheus",
+          "value": "cicd-prometheus"
+        }
       },
       {
         "name": "env",
-        "label": "Environment",
+        "label": "Окружение",
         "type": "query",
         "datasource": {
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
         "query": "label_values(ci:expected_component, env)",
-        "definition": "label_values(ci:expected_component, env)",
         "refresh": 1,
-        "multi": false,
-        "includeAll": false,
         "current": {
           "text": "prod",
           "value": "prod"
@@ -65,103 +44,59 @@
       },
       {
         "name": "component",
-        "label": "Component",
+        "label": "Компоненты",
         "type": "custom",
         "query": "teamcity,jenkins,octopus",
         "multi": true,
         "includeAll": true,
         "allValue": ".*",
         "current": {
-          "text": [
-            "All"
-          ],
-          "value": [
-            "$__all"
-          ]
+          "text": "All",
+          "value": "$__all"
         }
       },
       {
         "name": "project",
-        "label": "Pipeline",
+        "label": "Проект только операции",
         "type": "query",
         "datasource": {
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
-        "query": "label_values(ci_last_operation_status{env=~\"$env\",component=~\"$component\"}, project)",
-        "refresh": 1,
+        "query": "label_values(ci_operation_timeout_seconds{env=~\"$env\",component=~\"$component\"}, project)",
         "multi": true,
         "includeAll": true,
         "allValue": ".*",
+        "refresh": 1,
         "current": {
-          "text": [
-            "All"
-          ],
-          "value": [
-            "$__all"
-          ]
+          "text": "All",
+          "value": "$__all"
         }
       },
       {
         "name": "teamcity_url",
         "type": "constant",
         "query": "https://teamcity.example.internal",
-        "current": {
-          "text": "https://teamcity.example.internal",
-          "value": "https://teamcity.example.internal"
-        },
         "hide": 2
       },
       {
         "name": "jenkins_url",
         "type": "constant",
         "query": "https://jenkins.example.internal",
-        "current": {
-          "text": "https://jenkins.example.internal",
-          "value": "https://jenkins.example.internal"
-        },
         "hide": 2
       },
       {
         "name": "octopus_url",
         "type": "constant",
         "query": "https://octopus.example.internal",
-        "current": {
-          "text": "https://octopus.example.internal",
-          "value": "https://octopus.example.internal"
-        },
         "hide": 2
       }
     ]
   },
-  "annotations": {
-    "list": [
-      {
-        "builtIn": 1,
-        "datasource": {
-          "type": "grafana",
-          "uid": "-- Grafana --"
-        },
-        "enable": true,
-        "hide": true,
-        "iconColor": "rgba(0,211,255,1)",
-        "name": "Annotations & Alerts",
-        "type": "dashboard"
-      }
-    ]
-  },
-  "links": [
-    {
-      "title": "Runbook",
-      "url": "https://wiki.example.internal/cicd-monitoring",
-      "type": "link",
-      "targetBlank": true
-    }
-  ],
   "panels": [
     {
       "id": 1,
-      "title": "CI/CD · OPERATIONS CENTER",
+      "title": "CI/CD Operations",
       "type": "text",
       "gridPos": {
         "x": 0,
@@ -172,13 +107,12 @@
       "description": "",
       "options": {
         "mode": "markdown",
-        "content": "## CI/CD Health\nTeamCity · Jenkins · Octopus | текущий статус + результаты операций\n\n**UNKNOWN** означает неполные/устаревшие данные. Успехи — за выбранный диапазон; результаты справа — последние завершённые операции. Подключите адаптер `ci_*` и recording rules из комплекта."
-      },
-      "links": []
+        "content": "### CI/CD HEALTH\nTeamCity · Jenkins · Octopus | DOWN → UNKNOWN → DEGRADED → HEALTHY\n\nДанные выбранных pipeline. Доля успеха относится к **последним результатам**, не к запускам за период. Устаревшие KPI скрыты."
+      }
     },
     {
       "id": 2,
-      "title": "TeamCity · operational state",
+      "title": "TeamCity",
       "type": "stat",
       "gridPos": {
         "x": 0,
@@ -186,52 +120,10 @@
         "w": 6,
         "h": 5
       },
+      "description": "DOWN: проверка HTTP/API неуспешна. UNKNOWN: сбор отсутствует, старше 180 s или неполный. DEGRADED: последний результат неуспешен, очередь или агенты ниже порога.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "Состояние инфраструктуры и последних операций. DOWN: HTTP/API недоступны; UNKNOWN: данные неполные/старше 180s; DEGRADED: ошибки/очередь/ресурсы; HEALTHY: проверенные условия в норме.",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "noValue": "NO DATA",
-          "color": {
-            "mode": "palette-classic"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "DOWN",
-                  "color": "red"
-                },
-                "1": {
-                  "text": "UNKNOWN",
-                  "color": "gray"
-                },
-                "2": {
-                  "text": "DEGRADED",
-                  "color": "orange"
-                },
-                "3": {
-                  "text": "HEALTHY",
-                  "color": "green"
-                }
-              }
-            }
-          ]
-        },
-        "overrides": []
       },
       "targets": [
         {
@@ -241,72 +133,16 @@
           "instant": true,
           "range": false,
           "format": "time_series",
-          "editorMode": "code",
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           }
         }
       ],
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "wideLayout": true
-      },
-      "links": [
-        {
-          "title": "Открыть детали TeamCity",
-          "url": "/d/cicd-health/cicd-health?var-env=$env&var-component=teamcity&var-project=All&from=$__from&to=$__to&viewPanel=33",
-          "targetBlank": false
-        },
-        {
-          "title": "Открыть TeamCity",
-          "url": "${teamcity_url}",
-          "targetBlank": true
-        }
-      ]
-    },
-    {
-      "id": 3,
-      "title": "Jenkins · operational state",
-      "type": "stat",
-      "gridPos": {
-        "x": 6,
-        "y": 3,
-        "w": 6,
-        "h": 5
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "Состояние инфраструктуры и последних операций. DOWN: HTTP/API недоступны; UNKNOWN: данные неполные/старше 180s; DEGRADED: ошибки/очередь/ресурсы; HEALTHY: проверенные условия в норме.",
       "fieldConfig": {
         "defaults": {
           "unit": "short",
           "noValue": "NO DATA",
-          "color": {
-            "mode": "palette-classic"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
           "mappings": [
             {
               "type": "value",
@@ -329,9 +165,62 @@
                 }
               }
             }
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": [
+            {
+              "title": "Детали компонента",
+              "url": "/d/cicd-health?var-env=${env}&var-component=teamcity&var-project=All&from=${__from}&to=${__to}"
+            }
           ]
         },
         "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "none",
+        "colorMode": "value",
+        "textMode": "auto"
+      },
+      "links": [
+        {
+          "title": "Открыть TeamCity",
+          "url": "$teamcity_url",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Jenkins",
+      "type": "stat",
+      "gridPos": {
+        "x": 6,
+        "y": 3,
+        "w": 6,
+        "h": 5
+      },
+      "description": "DOWN: проверка HTTP/API неуспешна. UNKNOWN: сбор отсутствует, старше 180 s или неполный. DEGRADED: последний результат неуспешен, очередь или агенты ниже порога.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
       },
       "targets": [
         {
@@ -341,72 +230,16 @@
           "instant": true,
           "range": false,
           "format": "time_series",
-          "editorMode": "code",
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           }
         }
       ],
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "wideLayout": true
-      },
-      "links": [
-        {
-          "title": "Открыть детали Jenkins",
-          "url": "/d/cicd-health/cicd-health?var-env=$env&var-component=jenkins&var-project=All&from=$__from&to=$__to&viewPanel=38",
-          "targetBlank": false
-        },
-        {
-          "title": "Открыть Jenkins",
-          "url": "${jenkins_url}",
-          "targetBlank": true
-        }
-      ]
-    },
-    {
-      "id": 4,
-      "title": "Octopus · operational state",
-      "type": "stat",
-      "gridPos": {
-        "x": 12,
-        "y": 3,
-        "w": 6,
-        "h": 5
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "Состояние инфраструктуры и последних операций. DOWN: HTTP/API недоступны; UNKNOWN: данные неполные/старше 180s; DEGRADED: ошибки/очередь/ресурсы; HEALTHY: проверенные условия в норме.",
       "fieldConfig": {
         "defaults": {
           "unit": "short",
           "noValue": "NO DATA",
-          "color": {
-            "mode": "palette-classic"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
           "mappings": [
             {
               "type": "value",
@@ -429,9 +262,62 @@
                 }
               }
             }
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": [
+            {
+              "title": "Детали компонента",
+              "url": "/d/cicd-health?var-env=${env}&var-component=jenkins&var-project=All&from=${__from}&to=${__to}"
+            }
           ]
         },
         "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "none",
+        "colorMode": "value",
+        "textMode": "auto"
+      },
+      "links": [
+        {
+          "title": "Открыть Jenkins",
+          "url": "$jenkins_url",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Octopus",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 3,
+        "w": 6,
+        "h": 5
+      },
+      "description": "DOWN: проверка HTTP/API неуспешна. UNKNOWN: сбор отсутствует, старше 180 s или неполный. DEGRADED: последний результат неуспешен, очередь или агенты ниже порога.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
       },
       "targets": [
         {
@@ -441,72 +327,16 @@
           "instant": true,
           "range": false,
           "format": "time_series",
-          "editorMode": "code",
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           }
         }
       ],
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "wideLayout": true
-      },
-      "links": [
-        {
-          "title": "Открыть детали Octopus",
-          "url": "/d/cicd-health/cicd-health?var-env=$env&var-component=octopus&var-project=All&from=$__from&to=$__to&viewPanel=43",
-          "targetBlank": false
-        },
-        {
-          "title": "Открыть Octopus",
-          "url": "${octopus_url}",
-          "targetBlank": true
-        }
-      ]
-    },
-    {
-      "id": 5,
-      "title": "CI/CD · общее состояние",
-      "type": "stat",
-      "gridPos": {
-        "x": 18,
-        "y": 3,
-        "w": 6,
-        "h": 5
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "Худший статус среди ВСЕХ ожидаемых компонентов выбранного env, независимо от component-фильтра. Это агрегат сигналов мониторинга, не доказательство доставки каждого релиза.",
       "fieldConfig": {
         "defaults": {
           "unit": "short",
           "noValue": "NO DATA",
-          "color": {
-            "mode": "palette-classic"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
           "mappings": [
             {
               "type": "value",
@@ -529,9 +359,62 @@
                 }
               }
             }
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": [
+            {
+              "title": "Детали компонента",
+              "url": "/d/cicd-health?var-env=${env}&var-component=octopus&var-project=All&from=${__from}&to=${__to}"
+            }
           ]
         },
         "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "none",
+        "colorMode": "value",
+        "textMode": "auto"
+      },
+      "links": [
+        {
+          "title": "Открыть Octopus",
+          "url": "$octopus_url",
+          "targetBlank": true
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Общее состояние",
+      "type": "stat",
+      "gridPos": {
+        "x": 18,
+        "y": 3,
+        "w": 6,
+        "h": 5
+      },
+      "description": "Худший статус всех трёх ожидаемых систем; component фильтр не влияет.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
       },
       "targets": [
         {
@@ -541,13 +424,54 @@
           "instant": true,
           "range": false,
           "format": "time_series",
-          "editorMode": "code",
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           }
         }
       ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "NO DATA",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UNKNOWN",
+                  "color": "gray"
+                },
+                "2": {
+                  "text": "DEGRADED",
+                  "color": "orange"
+                },
+                "3": {
+                  "text": "HEALTHY",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
       "options": {
         "reduceOptions": {
           "calcs": [
@@ -556,89 +480,128 @@
           "fields": "",
           "values": false
         },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
         "graphMode": "none",
-        "justifyMode": "auto",
-        "wideLayout": true
-      },
-      "links": []
+        "colorMode": "value",
+        "textMode": "auto"
+      }
     },
     {
       "id": 6,
-      "type": "row",
-      "title": "Результаты и ресурсы",
-      "collapsed": false,
+      "title": "Успешны последние сборки",
+      "type": "stat",
       "gridPos": {
         "x": 0,
         "y": 8,
-        "w": 24,
-        "h": 1
+        "w": 6,
+        "h": 4
       },
-      "panels": []
+      "description": "Один последний завершённый результат на каждый выбранный pipeline. Pipeline без запусков отсутствуют в знаменателе. Не процент за выбранный период.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * avg((ci_last_operation_status{env=~\"$env\",component=~\"$component\",project=~\"$project\",operation=\"build\"} == bool 0) and on (env, component) (ci:data_stale == 0) and on (env, component) (ci:component_available == 1))",
+          "legendFormat": "{{component}}",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "NO DATA",
+          "mappings": [],
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100,
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "none",
+        "colorMode": "value",
+        "textMode": "auto"
+      }
     },
     {
       "id": 7,
-      "title": "Сборки · success",
+      "title": "Успешны последние деплои",
       "type": "stat",
       "gridPos": {
-        "x": 0,
-        "y": 9,
-        "w": 4,
+        "x": 6,
+        "y": 8,
+        "w": 6,
         "h": 4
       },
+      "description": "Один последний завершённый результат на каждый выбранный pipeline. Pipeline без запусков отсутствуют в знаменателе. Не процент за выбранный период.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Результаты за выбранный диапазон. Нет операций — NO DATA, не 100%. Отмена исключена из denominator success rate. Ресурсы/очередь — текущие значения и не зависят от project.",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "noValue": "NO DATA",
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 90
-              },
-              {
-                "color": "green",
-                "value": 98
-              }
-            ]
-          },
-          "mappings": [],
-          "min": 0,
-          "max": 100,
-          "decimals": 1
-        },
-        "overrides": []
-      },
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * sum(increase(ci_operations_total{env=~\"$env\",component=~\"$component\",project=~\"$project\",operation=\"build\",status=\"success\"}[$__range])) / sum(increase(ci_operations_total{env=~\"$env\",component=~\"$component\",project=~\"$project\",operation=\"build\",status=~\"success|failed|unstable|timed_out\"}[$__range]))",
+          "expr": "100 * avg((ci_last_operation_status{env=~\"$env\",component=~\"$component\",project=~\"$project\",operation=\"deploy\"} == bool 0) and on (env, component) (ci:data_stale == 0) and on (env, component) (ci:component_available == 1))",
           "legendFormat": "{{component}}",
           "instant": true,
           "range": false,
           "format": "time_series",
-          "editorMode": "code",
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           }
         }
       ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "NO DATA",
+          "mappings": [],
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100,
+          "decimals": 1
+        },
+        "overrides": []
+      },
       "options": {
         "reduceOptions": {
           "calcs": [
@@ -647,76 +610,60 @@
           "fields": "",
           "values": false
         },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
         "graphMode": "none",
-        "justifyMode": "auto",
-        "wideLayout": true
-      },
-      "links": []
+        "colorMode": "value",
+        "textMode": "auto"
+      }
     },
     {
       "id": 8,
-      "title": "Деплои · success",
+      "title": "Агенты онлайн TC и Jenkins",
       "type": "stat",
       "gridPos": {
-        "x": 4,
-        "y": 9,
-        "w": 4,
+        "x": 12,
+        "y": 8,
+        "w": 6,
         "h": 4
       },
+      "description": "TC: connected + authorized + enabled. Jenkins: online с executors > 0, без контроллера. Это не число свободных совместимых слотов. Без фильтра project.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Результаты за выбранный диапазон. Нет операций — NO DATA, не 100%. Отмена исключена из denominator success rate. Ресурсы/очередь — текущие значения и не зависят от project.",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "noValue": "NO DATA",
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 90
-              },
-              {
-                "color": "green",
-                "value": 98
-              }
-            ]
-          },
-          "mappings": [],
-          "min": 0,
-          "max": 100,
-          "decimals": 1
-        },
-        "overrides": []
-      },
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * sum(increase(ci_operations_total{env=~\"$env\",component=~\"$component\",project=~\"$project\",operation=\"deploy\",status=\"success\"}[$__range])) / sum(increase(ci_operations_total{env=~\"$env\",component=~\"$component\",project=~\"$project\",operation=\"deploy\",status=~\"success|failed|unstable|timed_out\"}[$__range]))",
+          "expr": "sum(ci_agents_online{env=~\"$env\",component=~\"$component\",component=~\"teamcity|jenkins\"} and on (env, component) (ci:data_stale == 0) and on (env, component) (ci:component_available == 1))",
           "legendFormat": "{{component}}",
           "instant": true,
           "range": false,
           "format": "time_series",
-          "editorMode": "code",
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           }
         }
       ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "NO DATA",
+          "mappings": [],
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
       "options": {
         "reduceOptions": {
           "calcs": [
@@ -725,34 +672,45 @@
           "fields": "",
           "values": false
         },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
         "graphMode": "none",
-        "justifyMode": "auto",
-        "wideLayout": true
-      },
-      "links": []
+        "colorMode": "value",
+        "textMode": "auto"
+      }
     },
     {
       "id": 9,
-      "title": "Операции · failures",
+      "title": "Очередь выбранных pipeline",
       "type": "stat",
       "gridPos": {
-        "x": 8,
-        "y": 9,
-        "w": 4,
+        "x": 18,
+        "y": 8,
+        "w": 6,
         "h": 4
       },
+      "description": "Scope задаётся config.yml адаптера. Project фильтр не меняет эту очередь.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Результаты за выбранный диапазон. Нет операций — NO DATA, не 100%. Отмена исключена из denominator success rate. Ресурсы/очередь — текущие значения и не зависят от project.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(ci_queue_length{env=~\"$env\",component=~\"$component\"} and on (env, component) (ci:data_stale == 0) and on (env, component) (ci:component_available == 1))",
+          "legendFormat": "{{component}}",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          }
+        }
+      ],
       "fieldConfig": {
         "defaults": {
           "unit": "short",
           "noValue": "NO DATA",
+          "mappings": [],
           "color": {
             "mode": "palette-classic"
           },
@@ -764,26 +722,10 @@
                 "value": null
               }
             ]
-          },
-          "mappings": []
+          }
         },
         "overrides": []
       },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum(increase(ci_operations_total{env=~\"$env\",component=~\"$component\",project=~\"$project\",status=~\"failed|timed_out\"}[$__range]))",
-          "legendFormat": "{{component}}",
-          "instant": true,
-          "range": false,
-          "format": "time_series",
-          "editorMode": "code",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          }
-        }
-      ],
       "options": {
         "reduceOptions": {
           "calcs": [
@@ -792,34 +734,45 @@
           "fields": "",
           "values": false
         },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
         "graphMode": "none",
-        "justifyMode": "auto",
-        "wideLayout": true
-      },
-      "links": []
+        "colorMode": "value",
+        "textMode": "auto"
+      }
     },
     {
       "id": 10,
-      "title": "CI agents · online",
-      "type": "stat",
+      "title": "Очереди",
+      "type": "timeseries",
       "gridPos": {
-        "x": 12,
-        "y": 9,
-        "w": 4,
-        "h": 4
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 7
       },
+      "description": "",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Результаты за выбранный диапазон. Нет операций — NO DATA, не 100%. Отмена исключена из denominator success rate. Ресурсы/очередь — текущие значения и не зависят от project.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ci_queue_length{env=~\"$env\",component=~\"$component\"} and on (env, component) (ci:data_stale == 0) and on (env, component) (ci:component_available == 1)",
+          "legendFormat": "{{component}}",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          }
+        }
+      ],
       "fieldConfig": {
         "defaults": {
           "unit": "short",
           "noValue": "NO DATA",
+          "mappings": [],
           "color": {
             "mode": "palette-classic"
           },
@@ -832,61 +785,64 @@
               }
             ]
           },
-          "mappings": []
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false,
+            "drawStyle": "line"
+          }
         },
         "overrides": []
       },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum(ci_agents_online{env=~\"$env\",component=~\"$component\",component=~\"teamcity|jenkins\"})",
-          "legendFormat": "{{component}}",
-          "instant": true,
-          "range": false,
-          "format": "time_series",
-          "editorMode": "code",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          }
-        }
-      ],
       "options": {
-        "reduceOptions": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
           "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
+            "lastNotNull",
+            "max"
+          ]
         },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "wideLayout": true
-      },
-      "links": []
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
     },
     {
       "id": 11,
-      "title": "Очередь · CI + CD",
-      "type": "stat",
+      "title": "HTTP время ответа",
+      "type": "timeseries",
       "gridPos": {
-        "x": 16,
-        "y": 9,
-        "w": 4,
-        "h": 4
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 7
       },
+      "description": "Полная длительность blackbox HTTP probe, включая DNS/TCP/TLS.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Результаты за выбранный диапазон. Нет операций — NO DATA, не 100%. Отмена исключена из denominator success rate. Ресурсы/очередь — текущие значения и не зависят от project.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "probe_duration_seconds{env=~\"$env\",component=~\"$component\",job=\"cicd-http\"} and (time()-timestamp(probe_duration_seconds{env=~\"$env\",component=~\"$component\",job=\"cicd-http\"}) < 90)",
+          "legendFormat": "{{component}}",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          }
+        }
+      ],
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "unit": "s",
           "noValue": "NO DATA",
+          "mappings": [],
           "color": {
             "mode": "palette-classic"
           },
@@ -899,61 +855,64 @@
               }
             ]
           },
-          "mappings": []
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false,
+            "drawStyle": "line"
+          }
         },
         "overrides": []
       },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum(ci_queue_length{env=~\"$env\",component=~\"$component\"})",
-          "legendFormat": "{{component}}",
-          "instant": true,
-          "range": false,
-          "format": "time_series",
-          "editorMode": "code",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          }
-        }
-      ],
       "options": {
-        "reduceOptions": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
           "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
+            "lastNotNull",
+            "max"
+          ]
         },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "wideLayout": true
-      },
-      "links": []
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
     },
     {
       "id": 12,
-      "title": "Сборки · p95",
-      "type": "stat",
+      "title": "Длительность последней операции",
+      "type": "timeseries",
       "gridPos": {
-        "x": 20,
-        "y": 9,
-        "w": 4,
-        "h": 4
+        "x": 0,
+        "y": 19,
+        "w": 12,
+        "h": 7
       },
+      "description": "Ступенчатое значение последней завершённой операции, не p95 и не распределение всех запусков.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Результаты за выбранный диапазон. Нет операций — NO DATA, не 100%. Отмена исключена из denominator success rate. Ресурсы/очередь — текущие значения и не зависят от project.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ci_last_operation_duration_seconds{env=~\"$env\",component=~\"$component\",project=~\"$project\"} and on (env, component) (ci:data_stale == 0) and on (env, component) (ci:component_available == 1)",
+          "legendFormat": "{{component}} / {{pipeline}}",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          }
+        }
+      ],
       "fieldConfig": {
         "defaults": {
           "unit": "s",
           "noValue": "NO DATA",
+          "mappings": [],
           "color": {
             "mode": "palette-classic"
           },
@@ -966,435 +925,133 @@
               }
             ]
           },
-          "mappings": []
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false,
+            "drawStyle": "line"
+          }
         },
         "overrides": []
       },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by(le) (rate(ci_operation_duration_seconds_bucket{env=~\"$env\",component=~\"$component\",project=~\"$project\",operation=\"build\"}[$__rate_interval])))",
-          "legendFormat": "{{component}}",
-          "instant": true,
-          "range": false,
-          "format": "time_series",
-          "editorMode": "code",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          }
-        }
-      ],
       "options": {
-        "reduceOptions": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
           "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
+            "lastNotNull",
+            "max"
+          ]
         },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "wideLayout": true
-      },
-      "links": []
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
     },
     {
       "id": 13,
-      "type": "row",
-      "title": "Нагрузка и скорость",
-      "collapsed": false,
+      "title": "Текущие операции",
+      "type": "timeseries",
       "gridPos": {
-        "x": 0,
-        "y": 13,
-        "w": 24,
-        "h": 1
+        "x": 12,
+        "y": 19,
+        "w": 12,
+        "h": 7
       },
-      "panels": []
+      "description": "Максимальный возраст текущей операции на pipeline; ноль если нет активных.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ci_running_elapsed_seconds{env=~\"$env\",component=~\"$component\",project=~\"$project\"} and on (env, component) (ci:data_stale == 0) and on (env, component) (ci:component_available == 1)",
+          "legendFormat": "{{component}} / {{pipeline}}",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "NO DATA",
+          "mappings": [],
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false,
+            "drawStyle": "line"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
     },
     {
       "id": 14,
-      "title": "Очереди · по компонентам",
-      "type": "timeseries",
-      "gridPos": {
-        "x": 0,
-        "y": 14,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "noValue": "NO DATA",
-          "color": {
-            "mode": "palette-classic"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "mappings": [],
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "showPoints": "never",
-            "spanNulls": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum by(component) (ci_queue_length{env=~\"$env\",component=~\"$component\"})",
-          "legendFormat": "{{component}}",
-          "instant": false,
-          "range": true,
-          "format": "time_series",
-          "editorMode": "code",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          }
-        }
-      ],
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "links": []
-    },
-    {
-      "id": 15,
-      "title": "Время операций · p95",
-      "type": "timeseries",
-      "gridPos": {
-        "x": 12,
-        "y": 14,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "noValue": "NO DATA",
-          "color": {
-            "mode": "palette-classic"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "mappings": [],
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "showPoints": "never",
-            "spanNulls": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "histogram_quantile(0.95,sum by(le,component,operation) (rate(ci_operation_duration_seconds_bucket{env=~\"$env\",component=~\"$component\",project=~\"$project\"}[$__rate_interval])))",
-          "legendFormat": "{{component}} · {{operation}}",
-          "instant": false,
-          "range": true,
-          "format": "time_series",
-          "editorMode": "code",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          }
-        }
-      ],
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "links": []
-    },
-    {
-      "id": 16,
-      "title": "Свободная ёмкость · executors / workers",
-      "type": "timeseries",
-      "gridPos": {
-        "x": 0,
-        "y": 22,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "TeamCity: свободные enabled authorized agents; Jenkins: свободные executors; Octopus: свободные worker slots. Это разные единицы, поэтому линии не суммируются.",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "noValue": "NO DATA",
-          "color": {
-            "mode": "palette-classic"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "mappings": [],
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "showPoints": "never",
-            "spanNulls": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum by(component) (ci_capacity_free{env=~\"$env\",component=~\"$component\"})",
-          "legendFormat": "{{component}}",
-          "instant": false,
-          "range": true,
-          "format": "time_series",
-          "editorMode": "code",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          }
-        }
-      ],
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "links": []
-    },
-    {
-      "id": 17,
-      "title": "HTTP probe · время отклика",
-      "type": "timeseries",
-      "gridPos": {
-        "x": 12,
-        "y": 22,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "Полное время синтетической HTTP-проверки, включая DNS/connect/TLS. Не длительность сборки.",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "noValue": "NO DATA",
-          "color": {
-            "mode": "palette-classic"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "mappings": [],
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "showPoints": "never",
-            "spanNulls": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "max by(component) (probe_duration_seconds{job=\"cicd-http\",env=~\"$env\",component=~\"$component\"})",
-          "legendFormat": "{{component}}",
-          "instant": false,
-          "range": true,
-          "format": "time_series",
-          "editorMode": "code",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          }
-        }
-      ],
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "links": []
-    },
-    {
-      "id": 18,
-      "type": "row",
-      "title": "Что требует внимания",
-      "collapsed": false,
-      "gridPos": {
-        "x": 0,
-        "y": 30,
-        "w": 24,
-        "h": 1
-      },
-      "panels": []
-    },
-    {
-      "id": 19,
-      "title": "Последние завершённые операции · результат",
+      "title": "Последние результаты",
       "type": "table",
       "gridPos": {
         "x": 0,
-        "y": 31,
+        "y": 26,
         "w": 14,
-        "h": 8
+        "h": 9
       },
+      "description": "Для Octopus: последняя по порядку создания завершённая Deploy task в project/environment. Runbook, системные tasks и другие environments исключены.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Одна строка на pipeline/environment/operation. Отдельный статус для canceled и unstable. Данные могут быть старыми: сверяйтесь с возрастом ниже.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ci_last_operation_status{env=~\"$env\",component=~\"$component\",project=~\"$project\"} and on (env, component) (ci:data_stale == 0) and on (env, component) (ci:component_available == 1)",
+          "legendFormat": "{{component}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          }
+        }
+      ],
       "fieldConfig": {
         "defaults": {
           "unit": "short",
           "noValue": "NO DATA",
-          "color": {
-            "mode": "palette-classic"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
           "mappings": [
             {
               "type": "value",
@@ -1418,10 +1075,26 @@
                 "4": {
                   "text": "TIMED OUT",
                   "color": "red"
+                },
+                "5": {
+                  "text": "UNKNOWN",
+                  "color": "gray"
                 }
               }
             }
-          ]
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
         },
         "overrides": [
           {
@@ -1438,207 +1111,108 @@
           }
         ]
       },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
+    },
+    {
+      "id": 15,
+      "title": "Возраст самого старого задания",
+      "type": "bargauge",
+      "gridPos": {
+        "x": 14,
+        "y": 26,
+        "w": 10,
+        "h": 5
+      },
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "targets": [
         {
           "refId": "A",
-          "expr": "ci_last_operation_status{env=~\"$env\",component=~\"$component\",project=~\"$project\"}",
+          "expr": "ci_queue_oldest_age_seconds{env=~\"$env\",component=~\"$component\"} and on (env, component) (ci:data_stale == 0) and on (env, component) (ci:component_available == 1)",
           "legendFormat": "{{component}}",
           "instant": true,
           "range": false,
-          "format": "table",
-          "editorMode": "code",
+          "format": "time_series",
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           }
         }
       ],
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm",
-        "sortBy": [
-          {
-            "displayName": "Value",
-            "desc": true
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "NO DATA",
+          "mappings": [],
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
           }
-        ],
-        "footer": {
-          "show": false
-        }
+        },
+        "overrides": []
       },
-      "links": []
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
     },
     {
-      "id": 20,
-      "title": "Ожидание самого старого задания",
+      "id": 16,
+      "title": "Возраст полного сбора",
       "type": "bargauge",
       "gridPos": {
         "x": 14,
         "y": 31,
         "w": 10,
-        "h": 8
+        "h": 4
       },
+      "description": "",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "noValue": "NO DATA",
-          "color": {
-            "mode": "palette-classic"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 300
-              },
-              {
-                "color": "red",
-                "value": 900
-              }
-            ]
-          },
-          "mappings": []
-        },
-        "overrides": []
-      },
       "targets": [
         {
           "refId": "A",
-          "expr": "max by(component) (ci_queue_oldest_age_seconds{env=~\"$env\",component=~\"$component\"})",
+          "expr": "ci:data_age_seconds{env=~\"$env\",component=~\"$component\"}",
           "legendFormat": "{{component}}",
           "instant": true,
           "range": false,
           "format": "time_series",
-          "editorMode": "code",
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           }
         }
       ],
-      "options": {
-        "displayMode": "gradient",
-        "orientation": "horizontal",
-        "showUnfilled": true,
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "values": false,
-          "fields": ""
-        }
-      },
-      "links": []
-    },
-    {
-      "id": 21,
-      "title": "Последние завершённые операции · возраст",
-      "type": "table",
-      "gridPos": {
-        "x": 0,
-        "y": 39,
-        "w": 14,
-        "h": 7
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "Возраст результата, а не возраст опроса API. Давно не запускавшийся pipeline не должен выглядеть как недавний успех.",
       "fieldConfig": {
         "defaults": {
           "unit": "s",
           "noValue": "NO DATA",
+          "mappings": [],
           "color": {
-            "mode": "palette-classic"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "mappings": []
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Time"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          }
-        ]
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "time() - ci_last_operation_completed_timestamp_seconds{env=~\"$env\",component=~\"$component\",project=~\"$project\"}",
-          "legendFormat": "{{component}}",
-          "instant": true,
-          "range": false,
-          "format": "table",
-          "editorMode": "code",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          }
-        }
-      ],
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm",
-        "sortBy": [
-          {
-            "displayName": "Value",
-            "desc": true
-          }
-        ],
-        "footer": {
-          "show": false
-        }
-      },
-      "links": []
-    },
-    {
-      "id": 22,
-      "title": "Свежесть полного сбора",
-      "type": "bargauge",
-      "gridPos": {
-        "x": 14,
-        "y": 39,
-        "w": 10,
-        "h": 7
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "noValue": "NO DATA",
-          "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -1656,298 +1230,56 @@
                 "value": 180
               }
             ]
-          },
-          "mappings": []
+          }
         },
         "overrides": []
       },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "ci:data_age_seconds{env=~\"$env\",component=~\"$component\"}",
-          "legendFormat": "{{component}}",
-          "instant": true,
-          "range": false,
-          "format": "time_series",
-          "editorMode": "code",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          }
-        }
-      ],
       "options": {
-        "displayMode": "gradient",
         "orientation": "horizontal",
-        "showUnfilled": true,
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "values": false,
-          "fields": ""
-        }
-      },
-      "links": []
-    },
-    {
-      "id": 23,
-      "type": "row",
-      "title": "Доступность и длительные операции",
-      "collapsed": false,
-      "gridPos": {
-        "x": 0,
-        "y": 46,
-        "w": 24,
-        "h": 1
-      },
-      "panels": []
-    },
-    {
-      "id": 24,
-      "title": "HTTP · availability за диапазон",
-      "type": "stat",
-      "gridPos": {
-        "x": 0,
-        "y": 47,
-        "w": 6,
-        "h": 5
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "Доля успешных измерений, а не SLA по непрерывному времени. Пропуски probe не считаются успешными.",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "noValue": "NO DATA",
-          "color": {
-            "mode": "palette-classic"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "mappings": []
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "100 * avg_over_time(probe_success{job=\"cicd-http\",env=~\"$env\",component=~\"$component\"}[$__range])",
-          "legendFormat": "{{component}}",
-          "instant": true,
-          "range": false,
-          "format": "time_series",
-          "editorMode": "code",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          }
-        }
-      ],
-      "options": {
+        "displayMode": "gradient",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
           ],
           "fields": "",
           "values": false
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "wideLayout": true
-      },
-      "links": []
+        }
+      }
     },
     {
-      "id": 25,
-      "title": "HTTP · текущий результат",
-      "type": "stat",
-      "gridPos": {
-        "x": 6,
-        "y": 47,
-        "w": 6,
-        "h": 5
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "noValue": "NO DATA",
-          "color": {
-            "mode": "palette-classic"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "OFFLINE",
-                  "color": "red"
-                },
-                "1": {
-                  "text": "ONLINE",
-                  "color": "green"
-                }
-              }
-            }
-          ]
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "max by(component) (probe_success{job=\"cicd-http\",env=~\"$env\",component=~\"$component\"})",
-          "legendFormat": "{{component}}",
-          "instant": true,
-          "range": false,
-          "format": "time_series",
-          "editorMode": "code",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          }
-        }
-      ],
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "wideLayout": true
-      },
-      "links": []
-    },
-    {
-      "id": 26,
-      "title": "Операции · elapsed / лимит",
-      "type": "table",
-      "gridPos": {
-        "x": 12,
-        "y": 47,
-        "w": 12,
-        "h": 5
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "100% = индивидуальный лимит pipeline. Для каждого выполняющегося pipeline нужен series с elapsed и timeout.",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit",
-          "noValue": "NO DATA",
-          "color": {
-            "mode": "palette-classic"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "mappings": []
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Time"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          }
-        ]
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "ci_running_elapsed_seconds{env=~\"$env\",component=~\"$component\",project=~\"$project\"} / ci_operation_timeout_seconds{env=~\"$env\",component=~\"$component\",project=~\"$project\"}",
-          "legendFormat": "{{component}}",
-          "instant": true,
-          "range": false,
-          "format": "table",
-          "editorMode": "code",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          }
-        }
-      ],
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm",
-        "sortBy": [
-          {
-            "displayName": "Value",
-            "desc": true
-          }
-        ],
-        "footer": {
-          "show": false
-        }
-      },
-      "links": []
-    },
-    {
-      "id": 27,
-      "title": "Agents / targets · ожидаемые и online",
+      "id": 17,
+      "title": "Последняя операция завершена",
       "type": "table",
       "gridPos": {
         "x": 0,
-        "y": 52,
-        "w": 12,
+        "y": 35,
+        "w": 14,
         "h": 7
       },
+      "description": "",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Только expected non-ephemeral resources. Octopus deployment targets отдельно от workers; disabled/maintenance исключать.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ci_last_operation_completed_timestamp_seconds{env=~\"$env\",component=~\"$component\",project=~\"$project\"} * 1000 and on (env, component) (ci:data_stale == 0) and on (env, component) (ci:component_available == 1)",
+          "legendFormat": "{{component}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          }
+        }
+      ],
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "unit": "dateTimeAsIso",
           "noValue": "NO DATA",
+          "mappings": [],
           "color": {
             "mode": "palette-classic"
           },
@@ -1959,22 +1291,7 @@
                 "value": null
               }
             ]
-          },
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "OFFLINE",
-                  "color": "red"
-                },
-                "1": {
-                  "text": "ONLINE",
-                  "color": "green"
-                }
-              }
-            }
-          ]
+          }
         },
         "overrides": [
           {
@@ -1991,104 +1308,147 @@
           }
         ]
       },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
+    },
+    {
+      "id": 18,
+      "title": "Ожидаемые постоянные агенты",
+      "type": "table",
+      "gridPos": {
+        "x": 14,
+        "y": 35,
+        "w": 10,
+        "h": 7
+      },
+      "description": "Заполнить expected_agents. Ephemeral Kubernetes agents не включать. Пустая таблица допустима.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "targets": [
         {
           "refId": "A",
-          "expr": "ci_resource_online{env=~\"$env\",component=~\"$component\"}",
+          "expr": "ci_resource_online{env=~\"$env\",component=~\"$component\"} and on (env, component) (ci:data_stale == 0) and on (env, component) (ci:component_available == 1)",
           "legendFormat": "{{component}}",
           "instant": true,
           "range": false,
           "format": "table",
-          "editorMode": "code",
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           }
         }
       ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "NO DATA",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "OFFLINE",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "ONLINE",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
       "options": {
         "showHeader": true,
-        "cellHeight": "sm",
-        "sortBy": [
-          {
-            "displayName": "Value",
-            "desc": true
-          }
-        ],
-        "footer": {
-          "show": false
-        }
-      },
-      "links": []
+        "cellHeight": "sm"
+      }
     },
     {
-      "id": 28,
-      "title": "Ошибки · операции / 5 минут",
+      "id": 19,
+      "title": "teamcity нативная метрика",
       "type": "timeseries",
       "gridPos": {
-        "x": 12,
-        "y": 52,
-        "w": 12,
-        "h": 7
+        "x": 0,
+        "y": 42,
+        "w": 8,
+        "h": 6
       },
+      "description": "Диагностика нативного источника; проверить фактическое имя метрики установленной версии.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "noValue": "NO DATA",
-          "color": {
-            "mode": "palette-classic"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "mappings": [],
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "showPoints": "never",
-            "spanNulls": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          }
-        },
-        "overrides": []
-      },
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by(component,operation) (increase(ci_operations_total{env=~\"$env\",component=~\"$component\",project=~\"$project\",status=~\"failed|timed_out\"}[5m]))",
-          "legendFormat": "{{component}} · {{operation}}",
+          "expr": "agents_connected_authorized_number{env=~\"$env\",component=\"teamcity\"}",
+          "legendFormat": "{{component}}",
           "instant": false,
           "range": true,
           "format": "time_series",
-          "editorMode": "code",
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           }
         }
       ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "NO DATA",
+          "mappings": [],
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false,
+            "drawStyle": "line"
+          }
+        },
+        "overrides": []
+      },
       "options": {
         "legend": {
           "displayMode": "table",
@@ -2102,40 +1462,164 @@
           "mode": "multi",
           "sort": "desc"
         }
-      },
-      "links": []
+      }
     },
     {
-      "id": 29,
-      "type": "row",
-      "title": "Алерты · активные",
-      "collapsed": false,
+      "id": 20,
+      "title": "jenkins нативная метрика",
+      "type": "timeseries",
       "gridPos": {
-        "x": 0,
-        "y": 59,
-        "w": 24,
-        "h": 1
-      },
-      "panels": []
-    },
-    {
-      "id": 31,
-      "type": "alertlist",
-      "title": "Grafana · active CI/CD alerts",
-      "gridPos": {
-        "x": 0,
-        "y": 60,
-        "w": 24,
+        "x": 8,
+        "y": 42,
+        "w": 8,
         "h": 6
       },
+      "description": "Диагностика нативного источника; проверить фактическое имя метрики установленной версии.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "default_jenkins_executors_idle{env=~\"$env\",component=\"jenkins\"}",
+          "legendFormat": "{{component}}",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "NO DATA",
+          "mappings": [],
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false,
+            "drawStyle": "line"
+          }
+        },
+        "overrides": []
+      },
       "options": {
-        "viewMode": "list",
-        "groupMode": "default",
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 21,
+      "title": "Octopus доступность API",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 16,
+        "y": 42,
+        "w": 8,
+        "h": 6
+      },
+      "description": "Адаптер выполняет только GET tasks. Worker capacity не оценивается.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ci_api_up{env=~\"$env\",component=\"octopus\"}",
+          "legendFormat": "{{component}}",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "NO DATA",
+          "mappings": [],
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false,
+            "drawStyle": "line"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 22,
+      "type": "alertlist",
+      "title": "Активные алерты CI/CD",
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 24,
+        "h": 7
+      },
+      "options": {
+        "showOptions": "current",
         "maxItems": 20,
         "sortOrder": 1,
         "dashboardAlerts": false,
         "alertName": "CI/CD",
-        "alertInstanceLabelFilter": "{domain=\"cicd\"}",
         "stateFilter": {
           "firing": true,
           "pending": true,
@@ -2143,1058 +1627,13 @@
           "noData": true,
           "normal": false
         },
-        "showInactiveAlerts": false
+        "groupMode": "default"
       }
-    },
-    {
-      "id": 32,
-      "type": "row",
-      "title": "TeamCity · details",
-      "collapsed": true,
-      "gridPos": {
-        "x": 0,
-        "y": 71,
-        "w": 24,
-        "h": 1
-      },
-      "panels": [
-        {
-          "id": 33,
-          "title": "TeamCity · Metrics scrape",
-          "type": "timeseries",
-          "gridPos": {
-            "x": 0,
-            "y": 72,
-            "w": 6,
-            "h": 7
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "description": "Штатные метрики: проверьте название/labels на вашем endpoint. Octopus использует adapter contract. TeamCity multi-node aggregation должна соответствовать семантике вашего кластера.",
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "noValue": "NO DATA",
-              "color": {
-                "mode": "palette-classic"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "mappings": [],
-              "custom": {
-                "drawStyle": "line",
-                "lineInterpolation": "smooth",
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never",
-                "spanNulls": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "up{job=\"teamcity\",env=~\"$env\"}",
-              "legendFormat": "{{component}}",
-              "instant": false,
-              "range": true,
-              "format": "time_series",
-              "editorMode": "code",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              }
-            }
-          ],
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "bottom",
-              "calcs": [
-                "lastNotNull",
-                "max"
-              ]
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "links": []
-        },
-        {
-          "id": 34,
-          "title": "TeamCity · Agents · connected authorized",
-          "type": "timeseries",
-          "gridPos": {
-            "x": 6,
-            "y": 72,
-            "w": 6,
-            "h": 7
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "description": "Штатные метрики: проверьте название/labels на вашем endpoint. Octopus использует adapter contract. TeamCity multi-node aggregation должна соответствовать семантике вашего кластера.",
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "noValue": "NO DATA",
-              "color": {
-                "mode": "palette-classic"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "mappings": [],
-              "custom": {
-                "drawStyle": "line",
-                "lineInterpolation": "smooth",
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never",
-                "spanNulls": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "max by(component) (agents_connected_authorized_number{job=\"teamcity\",env=~\"$env\"})",
-              "legendFormat": "{{component}}",
-              "instant": false,
-              "range": true,
-              "format": "time_series",
-              "editorMode": "code",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              }
-            }
-          ],
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "bottom",
-              "calcs": [
-                "lastNotNull",
-                "max"
-              ]
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "links": []
-        },
-        {
-          "id": 35,
-          "title": "TeamCity · Build queue",
-          "type": "timeseries",
-          "gridPos": {
-            "x": 12,
-            "y": 72,
-            "w": 6,
-            "h": 7
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "description": "Штатные метрики: проверьте название/labels на вашем endpoint. Octopus использует adapter contract. TeamCity multi-node aggregation должна соответствовать семантике вашего кластера.",
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "noValue": "NO DATA",
-              "color": {
-                "mode": "palette-classic"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "mappings": [],
-              "custom": {
-                "drawStyle": "line",
-                "lineInterpolation": "smooth",
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never",
-                "spanNulls": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "max by(component) (builds_queued_number{job=\"teamcity\",env=~\"$env\"})",
-              "legendFormat": "{{component}}",
-              "instant": false,
-              "range": true,
-              "format": "time_series",
-              "editorMode": "code",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              }
-            }
-          ],
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "bottom",
-              "calcs": [
-                "lastNotNull",
-                "max"
-              ]
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "links": []
-        },
-        {
-          "id": 36,
-          "title": "TeamCity · Running builds",
-          "type": "timeseries",
-          "gridPos": {
-            "x": 18,
-            "y": 72,
-            "w": 6,
-            "h": 7
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "description": "Штатные метрики: проверьте название/labels на вашем endpoint. Octopus использует adapter contract. TeamCity multi-node aggregation должна соответствовать семантике вашего кластера.",
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "noValue": "NO DATA",
-              "color": {
-                "mode": "palette-classic"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "mappings": [],
-              "custom": {
-                "drawStyle": "line",
-                "lineInterpolation": "smooth",
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never",
-                "spanNulls": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "max by(component) (builds_running_number{job=\"teamcity\",env=~\"$env\"})",
-              "legendFormat": "{{component}}",
-              "instant": false,
-              "range": true,
-              "format": "time_series",
-              "editorMode": "code",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              }
-            }
-          ],
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "bottom",
-              "calcs": [
-                "lastNotNull",
-                "max"
-              ]
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "links": []
-        }
-      ]
-    },
-    {
-      "id": 37,
-      "type": "row",
-      "title": "Jenkins · details",
-      "collapsed": true,
-      "gridPos": {
-        "x": 0,
-        "y": 72,
-        "w": 24,
-        "h": 1
-      },
-      "panels": [
-        {
-          "id": 38,
-          "title": "Jenkins · Metrics scrape",
-          "type": "timeseries",
-          "gridPos": {
-            "x": 0,
-            "y": 73,
-            "w": 6,
-            "h": 7
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "description": "Штатные метрики: проверьте название/labels на вашем endpoint. Octopus использует adapter contract. TeamCity multi-node aggregation должна соответствовать семантике вашего кластера.",
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "noValue": "NO DATA",
-              "color": {
-                "mode": "palette-classic"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "mappings": [],
-              "custom": {
-                "drawStyle": "line",
-                "lineInterpolation": "smooth",
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never",
-                "spanNulls": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "up{job=\"jenkins\",env=~\"$env\"}",
-              "legendFormat": "{{component}}",
-              "instant": false,
-              "range": true,
-              "format": "time_series",
-              "editorMode": "code",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              }
-            }
-          ],
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "bottom",
-              "calcs": [
-                "lastNotNull",
-                "max"
-              ]
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "links": []
-        },
-        {
-          "id": 39,
-          "title": "Jenkins · Executors · idle",
-          "type": "timeseries",
-          "gridPos": {
-            "x": 6,
-            "y": 73,
-            "w": 6,
-            "h": 7
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "description": "Штатные метрики: проверьте название/labels на вашем endpoint. Octopus использует adapter contract. TeamCity multi-node aggregation должна соответствовать семантике вашего кластера.",
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "noValue": "NO DATA",
-              "color": {
-                "mode": "palette-classic"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "mappings": [],
-              "custom": {
-                "drawStyle": "line",
-                "lineInterpolation": "smooth",
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never",
-                "spanNulls": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "default_jenkins_executors_idle{job=\"jenkins\",env=~\"$env\"}",
-              "legendFormat": "{{component}}",
-              "instant": false,
-              "range": true,
-              "format": "time_series",
-              "editorMode": "code",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              }
-            }
-          ],
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "bottom",
-              "calcs": [
-                "lastNotNull",
-                "max"
-              ]
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "links": []
-        },
-        {
-          "id": 40,
-          "title": "Jenkins · Runnable queue",
-          "type": "timeseries",
-          "gridPos": {
-            "x": 12,
-            "y": 73,
-            "w": 6,
-            "h": 7
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "description": "Штатные метрики: проверьте название/labels на вашем endpoint. Octopus использует adapter contract. TeamCity multi-node aggregation должна соответствовать семантике вашего кластера.",
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "noValue": "NO DATA",
-              "color": {
-                "mode": "palette-classic"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "mappings": [],
-              "custom": {
-                "drawStyle": "line",
-                "lineInterpolation": "smooth",
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never",
-                "spanNulls": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "default_jenkins_executors_queue_length{job=\"jenkins\",env=~\"$env\"}",
-              "legendFormat": "{{component}}",
-              "instant": false,
-              "range": true,
-              "format": "time_series",
-              "editorMode": "code",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              }
-            }
-          ],
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "bottom",
-              "calcs": [
-                "lastNotNull",
-                "max"
-              ]
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "links": []
-        },
-        {
-          "id": 41,
-          "title": "Jenkins · Last build · ordinal",
-          "type": "timeseries",
-          "gridPos": {
-            "x": 18,
-            "y": 73,
-            "w": 6,
-            "h": 7
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "description": "Штатные метрики: проверьте название/labels на вашем endpoint. Octopus использует adapter contract. TeamCity multi-node aggregation должна соответствовать семантике вашего кластера.",
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "noValue": "NO DATA",
-              "color": {
-                "mode": "palette-classic"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "mappings": [],
-              "custom": {
-                "drawStyle": "line",
-                "lineInterpolation": "smooth",
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never",
-                "spanNulls": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "default_jenkins_builds_last_build_result_ordinal{job=\"jenkins\",env=~\"$env\"}",
-              "legendFormat": "{{component}}",
-              "instant": false,
-              "range": true,
-              "format": "time_series",
-              "editorMode": "code",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              }
-            }
-          ],
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "bottom",
-              "calcs": [
-                "lastNotNull",
-                "max"
-              ]
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "links": []
-        }
-      ]
-    },
-    {
-      "id": 42,
-      "type": "row",
-      "title": "Octopus · details",
-      "collapsed": true,
-      "gridPos": {
-        "x": 0,
-        "y": 73,
-        "w": 24,
-        "h": 1
-      },
-      "panels": [
-        {
-          "id": 43,
-          "title": "Octopus · API доступность",
-          "type": "timeseries",
-          "gridPos": {
-            "x": 0,
-            "y": 74,
-            "w": 6,
-            "h": 7
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "description": "Штатные метрики: проверьте название/labels на вашем endpoint. Octopus использует adapter contract. TeamCity multi-node aggregation должна соответствовать семантике вашего кластера.",
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "noValue": "NO DATA",
-              "color": {
-                "mode": "palette-classic"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "mappings": [],
-              "custom": {
-                "drawStyle": "line",
-                "lineInterpolation": "smooth",
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never",
-                "spanNulls": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "ci_api_up{component=\"octopus\",env=~\"$env\"}",
-              "legendFormat": "{{component}}",
-              "instant": false,
-              "range": true,
-              "format": "time_series",
-              "editorMode": "code",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              }
-            }
-          ],
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "bottom",
-              "calcs": [
-                "lastNotNull",
-                "max"
-              ]
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "links": []
-        },
-        {
-          "id": 44,
-          "title": "Octopus · Deployment queue",
-          "type": "timeseries",
-          "gridPos": {
-            "x": 6,
-            "y": 74,
-            "w": 6,
-            "h": 7
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "description": "Штатные метрики: проверьте название/labels на вашем endpoint. Octopus использует adapter contract. TeamCity multi-node aggregation должна соответствовать семантике вашего кластера.",
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "noValue": "NO DATA",
-              "color": {
-                "mode": "palette-classic"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "mappings": [],
-              "custom": {
-                "drawStyle": "line",
-                "lineInterpolation": "smooth",
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never",
-                "spanNulls": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "ci_queue_length{component=\"octopus\",env=~\"$env\"}",
-              "legendFormat": "{{component}}",
-              "instant": false,
-              "range": true,
-              "format": "time_series",
-              "editorMode": "code",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              }
-            }
-          ],
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "bottom",
-              "calcs": [
-                "lastNotNull",
-                "max"
-              ]
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "links": []
-        },
-        {
-          "id": 45,
-          "title": "Octopus · Workers · free",
-          "type": "timeseries",
-          "gridPos": {
-            "x": 12,
-            "y": 74,
-            "w": 6,
-            "h": 7
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "description": "Штатные метрики: проверьте название/labels на вашем endpoint. Octopus использует adapter contract. TeamCity multi-node aggregation должна соответствовать семантике вашего кластера.",
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "noValue": "NO DATA",
-              "color": {
-                "mode": "palette-classic"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "mappings": [],
-              "custom": {
-                "drawStyle": "line",
-                "lineInterpolation": "smooth",
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never",
-                "spanNulls": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "ci_capacity_free{component=\"octopus\",env=~\"$env\"}",
-              "legendFormat": "{{component}}",
-              "instant": false,
-              "range": true,
-              "format": "time_series",
-              "editorMode": "code",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              }
-            }
-          ],
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "bottom",
-              "calcs": [
-                "lastNotNull",
-                "max"
-              ]
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "links": []
-        },
-        {
-          "id": 46,
-          "title": "Octopus · Deployment targets · online",
-          "type": "timeseries",
-          "gridPos": {
-            "x": 18,
-            "y": 74,
-            "w": 6,
-            "h": 7
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "description": "Штатные метрики: проверьте название/labels на вашем endpoint. Octopus использует adapter contract. TeamCity multi-node aggregation должна соответствовать семантике вашего кластера.",
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "noValue": "NO DATA",
-              "color": {
-                "mode": "palette-classic"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "mappings": [],
-              "custom": {
-                "drawStyle": "line",
-                "lineInterpolation": "smooth",
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never",
-                "spanNulls": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "sum(ci_resource_online{component=\"octopus\",resource_kind=\"target\",env=~\"$env\"})",
-              "legendFormat": "{{component}}",
-              "instant": false,
-              "range": true,
-              "format": "time_series",
-              "editorMode": "code",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              }
-            }
-          ],
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "bottom",
-              "calcs": [
-                "lastNotNull",
-                "max"
-              ]
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "links": []
-        }
-      ]
     }
-  ]
+  ],
+  "annotations": {
+    "list": []
+  },
+  "links": [],
+  "description": "Snapshot MVP backed by adapter/exporter.py. No event counters, p95 or inferred Octopus capacity."
 }

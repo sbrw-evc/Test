@@ -1,0 +1,63 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cicd-health
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+  - name: cicd-normalized
+    interval: 30s
+    rules:
+    - record: ci:expected_component
+      expr: vector(1)
+      labels:
+        env: prod
+        component: teamcity
+    - record: ci:expected_component
+      expr: vector(1)
+      labels:
+        env: prod
+        component: jenkins
+    - record: ci:expected_component
+      expr: vector(1)
+      labels:
+        env: prod
+        component: octopus
+    - record: ci:probe_up
+      expr: max by (env, component) (probe_success{job="cicd-http"} and (time()-timestamp(probe_success{job="cicd-http"})
+        < 90)) or on (env, component) ci:expected_component
+    - record: ci:api_up
+      expr: max by (env, component) (ci_api_up and (time()-timestamp(ci_api_up) <
+        90)) or on (env, component) ci:expected_component
+    - record: ci:observation_missing
+      expr: (ci:expected_component unless on (env, component) (max by (env, component)
+        (probe_success{job="cicd-http"} and (time()-timestamp(probe_success{job="cicd-http"})
+        < 90)))) or on (env, component) (ci:expected_component unless on (env, component)
+        (max by (env, component) (ci_api_up and (time()-timestamp(ci_api_up) < 90))))
+        or on (env, component) (0 * ci:expected_component)
+    - record: ci:data_age_seconds
+      expr: (time() - max by (env, component) (ci_collection_last_success_timestamp_seconds))
+        or on (env, component) (1000000000 * ci:expected_component)
+    - record: ci:collector_healthy
+      expr: max by (env, component) (ci_collection_complete) or on (env, component)
+        (0 * ci:expected_component)
+    - record: ci:component_available
+      expr: ci:probe_up * on (env, component) ci:api_up
+    - record: ci:data_stale
+      expr: clamp_max((ci:data_age_seconds > bool 180) + on (env, component) (ci:collector_healthy
+        == bool 0) + on (env, component) ci:observation_missing, 1)
+    - record: ci:degraded
+      expr: clamp_max((max by (env, component) (ci_queue_oldest_age_seconds > bool
+        300) or on (env, component) (0 * ci:expected_component)) + on (env, component)
+        (max by (env, component) (ci_queue_length > bool ci_queue_limit) or on (env,
+        component) (0 * ci:expected_component)) + on (env, component) (max by (env,
+        component) (ci_resource_online == bool 0) or on (env, component) (0 * ci:expected_component))
+        + on (env, component) (max by (env, component) (ci_agents_online < bool ci_agents_minimum)
+        or on (env, component) (0 * ci:expected_component)) + on (env, component)
+        (max by (env, component) (ci_last_operation_status > bool 0) or on (env, component)
+        (0 * ci:expected_component)), 1)
+    - record: ci:operational_state
+      expr: ci:component_available * on (env, component) (3 - 2 * ci:data_stale -
+        (1 - ci:data_stale) * on (env, component) ci:degraded)
