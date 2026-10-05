@@ -1,0 +1,11 @@
+apiVersion: 1
+datasources:
+- name: CI-CD Prometheus
+  uid: cicd-prometheus
+  type: prometheus
+  access: proxy
+  url: http://prometheus:9090
+  isDefault: false
+  jsonData:
+    httpMethod: POST
+    timeInterval: 30s

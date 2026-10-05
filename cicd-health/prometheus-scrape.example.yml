@@ -1,0 +1,66 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+rule_files:
+- /etc/prometheus/rules/prometheus-recording-rules.yml
+scrape_configs:
+- job_name: teamcity
+  metrics_path: /app/metrics
+  scheme: https
+  authorization:
+    type: Bearer
+    credentials_file: /etc/prometheus/secrets/teamcity.token
+  static_configs:
+  - targets:
+    - teamcity.example.internal:443
+    labels:
+      env: prod
+      component: teamcity
+- job_name: jenkins
+  metrics_path: /prometheus/
+  scheme: https
+  basic_auth:
+    username: monitoring
+    password_file: /etc/prometheus/secrets/jenkins.token
+  static_configs:
+  - targets:
+    - jenkins.example.internal:443
+    labels:
+      env: prod
+      component: jenkins
+- job_name: cicd-adapter
+  metrics_path: /metrics
+  honor_labels: true
+  static_configs:
+  - targets:
+    - cicd-adapter:9108
+- job_name: cicd-http
+  metrics_path: /probe
+  params:
+    module:
+    - http_2xx
+  static_configs:
+  - targets:
+    - https://teamcity.example.internal/healthCheck/ready
+    labels:
+      env: prod
+      component: teamcity
+  - targets:
+    - https://jenkins.example.internal/login
+    labels:
+      env: prod
+      component: jenkins
+  - targets:
+    - https://octopus.example.internal/
+    labels:
+      env: prod
+      component: octopus
+  relabel_configs:
+  - source_labels:
+    - __address__
+    target_label: __param_target
+  - source_labels:
+    - __param_target
+    target_label: instance
+  - target_label: __address__
+    replacement: blackbox-exporter:9115
