@@ -6,6 +6,7 @@
 
 ## Файлы
 
+- [Запрос в DevOps по настройке Prometheus и Kubernetes](docs/devops-cicd-monitoring-request.docx)
 - [Пошаговая инструкция внедрения](cicd-health/README-RU.md)
 - [Grafana Dashboard JSON](cicd-health/cicd-health-dashboard.json)
 - [Правила Grafana Alerting](cicd-health/grafana-alert-rules.yml)
