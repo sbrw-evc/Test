@@ -10160,10 +10160,10 @@
       {
         "title": "Применить пояс: ${display_timezone:text}",
         "type": "link",
-        "url": "/d/${__dashboard.uid}?timezone=${display_timezone:percentencode}",
+        "url": "/d/${__dashboard.uid}?from=${__from}&to=${__to}&timezone=${display_timezone:percentencode}",
         "targetBlank": true,
         "includeVars": true,
-        "keepTime": true,
+        "keepTime": false,
         "tooltip": "Открыть дашборд в новой вкладке с выбранным часовым поясом. Фильтры и диапазон времени сохраняются."
       },
       {

@@ -406,9 +406,12 @@ Variable display_timezone: Москва = Europe/Moscow, Майами = America/
 Дашборд открывается в новой вкладке; проверяйте таблицы именно в новой вкладке.
 Ссылка содержит полный путь /d/${__dashboard.uid} и native параметр timezone,
 закодированный через percentencode. Grafana добавляет свой префикс /grafana.
-includeVars=true и keepTime=true сохраняют фильтры и диапазон времени.
-Старая query-only ссылка заменена; новая вкладка заново инициализирует dashboard,
-чтобы предыдущий SceneTimeRange не оставался активным при переключении.
+includeVars=true сохраняет фильтры. keepTime=false; from/to передаются явно через
+${__from}/${__to}, поэтому выбранный интервал сохраняется как абсолютный диапазон.
+Важный фикс: keepTime=true раскрывает $__url_time_range, который в Scenes
+содержит from, to И текущий timezone. Это добавляло второй timezone в URL,
+конфликтующий с выбранным поясом. В исправлении timezone передаётся ровно один раз.
+Новая вкладка заново инициализирует dashboard.
 Если надпись кнопки не соответствует dropdown, обновите страницу и выберите пояс
 повторно; по одному скриншоту нельзя подтвердить причину ошибки старой ссылки.
 
@@ -436,3 +439,8 @@ America/New_York непосредственно в Time picker и обновит
 Проверены offline: структура JSON, неизменность запросов API/Prometheus,
 URL с/без /grafana, оба пояса, летнее и зимнее смещения.
 В работающей Grafana переключение не проверялось.
+
+Подтверждение механизма keepTime в исходном коде Grafana:
+https://github.com/grafana/grafana/blob/main/public/app/features/panel/panellinks/link_srv.ts
+https://github.com/grafana/scenes/blob/main/packages/scenes/src/variables/macros/timeMacros.ts
+https://github.com/grafana/scenes/blob/main/packages/scenes/src/core/SceneTimeRange.tsx
