@@ -1,0 +1,290 @@
+CI/CD HEALTH — НАСТРОЙКА INFINITY БЕЗ ДОСТУПА К KUBERNETES
+=========================================================
+
+В комплекте ровно два файла:
+  dashboards/cicd-health.json — один большой dashboard;
+  infinity-sources.txt — эта инструкция и точный список запросов.
+
+CI/CD KPI читаются через REST API; метрики подов — из уже подключённого Prometheus. Никаких kubectl, Helm, изменений pod,
+установки exporter или перенастройки существующего Prometheus не требуется.
+Доступа к Kubernetes не нужно, но Grafana должна иметь сетевой доступ к API
+TeamCity/Jenkins/Octopus, а служебная учётная запись — права чтения.
+В ходе подготовки реальные API, Grafana и Kubernetes не опрашивались.
+
+1. ОБЩИЕ НАСТРОЙКИ
+------------------
+В Grafana уже должен быть доступен Infinity с Backend → JQ (jq-backend).
+Формат запроса: JSON; Source: URL; Method: GET; Body: отсутствует.
+Query parameters, Root selector, Columns и JQ-расчёты уже находятся в JSON.
+Ничего из JQ вручную переносить не нужно. Default dashboard refresh: 1 minute.
+Ориентир совместимости: Grafana 11.6+ и Infinity 4.1.1. Если ваша установленная
+версия отличается, проверьте наличие jq-backend и server-side expressions.
+Для запросов нужен Accept: application/json. TLS certificate validation включена.
+Timeout: 15 seconds. Allowed hosts: реальный HTTPS origin сервера, например
+https://octopus.example.invalid (здесь и далее адреса вымышленные).
+Не помещайте токены в URL, dashboard JSON или query headers.
+Секреты задаются только в защищённых настройках datasource.
+
+Важно: URL в запросах относительные. Base URL datasource — корень приложения,
+БЕЗ /api или /app/rest и БЕЗ завершающего /. Например https://host.
+Jenkins может иметь context path: https://host/jenkins, тогда GET /api/json
+должен обращаться к https://host/jenkins/api/json.
+Если имеющийся Octopus datasource настроен с Base URL https://host/api,
+скорректируйте Base URL до https://host, сохранив текущую авторизацию/токен.
+Это изменение настройки источника в Grafana, не изменение Kubernetes.
+
+2. OCTOPUS — ИСПОЛЬЗУЙТЕ УЖЕ СУЩЕСТВУЮЩИЙ ИСТОЧНИК
+-------------------------------------------------
+Тип: Infinity. Новый источник создавать не требуется.
+Base URL: https://<OCTOPUS_HOST> — корень приложения.
+Allowed hosts: https://<OCTOPUS_HOST>.
+Авторизацию и уже настроенный токен сохраните.
+Если нужна сверка: обычно API key → In: Header → Key: X-Octopus-ApiKey;
+Value: текущий API key в secure setting. Повторно вводить его не требуется,
+если рабочая авторизация уже настроена через API key или custom secure header.
+Permissions: чтение нужного Space, Tasks, Workers, Deployment Targets.
+На dashboard textbox «Octopus Space ID» по умолчанию равен Spaces-1.
+Замените на свой ID (именно Spaces-N, не отображаемое имя).
+
+GET-запросы Octopus, используемые dashboard:
+  1) GET /api/${octopus_space}/workers
+     Query parameters (в Infinity URL options → Params):
+       take = 1000
+     Используется: Вся CI/CD цепочка; Octopus; Octopus • Недоступные агенты / workers; Octopus • Доступные агенты / workers; Доступные агенты / workers; Неожиданно недоступные агенты / workers; Агенты / workers • инвентарь
+     URL с percent-encoded parameters:
+       /api/${octopus_space}/workers?take=1000
+
+  2) GET /api/${octopus_space}/tasks
+     Query parameters (в Infinity URL options → Params):
+       name = Deploy
+       states = New,Queued
+       take = 1
+     Используется: Вся CI/CD цепочка; Octopus; Octopus • Очередь; Очередь
+     URL с percent-encoded parameters:
+       /api/${octopus_space}/tasks?name=Deploy&states=New%2CQueued&take=1
+
+  3) GET /api/${octopus_space}/tasks
+     Query parameters (в Infinity URL options → Params):
+       name = Deploy
+       states = Success,Failed,Canceled,TimedOut
+       take = 100
+     Используется: Вся CI/CD цепочка; Octopus; Octopus • Ошибки за 10 минут; Octopus • Успешность последних N; Octopus • Средняя длительность • последние N; Успешность • последние N; Завершённые SUCCESS/FAILURE в выборке; Octopus • последние 100 завершённых результатов
+     URL с percent-encoded parameters:
+       /api/${octopus_space}/tasks?name=Deploy&states=Success%2CFailed%2CCanceled%2CTimedOut&take=100
+
+  4) GET /api/${octopus_space}/tasks
+     Query parameters (в Infinity URL options → Params):
+       name = Deploy
+       states = Executing,Cancelling
+       take = 1000
+     Используется: Вся CI/CD цепочка; Octopus; Octopus • Самая долгая текущая сборка / деплой; Самое долгое текущее выполнение; Текущие выполнения
+     URL с percent-encoded parameters:
+       /api/${octopus_space}/tasks?name=Deploy&states=Executing%2CCancelling&take=1000
+
+  5) GET /api/${octopus_space}/machines
+     Query parameters (в Infinity URL options → Params):
+       take = 1000
+     Используется: Deployment targets • отдельно от workers
+     URL с percent-encoded parameters:
+       /api/${octopus_space}/machines?take=1000
+
+Octopus KPI используют tasks типа Deploy, а не все ServerTasks.
+State Success — успех, Failed/TimedOut — failure, Canceled исключается
+из процента успешности. Workers — исполнители, machines — deployment targets;
+это разные сущности. Встроенный worker может отсутствовать в /workers.
+Поэтому минимум внешних workers в общем health по умолчанию равен 0.
+Если вы используете dedicated workers, отредактируйте threshold в health
+expression Octopus (проверка $RC<0) на ваш минимум.
+Для machines/targets health вынесен в отдельную таблицу.
+
+3. TEAMCITY
+-----------
+Тип: Infinity; отдельный datasource.
+Base URL: https://<TEAMCITY_HOST> — корень приложения.
+Allowed hosts: https://<TEAMCITY_HOST>.
+Authentication: Bearer token; Token — служебный TeamCity access token.
+Header: Accept: application/json.
+Permissions: чтение builds, build queue и agents в нужных проектах.
+/app/metrics и право View usage statistics этому варианту не требуются.
+
+GET-запросы TeamCity, используемые dashboard:
+  1) GET /app/rest/agents
+     Query parameters (в Infinity URL options → Params):
+       locator = defaultFilter:false,count:1000
+       fields = nextHref,agent(id,name,connected,enabled,authorized)
+     Используется: Вся CI/CD цепочка; Teamcity; Teamcity • Недоступные агенты / workers; Teamcity • Доступные агенты / workers; Доступные агенты / workers; Неожиданно недоступные агенты / workers; Агенты / workers • инвентарь
+     URL с percent-encoded parameters:
+       /app/rest/agents?locator=defaultFilter%3Afalse%2Ccount%3A1000&fields=nextHref%2Cagent%28id%2Cname%2Cconnected%2Cenabled%2Cauthorized%29
+
+  2) GET /app/rest/buildQueue
+     Query parameters (в Infinity URL options → Params):
+       locator = count:1000
+       fields = nextHref,build(id)
+     Используется: Вся CI/CD цепочка; Teamcity; Teamcity • Очередь; Очередь
+     URL с percent-encoded parameters:
+       /app/rest/buildQueue?locator=count%3A1000&fields=nextHref%2Cbuild%28id%29
+
+  3) GET /app/rest/builds
+     Query parameters (в Infinity URL options → Params):
+       locator = state:finished,branch:default:any,count:100
+       fields = nextHref,build(id,buildTypeId,number,status,state,startDate,finishDate,webUrl,canceledInfo,agent(id))
+     Используется: Вся CI/CD цепочка; Teamcity; Teamcity • Ошибки за 10 минут; Teamcity • Успешность последних N; Teamcity • Средняя длительность • последние N; Успешность • последние N; Завершённые SUCCESS/FAILURE в выборке; Teamcity • последние 100 завершённых результатов
+     URL с percent-encoded parameters:
+       /app/rest/builds?locator=state%3Afinished%2Cbranch%3Adefault%3Aany%2Ccount%3A100&fields=nextHref%2Cbuild%28id%2CbuildTypeId%2Cnumber%2Cstatus%2Cstate%2CstartDate%2CfinishDate%2CwebUrl%2CcanceledInfo%2Cagent%28id%29%29
+
+  4) GET /app/rest/builds
+     Query parameters (в Infinity URL options → Params):
+       locator = state:running,branch:default:any,count:1000
+       fields = nextHref,build(id,buildTypeId,number,status,state,startDate,finishDate,webUrl,canceledInfo,agent(id))
+     Используется: Вся CI/CD цепочка; Teamcity; Teamcity • Самая долгая текущая сборка / деплой; Самое долгое текущее выполнение; Текущие выполнения
+     URL с percent-encoded parameters:
+       /app/rest/builds?locator=state%3Arunning%2Cbranch%3Adefault%3Aany%2Ccount%3A1000&fields=nextHref%2Cbuild%28id%2CbuildTypeId%2Cnumber%2Cstatus%2Cstate%2CstartDate%2CfinishDate%2CwebUrl%2CcanceledInfo%2Cagent%28id%29%29
+
+Сборки читаются по всем веткам: branch:default:any.
+SUCCESS — успех; FAILURE — failure; canceledInfo/UNKNOWN — canceled.
+Доступные агенты: connected && enabled && authorized.
+Недоступные агенты: !connected && enabled && authorized.
+Это не число свободных compatible agents для конкретной конфигурации.
+
+4. JENKINS
+----------
+Тип: Infinity; отдельный datasource.
+Base URL: https://<JENKINS_HOST> или https://<HOST>/<JENKINS_CONTEXT>.
+Allowed hosts: HTTPS origin вашего Jenkins.
+Authentication: Basic authentication.
+User: служебный Jenkins user; Password: его Jenkins API token (secure setting).
+Permissions: Overall/Read, Job/Read и чтение состояния агентов.
+Jenkins Prometheus Plugin этому варианту НЕ требуется.
+GET запросы API не требуют crumb, если стандартная Jenkins конфигурация
+принимает API token для аутентификации.
+
+GET-запросы Jenkins, используемые dashboard:
+  1) GET /computer/api/json
+     Query parameters (в Infinity URL options → Params):
+       tree = computer[displayName,offline,temporarilyOffline,numExecutors,idle]
+     Используется: Вся CI/CD цепочка; Jenkins; Jenkins • Недоступные агенты / workers; Jenkins • Доступные агенты / workers; Доступные агенты / workers; Неожиданно недоступные агенты / workers; Агенты / workers • инвентарь
+     URL с percent-encoded parameters:
+       /computer/api/json?tree=computer%5BdisplayName%2Coffline%2CtemporarilyOffline%2CnumExecutors%2Cidle%5D
+
+  2) GET /queue/api/json
+     Query parameters (в Infinity URL options → Params):
+       tree = items[id]
+     Используется: Вся CI/CD цепочка; Jenkins; Jenkins • Очередь; Очередь
+     URL с percent-encoded parameters:
+       /queue/api/json?tree=items%5Bid%5D
+
+  3) GET /api/json
+     Query parameters (в Infinity URL options → Params):
+       tree = jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[name,_class]]]]]]
+     Используется: Вся CI/CD цепочка; Jenkins; Jenkins • Ошибки за 10 минут; Jenkins • Успешность последних N; Jenkins • Средняя длительность • последние N; Jenkins • Самая долгая текущая сборка / деплой; Успешность • последние N; Завершённые SUCCESS/FAILURE в выборке; Самое долгое текущее выполнение; Jenkins • последние 100 завершённых результатов; Текущие выполнения
+     URL с percent-encoded parameters:
+       /api/json?tree=jobs%5BfullName%2Curl%2Cbuilds%5Bnumber%2Cresult%2Cbuilding%2Ctimestamp%2Cduration%2Curl%5D%7B0%2C100%7D%2Cjobs%5BfullName%2Curl%2Cbuilds%5Bnumber%2Cresult%2Cbuilding%2Ctimestamp%2Cduration%2Curl%5D%7B0%2C100%7D%2Cjobs%5BfullName%2Curl%2Cbuilds%5Bnumber%2Cresult%2Cbuilding%2Ctimestamp%2Cduration%2Curl%5D%7B0%2C100%7D%2Cjobs%5BfullName%2Curl%2Cbuilds%5Bnumber%2Cresult%2Cbuilding%2Ctimestamp%2Cduration%2Curl%5D%7B0%2C100%7D%2Cjobs%5BfullName%2Curl%2Cbuilds%5Bnumber%2Cresult%2Cbuilding%2Ctimestamp%2Cduration%2Curl%5D%7B0%2C100%7D%2Cjobs%5Bname%2C_class%5D%5D%5D%5D%5D%5D
+
+Параметр tree длинный: он выбирает вложенные jobs/folders и необходимые поля
+builds. Он уже полностью задан в dashboard JSON. Поддерживается 4 уровня
+вложенных folders/multibranch containers с получением builds на конечных jobs.
+Если структура глубже, dashboard отвергает неполный leaf вместо ложного SUCCESS;
+увеличьте вложенность tree в соответствующих запросах через Query editor.
+N=100 завершённых глобально выбираются из последних 100 builds каждого job.
+SUCCESS — успех, FAILURE и UNSTABLE — failure; ABORTED/NOT_BUILT исключаются
+из успешности. Online nodes с numExecutors>0 и без temporarilyOffline
+считаются доступными агентами. Controller с 0 executors не учитывается.
+Executor slots не равны количеству nodes.
+
+5. ИМПОРТ ОДНОГО DASHBOARD
+-------------------------
+1) В Grafana: Dashboards → New → Import → Upload JSON file.
+2) Выберите dashboards/cicd-health.json.
+3) В четырёх datasource selectors:
+   Octopus → уже существующий Infinity datasource с настроенным токеном;
+   TeamCity → Infinity datasource TeamCity;
+   Jenkins → Infinity datasource Jenkins.
+   Prometheus → уже подключённый источник, который собирает данные по подам.
+   Для Prometheus ничего заново создавать или подключать не требуется.
+   Названия и UIDs источников произвольные: импорт сопоставит их автоматически.
+4) Задайте textbox Octopus Space ID на dashboard.
+5) Задайте Namespace regex / Pod regex для уже собираемых подов CI/CD;
+   по умолчанию .* показывает все доступные namespaces/pods.
+   Проверьте Query Inspector по одному запросу каждой системы.
+   Save & Test datasource сам по себе не гарантирует правильность всех API queries.
+6) Один dashboard содержит overview, KPI, history, running builds/tasks,
+   agent/worker inventory и Octopus targets. Секции развёрнуты по умолчанию.
+   Карточки/навигация ведут к таблицам того же dashboard, а не к отдельным JSON.
+
+Обновление старого варианта: импортировать этот JSON с UID
+cicd-operational-health с подтверждением overwrite. Предыдущие вручную
+созданные alert rules/provisioning не изменяются самим импортом JSON.
+Этот пакет теперь состоит только из dashboard и данной инструкции.
+Если прежняя версия была provisioned администратором, право её overwrite
+в UI зависит от настроек Grafana. При запрете выберите новый UID при импорте
+и поправьте внутренние /d/cicd-operational-health ссылки в dashboard settings
+и panel links на новый UID. Изменения Kubernetes для нового импорта не нужны.
+
+6. СМЫСЛ HEALTH И ОГРАНИЧЕНИЯ
+----------------------------
+ЗДОРОВ: API данные успешно прочитаны, queue <=10, нет неожиданно offline,
+доступных агентов >=1 для TeamCity/Jenkins, нет failure за последние 600 sec,
+текущие builds <=1800 sec, Deploy tasks <=3600 sec.
+ДЕГРАДАЦИЯ: API отвечает, но нарушен один из этих KPI.
+НЕТ ДАННЫХ: запрос не выполнен, 401/403, timeout или неполный ответ.
+Последнее не различает серверный сбой, ошибку токена и сетевую недоступность;
+смотрите конкретную ошибку Query Inspector. HTTP response time и историческая HTTP availability не включены,
+поскольку для них нужен отдельный источник/probe, отсутствующий в этом пакете.
+CPU/RAM/pod readiness/restarts включены из уже имеющегося Prometheus.
+Pod-показатели не входят в общий API health, они показаны в отдельном блоке. Query Inspector показывает время выполнения
+самого запроса, но это не отдельный временной ряд HTTP latency.
+
+Успешность — SUCCESS/(SUCCESS+FAILURE) в последних N=100 завершённых результатах.
+Canceled исключены; средняя длительность учитывает завершённые результаты
+с start/finish timestamps, включая canceled. Пустая выборка — Нет данных,
+а не искусственные 100%. CI/CD KPI — текущие API snapshots; time picker не превращает их в историю.
+Раздел подов использует существующие Prometheus time series и выбранный период.
+Inventory/running limits: 1000. TeamCity nextHref и Octopus TotalResults,
+указывающие на обрезанную выборку, вызывают ошибку вместо ложного здоровья.
+
+Несколько панелей могут опрашивать один и тот же endpoint отдельно.
+Список выше — уникальные URL+parameters, не обещание одного HTTP запроса
+в минуту на каждый URL. Большой Jenkins tree и частый refresh создают нагрузку;
+при необходимости уменьшите scope/jobs/N и увеличьте refresh в Grafana UI.
+Не гарантируется уведомление на каждое событие между опросами последних N.
+
+JSON не создаёт alert rules и contact points. При необходимости алерты
+можно настроить вручную в Grafana по этим backend JQ queries; в alert query
+нужно задать конкретный datasource UID и Space ID, поскольку dashboard
+variables не доступны при фоновой оценке. Настройки Teams/PagerDuty относятся
+к Grafana, а не к Kubernetes. Токены и уведомления в этой подготовке не менялись.
+
+Визуальные референсы (публичные пользовательские Grafana dashboards):
+https://grafana.com/grafana/dashboards/22842-jenkins-improved-performance-and-health-overview/
+https://grafana.com/grafana/dashboards/13751-a-jenkins-performance-and-health-overview-for-jenkinsci-prometheus-plugin/
+https://grafana.com/grafana/dashboards/11669-teamcity/
+Использована композиция Stat/Gauge/цветных таблиц; чужие JSON не копировались.
+
+Документация:
+https://grafana.com/docs/plugins/yesoreyeram-infinity-datasource/latest/configure/
+https://grafana.com/docs/plugins/yesoreyeram-infinity-datasource/latest/query/jq-backend/
+https://octopus.com/docs/api/tasks
+https://www.jetbrains.com/help/teamcity/rest/build.html
+https://www.jetbrains.com/help/teamcity/rest/agent.html
+https://www.jenkins.io/doc/book/using/remote-access-api/
+
+Проверки при подготовке: структура единственного dashboard, уникальность
+panel IDs, отсутствие перекрытия панелей, Infinity/expressions + существующий Prometheus,
+GET-only запросы и 7 API fixture tests. Живой импорт и реальные API не проверены.
+
+7. УЖЕ ПОДКЛЮЧЁННЫЙ PROMETHEUS
+-----------------------------
+Выбирается при импорте через DS_PROMETHEUS. Настройки подключения, токены,
+scrape jobs и Kubernetes не меняются. Нужные уже собранные series:
+  kube_pod_status_ready{condition="true"} — готовность подов;
+  kube_pod_container_status_restarts_total — счётчик рестартов;
+  container_cpu_usage_seconds_total — CPU containers;
+  container_memory_working_set_bytes — память containers.
+Фильтры: namespace=~"$namespace", pod=~"$pod".
+CPU: sum by(namespace,pod)(rate(...[$__rate_interval])).
+RAM: sum by(namespace,pod)(container_memory_working_set_bytes{...}).
+Рестарты: sum by(namespace,pod)(increase(...[$__range])).
+Если имена metrics/labels в вашем источнике отличаются, скорректируйте PromQL
+через Edit panel → Query. Если kube-state-metrics/cAdvisor series не собираются,
+соответствующий график останется «Нет данных» — dashboard не устанавливает их.
+Это использование текущих данных, а не требование доступа к Kubernetes.
