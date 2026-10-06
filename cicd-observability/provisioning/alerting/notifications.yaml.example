@@ -1,0 +1,41 @@
+# Optional: do not mount until real Secrets and routing are configured.
+# File provisioning of policies replaces the notification policy tree.
+# On an existing Grafana merge the team=cicd route into your existing policy.
+apiVersion: 1
+contactPoints:
+  - orgId: 1
+    name: cicd-teams
+    receivers:
+      - uid: cicd-teams
+        type: teams
+        disableResolveMessage: false
+        settings:
+          url: $TEAMS_WORKFLOW_URL
+          title: 'CI/CD — {{ .Status }}'
+          message: '{{ range .Alerts }}{{ .Annotations.summary }} — {{ .Labels.component }} {{ .DashboardURL }}{{ "\n" }}{{ end }}'
+  - orgId: 1
+    name: cicd-pagerduty
+    receivers:
+      - uid: cicd-pagerduty
+        type: pagerduty
+        disableResolveMessage: false
+        settings:
+          integrationKey: $PAGERDUTY_INTEGRATION_KEY
+          severity: critical
+          class: cicd
+policies:
+  - orgId: 1
+    receiver: cicd-teams
+    group_by: [grafana_folder, alertname, component]
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
+    routes:
+      - receiver: cicd-teams
+        object_matchers:
+          - [team, '=', cicd]
+        continue: true
+      - receiver: cicd-pagerduty
+        object_matchers:
+          - [team, '=', cicd]
+          - [severity, '=', critical]

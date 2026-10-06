@@ -1,0 +1,2390 @@
+apiVersion: 1
+groups:
+- orgId: 1
+  name: CI/CD operational
+  folder: CI/CD
+  interval: 1m
+  rules:
+  - uid: cicd-teamcity-http-down
+    title: 'CI/CD teamcity: Сервер HTTP недоступен'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-prometheus
+      model:
+        refId: A
+        datasource:
+          type: prometheus
+          uid: cicd-prometheus
+        expr: min(probe_success{job="cicd-blackbox",component="teamcity"}) or vector(0)
+        instant: true
+        range: false
+        legendFormat: '{{component}} {{pod}} {{container}}'
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: lt
+            params:
+            - 1
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 2m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: teamcity
+      severity: critical
+    annotations:
+      summary: Сервер HTTP недоступен
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-teamcity-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-teamcity-api-check
+    title: 'CI/CD teamcity: REST API: ошибка сбора / неверные права / неполный инвентарь'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-teamcity
+      model:
+        refId: A
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: cicd-teamcity
+        type: json
+        source: url
+        url: /app/rest/agents
+        url_options:
+          method: GET
+          params:
+          - key: locator
+            value: defaultFilter:false,count:1000
+          - key: fields
+            value: nextHref,agent(id,name,connected,enabled,authorized)
+        parser: jq-backend
+        format: timeseries
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$$\") |\n  . as $$t | (($$t.y+\"\
+          -\"+$$t.m+\"-\"+$$t.d+\"T\"+$$t.h+\":\"+$$t.mi+\":\"+$$t.s+\"Z\") | fromdateiso8601)\
+          \ -\n  (if $$t.z==\"Z\" then 0 else (($$t.z[1:3]|tonumber)*3600 + ($$t.z|gsub(\"\
+          :\";\"\")|.[3:5]|tonumber)*60) * (if $$t.z[0:1]==\"+\" then 1 else -1 end)\
+          \ end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k):\
+          \ if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length))\
+          \ then error(\"Inventory truncated: increase inventory_limit\") else arr(k)\
+          \ end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"\
+          agent\") | point(1)"
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: lt
+            params:
+            - 1
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 2m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: teamcity
+      severity: critical
+    annotations:
+      summary: 'REST API: ошибка сбора / неверные права / неполный инвентарь'
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-teamcity-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-teamcity-failure
+    title: 'CI/CD teamcity: Неуспешная сборка за последние 10 минут'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-teamcity
+      model:
+        refId: A
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: cicd-teamcity
+        type: json
+        source: url
+        url: /app/rest/builds
+        url_options:
+          method: GET
+          params:
+          - key: locator
+            value: state:finished,branch:default:any,count:100
+          - key: fields
+            value: nextHref,build(id,buildTypeId,number,status,state,startDate,finishDate,webUrl,canceledInfo,agent(id))
+        parser: jq-backend
+        format: timeseries
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$$\") |\n  . as $$t | (($$t.y+\"\
+          -\"+$$t.m+\"-\"+$$t.d+\"T\"+$$t.h+\":\"+$$t.mi+\":\"+$$t.s+\"Z\") | fromdateiso8601)\
+          \ -\n  (if $$t.z==\"Z\" then 0 else (($$t.z[1:3]|tonumber)*3600 + ($$t.z|gsub(\"\
+          :\";\"\")|.[3:5]|tonumber)*60) * (if $$t.z[0:1]==\"+\" then 1 else -1 end)\
+          \ end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k):\
+          \ if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length))\
+          \ then error(\"Inventory truncated: increase inventory_limit\") else arr(k)\
+          \ end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\"\
+          )[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo\
+          \ != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if\
+          \ .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch)\
+          \ else null end),url:.webUrl}] | point([.[] | select((.status==\"FAILURE\"\
+          \ or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600)\
+          \ and .finish<=now)]|length)"
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 0
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 0s
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: teamcity
+      severity: critical
+    annotations:
+      summary: Неуспешная сборка за последние 10 минут
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-teamcity-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-teamcity-agents-offline
+    title: 'CI/CD teamcity: Неожиданно недоступный агент / worker'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-teamcity
+      model:
+        refId: A
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: cicd-teamcity
+        type: json
+        source: url
+        url: /app/rest/agents
+        url_options:
+          method: GET
+          params:
+          - key: locator
+            value: defaultFilter:false,count:1000
+          - key: fields
+            value: nextHref,agent(id,name,connected,enabled,authorized)
+        parser: jq-backend
+        format: timeseries
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$$\") |\n  . as $$t | (($$t.y+\"\
+          -\"+$$t.m+\"-\"+$$t.d+\"T\"+$$t.h+\":\"+$$t.mi+\":\"+$$t.s+\"Z\") | fromdateiso8601)\
+          \ -\n  (if $$t.z==\"Z\" then 0 else (($$t.z[1:3]|tonumber)*3600 + ($$t.z|gsub(\"\
+          :\";\"\")|.[3:5]|tonumber)*60) * (if $$t.z[0:1]==\"+\" then 1 else -1 end)\
+          \ end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k):\
+          \ if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length))\
+          \ then error(\"Inventory truncated: increase inventory_limit\") else arr(k)\
+          \ end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"\
+          agent\") | point([.[] | select(.connected==false and .enabled==true and\
+          \ .authorized==true)] | length)"
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 0
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 5m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: teamcity
+      severity: warning
+    annotations:
+      summary: Неожиданно недоступный агент / worker
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-teamcity-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-teamcity-capacity
+    title: 'CI/CD teamcity: Доступных агентов / workers меньше минимума'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-teamcity
+      model:
+        refId: A
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: cicd-teamcity
+        type: json
+        source: url
+        url: /app/rest/agents
+        url_options:
+          method: GET
+          params:
+          - key: locator
+            value: defaultFilter:false,count:1000
+          - key: fields
+            value: nextHref,agent(id,name,connected,enabled,authorized)
+        parser: jq-backend
+        format: timeseries
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$$\") |\n  . as $$t | (($$t.y+\"\
+          -\"+$$t.m+\"-\"+$$t.d+\"T\"+$$t.h+\":\"+$$t.mi+\":\"+$$t.s+\"Z\") | fromdateiso8601)\
+          \ -\n  (if $$t.z==\"Z\" then 0 else (($$t.z[1:3]|tonumber)*3600 + ($$t.z|gsub(\"\
+          :\";\"\")|.[3:5]|tonumber)*60) * (if $$t.z[0:1]==\"+\" then 1 else -1 end)\
+          \ end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k):\
+          \ if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length))\
+          \ then error(\"Inventory truncated: increase inventory_limit\") else arr(k)\
+          \ end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"\
+          agent\") | point([.[] | select(.connected==true and .enabled==true and .authorized==true)]\
+          \ | length)"
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: lt
+            params:
+            - 1
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 5m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: teamcity
+      severity: warning
+    annotations:
+      summary: Доступных агентов / workers меньше минимума
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-teamcity-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-teamcity-queue
+    title: 'CI/CD teamcity: Очередь больше порога'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-teamcity
+      model:
+        refId: A
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: cicd-teamcity
+        type: json
+        source: url
+        url: /app/rest/buildQueue
+        url_options:
+          method: GET
+          params:
+          - key: locator
+            value: count:1000
+          - key: fields
+            value: nextHref,build(id)
+        parser: jq-backend
+        format: timeseries
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$$\") |\n  . as $$t | (($$t.y+\"\
+          -\"+$$t.m+\"-\"+$$t.d+\"T\"+$$t.h+\":\"+$$t.mi+\":\"+$$t.s+\"Z\") | fromdateiso8601)\
+          \ -\n  (if $$t.z==\"Z\" then 0 else (($$t.z[1:3]|tonumber)*3600 + ($$t.z|gsub(\"\
+          :\";\"\")|.[3:5]|tonumber)*60) * (if $$t.z[0:1]==\"+\" then 1 else -1 end)\
+          \ end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k):\
+          \ if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length))\
+          \ then error(\"Inventory truncated: increase inventory_limit\") else arr(k)\
+          \ end;\ndef mean: if length==0 then null else add/length end;\npoint(complete_inventory(\"\
+          build\")|length)"
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 10
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 5m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: teamcity
+      severity: warning
+    annotations:
+      summary: Очередь больше порога
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-teamcity-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-teamcity-long-running
+    title: 'CI/CD teamcity: Слишком долгое выполнение'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-teamcity
+      model:
+        refId: A
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: cicd-teamcity
+        type: json
+        source: url
+        url: /app/rest/builds
+        url_options:
+          method: GET
+          params:
+          - key: locator
+            value: state:running,branch:default:any,count:1000
+          - key: fields
+            value: nextHref,build(id,buildTypeId,number,status,state,startDate,finishDate,webUrl,canceledInfo,agent(id))
+        parser: jq-backend
+        format: timeseries
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$$\") |\n  . as $$t | (($$t.y+\"\
+          -\"+$$t.m+\"-\"+$$t.d+\"T\"+$$t.h+\":\"+$$t.mi+\":\"+$$t.s+\"Z\") | fromdateiso8601)\
+          \ -\n  (if $$t.z==\"Z\" then 0 else (($$t.z[1:3]|tonumber)*3600 + ($$t.z|gsub(\"\
+          :\";\"\")|.[3:5]|tonumber)*60) * (if $$t.z[0:1]==\"+\" then 1 else -1 end)\
+          \ end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k):\
+          \ if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length))\
+          \ then error(\"Inventory truncated: increase inventory_limit\") else arr(k)\
+          \ end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"\
+          build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if\
+          \ .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if\
+          \ .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch)\
+          \ else null end),url:.webUrl}] | point(([.[] | .start | select(.!=null)\
+          \ | now-.] | max // 0))"
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 1800
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 5m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: teamcity
+      severity: warning
+    annotations:
+      summary: Слишком долгое выполнение
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-teamcity-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-teamcity-http-slow
+    title: 'CI/CD teamcity: HTTP response time больше 3 секунд'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-prometheus
+      model:
+        refId: A
+        datasource:
+          type: prometheus
+          uid: cicd-prometheus
+        expr: max(probe_duration_seconds{job="cicd-blackbox",component="teamcity"})
+        instant: true
+        range: false
+        legendFormat: '{{component}} {{pod}} {{container}}'
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 3
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 5m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: teamcity
+      severity: warning
+    annotations:
+      summary: HTTP response time больше 3 секунд
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-teamcity-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-jenkins-http-down
+    title: 'CI/CD jenkins: Сервер HTTP недоступен'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-prometheus
+      model:
+        refId: A
+        datasource:
+          type: prometheus
+          uid: cicd-prometheus
+        expr: min(probe_success{job="cicd-blackbox",component="jenkins"}) or vector(0)
+        instant: true
+        range: false
+        legendFormat: '{{component}} {{pod}} {{container}}'
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: lt
+            params:
+            - 1
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 2m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: jenkins
+      severity: critical
+    annotations:
+      summary: Сервер HTTP недоступен
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-jenkins-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-jenkins-api-check
+    title: 'CI/CD jenkins: REST API: ошибка сбора / неверные права / неполный инвентарь'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-jenkins
+      model:
+        refId: A
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: cicd-jenkins
+        type: json
+        source: url
+        url: /computer/api/json
+        url_options:
+          method: GET
+          params:
+          - key: tree
+            value: computer[displayName,offline,temporarilyOffline,numExecutors,idle]
+        parser: jq-backend
+        format: timeseries
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$$\") |\n  . as $$t | (($$t.y+\"\
+          -\"+$$t.m+\"-\"+$$t.d+\"T\"+$$t.h+\":\"+$$t.mi+\":\"+$$t.s+\"Z\") | fromdateiso8601)\
+          \ -\n  (if $$t.z==\"Z\" then 0 else (($$t.z[1:3]|tonumber)*3600 + ($$t.z|gsub(\"\
+          :\";\"\")|.[3:5]|tonumber)*60) * (if $$t.z[0:1]==\"+\" then 1 else -1 end)\
+          \ end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k):\
+          \ if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length))\
+          \ then error(\"Inventory truncated: increase inventory_limit\") else arr(k)\
+          \ end;\ndef mean: if length==0 then null else add/length end;\narr(\"computer\"\
+          ) | map(select(.numExecutors>0)) | point(1)"
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: lt
+            params:
+            - 1
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 2m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: jenkins
+      severity: critical
+    annotations:
+      summary: 'REST API: ошибка сбора / неверные права / неполный инвентарь'
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-jenkins-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-jenkins-failure
+    title: 'CI/CD jenkins: Неуспешная сборка за последние 10 минут'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-jenkins
+      model:
+        refId: A
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: cicd-jenkins
+        type: json
+        source: url
+        url: /api/json
+        url_options:
+          method: GET
+          params:
+          - key: tree
+            value: jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[name,_class]]]]]]
+        parser: jq-backend
+        format: timeseries
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$$\") |\n  . as $$t | (($$t.y+\"\
+          -\"+$$t.m+\"-\"+$$t.d+\"T\"+$$t.h+\":\"+$$t.mi+\":\"+$$t.s+\"Z\") | fromdateiso8601)\
+          \ -\n  (if $$t.z==\"Z\" then 0 else (($$t.z[1:3]|tonumber)*3600 + ($$t.z|gsub(\"\
+          :\";\"\")|.[3:5]|tonumber)*60) * (if $$t.z[0:1]==\"+\" then 1 else -1 end)\
+          \ end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k):\
+          \ if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length))\
+          \ then error(\"Inventory truncated: increase inventory_limit\") else arr(k)\
+          \ end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\"\
+          ) | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"\
+          _class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"\
+          Jenkins leaf data incomplete or folder depth exceeded\") else . end | .\
+          \ as $$j | .builds[] | {id:(.number|tostring),workflow:$$j.fullName,status:(if\
+          \ .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}]\
+          \ | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100]\
+          \ | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\"))\
+          \ | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)"
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 0
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 0s
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: jenkins
+      severity: critical
+    annotations:
+      summary: Неуспешная сборка за последние 10 минут
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-jenkins-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-jenkins-agents-offline
+    title: 'CI/CD jenkins: Неожиданно недоступный агент / worker'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-jenkins
+      model:
+        refId: A
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: cicd-jenkins
+        type: json
+        source: url
+        url: /computer/api/json
+        url_options:
+          method: GET
+          params:
+          - key: tree
+            value: computer[displayName,offline,temporarilyOffline,numExecutors,idle]
+        parser: jq-backend
+        format: timeseries
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$$\") |\n  . as $$t | (($$t.y+\"\
+          -\"+$$t.m+\"-\"+$$t.d+\"T\"+$$t.h+\":\"+$$t.mi+\":\"+$$t.s+\"Z\") | fromdateiso8601)\
+          \ -\n  (if $$t.z==\"Z\" then 0 else (($$t.z[1:3]|tonumber)*3600 + ($$t.z|gsub(\"\
+          :\";\"\")|.[3:5]|tonumber)*60) * (if $$t.z[0:1]==\"+\" then 1 else -1 end)\
+          \ end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k):\
+          \ if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length))\
+          \ then error(\"Inventory truncated: increase inventory_limit\") else arr(k)\
+          \ end;\ndef mean: if length==0 then null else add/length end;\narr(\"computer\"\
+          ) | map(select(.numExecutors>0)) | point([.[] | select(.offline==true and\
+          \ .temporarilyOffline==false)] | length)"
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 0
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 5m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: jenkins
+      severity: warning
+    annotations:
+      summary: Неожиданно недоступный агент / worker
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-jenkins-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-jenkins-capacity
+    title: 'CI/CD jenkins: Доступных агентов / workers меньше минимума'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-jenkins
+      model:
+        refId: A
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: cicd-jenkins
+        type: json
+        source: url
+        url: /computer/api/json
+        url_options:
+          method: GET
+          params:
+          - key: tree
+            value: computer[displayName,offline,temporarilyOffline,numExecutors,idle]
+        parser: jq-backend
+        format: timeseries
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$$\") |\n  . as $$t | (($$t.y+\"\
+          -\"+$$t.m+\"-\"+$$t.d+\"T\"+$$t.h+\":\"+$$t.mi+\":\"+$$t.s+\"Z\") | fromdateiso8601)\
+          \ -\n  (if $$t.z==\"Z\" then 0 else (($$t.z[1:3]|tonumber)*3600 + ($$t.z|gsub(\"\
+          :\";\"\")|.[3:5]|tonumber)*60) * (if $$t.z[0:1]==\"+\" then 1 else -1 end)\
+          \ end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k):\
+          \ if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length))\
+          \ then error(\"Inventory truncated: increase inventory_limit\") else arr(k)\
+          \ end;\ndef mean: if length==0 then null else add/length end;\narr(\"computer\"\
+          ) | map(select(.numExecutors>0)) | point([.[] | select(.offline==false and\
+          \ .temporarilyOffline==false)] | length)"
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: lt
+            params:
+            - 1
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 5m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: jenkins
+      severity: warning
+    annotations:
+      summary: Доступных агентов / workers меньше минимума
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-jenkins-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-jenkins-queue
+    title: 'CI/CD jenkins: Очередь больше порога'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-jenkins
+      model:
+        refId: A
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: cicd-jenkins
+        type: json
+        source: url
+        url: /queue/api/json
+        url_options:
+          method: GET
+          params:
+          - key: tree
+            value: items[id]
+        parser: jq-backend
+        format: timeseries
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$$\") |\n  . as $$t | (($$t.y+\"\
+          -\"+$$t.m+\"-\"+$$t.d+\"T\"+$$t.h+\":\"+$$t.mi+\":\"+$$t.s+\"Z\") | fromdateiso8601)\
+          \ -\n  (if $$t.z==\"Z\" then 0 else (($$t.z[1:3]|tonumber)*3600 + ($$t.z|gsub(\"\
+          :\";\"\")|.[3:5]|tonumber)*60) * (if $$t.z[0:1]==\"+\" then 1 else -1 end)\
+          \ end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k):\
+          \ if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length))\
+          \ then error(\"Inventory truncated: increase inventory_limit\") else arr(k)\
+          \ end;\ndef mean: if length==0 then null else add/length end;\npoint(arr(\"\
+          items\")|length)"
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 10
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 5m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: jenkins
+      severity: warning
+    annotations:
+      summary: Очередь больше порога
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-jenkins-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-jenkins-long-running
+    title: 'CI/CD jenkins: Слишком долгое выполнение'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-jenkins
+      model:
+        refId: A
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: cicd-jenkins
+        type: json
+        source: url
+        url: /api/json
+        url_options:
+          method: GET
+          params:
+          - key: tree
+            value: jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[name,_class]]]]]]
+        parser: jq-backend
+        format: timeseries
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$$\") |\n  . as $$t | (($$t.y+\"\
+          -\"+$$t.m+\"-\"+$$t.d+\"T\"+$$t.h+\":\"+$$t.mi+\":\"+$$t.s+\"Z\") | fromdateiso8601)\
+          \ -\n  (if $$t.z==\"Z\" then 0 else (($$t.z[1:3]|tonumber)*3600 + ($$t.z|gsub(\"\
+          :\";\"\")|.[3:5]|tonumber)*60) * (if $$t.z[0:1]==\"+\" then 1 else -1 end)\
+          \ end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k):\
+          \ if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length))\
+          \ then error(\"Inventory truncated: increase inventory_limit\") else arr(k)\
+          \ end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\"\
+          ) | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"\
+          _class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"\
+          Jenkins leaf data incomplete or folder depth exceeded\") else . end | .\
+          \ as $$j | .builds[] | {id:(.number|tostring),workflow:$$j.fullName,status:(if\
+          \ .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}]\
+          \ | map(select(.status == \"RUNNING\")) | point(([.[] | .start | select(.!=null)\
+          \ | now-.] | max // 0))"
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 1800
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 5m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: jenkins
+      severity: warning
+    annotations:
+      summary: Слишком долгое выполнение
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-jenkins-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-jenkins-http-slow
+    title: 'CI/CD jenkins: HTTP response time больше 3 секунд'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-prometheus
+      model:
+        refId: A
+        datasource:
+          type: prometheus
+          uid: cicd-prometheus
+        expr: max(probe_duration_seconds{job="cicd-blackbox",component="jenkins"})
+        instant: true
+        range: false
+        legendFormat: '{{component}} {{pod}} {{container}}'
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 3
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 5m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: jenkins
+      severity: warning
+    annotations:
+      summary: HTTP response time больше 3 секунд
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-jenkins-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-octopus-http-down
+    title: 'CI/CD octopus: Сервер HTTP недоступен'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-prometheus
+      model:
+        refId: A
+        datasource:
+          type: prometheus
+          uid: cicd-prometheus
+        expr: min(probe_success{job="cicd-blackbox",component="octopus"}) or vector(0)
+        instant: true
+        range: false
+        legendFormat: '{{component}} {{pod}} {{container}}'
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: lt
+            params:
+            - 1
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 2m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: octopus
+      severity: critical
+    annotations:
+      summary: Сервер HTTP недоступен
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-octopus-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-octopus-api-check
+    title: 'CI/CD octopus: REST API: ошибка сбора / неверные права / неполный инвентарь'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-octopus
+      model:
+        refId: A
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: cicd-octopus
+        type: json
+        source: url
+        url: /api/Spaces-1/workers
+        url_options:
+          method: GET
+          params:
+          - key: take
+            value: '1000'
+        parser: jq-backend
+        format: timeseries
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$$\") |\n  . as $$t | (($$t.y+\"\
+          -\"+$$t.m+\"-\"+$$t.d+\"T\"+$$t.h+\":\"+$$t.mi+\":\"+$$t.s+\"Z\") | fromdateiso8601)\
+          \ -\n  (if $$t.z==\"Z\" then 0 else (($$t.z[1:3]|tonumber)*3600 + ($$t.z|gsub(\"\
+          :\";\"\")|.[3:5]|tonumber)*60) * (if $$t.z[0:1]==\"+\" then 1 else -1 end)\
+          \ end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k):\
+          \ if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length))\
+          \ then error(\"Inventory truncated: increase inventory_limit\") else arr(k)\
+          \ end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"\
+          Items\") | point(1)"
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: lt
+            params:
+            - 1
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 2m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: octopus
+      severity: critical
+    annotations:
+      summary: 'REST API: ошибка сбора / неверные права / неполный инвентарь'
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-octopus-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-octopus-failure
+    title: 'CI/CD octopus: Неуспешный деплой за последние 10 минут'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-octopus
+      model:
+        refId: A
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: cicd-octopus
+        type: json
+        source: url
+        url: /api/Spaces-1/tasks
+        url_options:
+          method: GET
+          params:
+          - key: name
+            value: Deploy
+          - key: states
+            value: Success,Failed,Canceled,TimedOut
+          - key: take
+            value: '100'
+        parser: jq-backend
+        format: timeseries
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$$\") |\n  . as $$t | (($$t.y+\"\
+          -\"+$$t.m+\"-\"+$$t.d+\"T\"+$$t.h+\":\"+$$t.mi+\":\"+$$t.s+\"Z\") | fromdateiso8601)\
+          \ -\n  (if $$t.z==\"Z\" then 0 else (($$t.z[1:3]|tonumber)*3600 + ($$t.z|gsub(\"\
+          :\";\"\")|.[3:5]|tonumber)*60) * (if $$t.z[0:1]==\"+\" then 1 else -1 end)\
+          \ end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k):\
+          \ if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length))\
+          \ then error(\"Inventory truncated: increase inventory_limit\") else arr(k)\
+          \ end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\"\
+          )[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if\
+          \ .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch)\
+          \ else null end),url:(.Links.Web // \"\")}] | point([.[] | select((.status==\"\
+          Failed\" or .status==\"TimedOut\")) | select(.finish!=null and .finish>=(now-600)\
+          \ and .finish<=now)]|length)"
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 0
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 0s
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: octopus
+      severity: critical
+    annotations:
+      summary: Неуспешный деплой за последние 10 минут
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-octopus-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-octopus-agents-offline
+    title: 'CI/CD octopus: Неожиданно недоступный агент / worker'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-octopus
+      model:
+        refId: A
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: cicd-octopus
+        type: json
+        source: url
+        url: /api/Spaces-1/workers
+        url_options:
+          method: GET
+          params:
+          - key: take
+            value: '1000'
+        parser: jq-backend
+        format: timeseries
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$$\") |\n  . as $$t | (($$t.y+\"\
+          -\"+$$t.m+\"-\"+$$t.d+\"T\"+$$t.h+\":\"+$$t.mi+\":\"+$$t.s+\"Z\") | fromdateiso8601)\
+          \ -\n  (if $$t.z==\"Z\" then 0 else (($$t.z[1:3]|tonumber)*3600 + ($$t.z|gsub(\"\
+          :\";\"\")|.[3:5]|tonumber)*60) * (if $$t.z[0:1]==\"+\" then 1 else -1 end)\
+          \ end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k):\
+          \ if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length))\
+          \ then error(\"Inventory truncated: increase inventory_limit\") else arr(k)\
+          \ end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"\
+          Items\") | point([.[] | select(.HealthStatus!=\"Healthy\" and .IsDisabled==false)]\
+          \ | length)"
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 0
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 5m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: octopus
+      severity: warning
+    annotations:
+      summary: Неожиданно недоступный агент / worker
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-octopus-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-octopus-queue
+    title: 'CI/CD octopus: Очередь больше порога'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-octopus
+      model:
+        refId: A
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: cicd-octopus
+        type: json
+        source: url
+        url: /api/Spaces-1/tasks
+        url_options:
+          method: GET
+          params:
+          - key: name
+            value: Deploy
+          - key: states
+            value: New,Queued
+          - key: take
+            value: '1'
+        parser: jq-backend
+        format: timeseries
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$$\") |\n  . as $$t | (($$t.y+\"\
+          -\"+$$t.m+\"-\"+$$t.d+\"T\"+$$t.h+\":\"+$$t.mi+\":\"+$$t.s+\"Z\") | fromdateiso8601)\
+          \ -\n  (if $$t.z==\"Z\" then 0 else (($$t.z[1:3]|tonumber)*3600 + ($$t.z|gsub(\"\
+          :\";\"\")|.[3:5]|tonumber)*60) * (if $$t.z[0:1]==\"+\" then 1 else -1 end)\
+          \ end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k):\
+          \ if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length))\
+          \ then error(\"Inventory truncated: increase inventory_limit\") else arr(k)\
+          \ end;\ndef mean: if length==0 then null else add/length end;\nif (.TotalResults|type)!=\"\
+          number\" then error(\"Expected TotalResults\") else point(.TotalResults)\
+          \ end"
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 10
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 5m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: octopus
+      severity: warning
+    annotations:
+      summary: Очередь больше порога
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-octopus-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-octopus-long-running
+    title: 'CI/CD octopus: Слишком долгое выполнение'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-octopus
+      model:
+        refId: A
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: cicd-octopus
+        type: json
+        source: url
+        url: /api/Spaces-1/tasks
+        url_options:
+          method: GET
+          params:
+          - key: name
+            value: Deploy
+          - key: states
+            value: Executing,Cancelling
+          - key: take
+            value: '1000'
+        parser: jq-backend
+        format: timeseries
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$$\") |\n  . as $$t | (($$t.y+\"\
+          -\"+$$t.m+\"-\"+$$t.d+\"T\"+$$t.h+\":\"+$$t.mi+\":\"+$$t.s+\"Z\") | fromdateiso8601)\
+          \ -\n  (if $$t.z==\"Z\" then 0 else (($$t.z[1:3]|tonumber)*3600 + ($$t.z|gsub(\"\
+          :\";\"\")|.[3:5]|tonumber)*60) * (if $$t.z[0:1]==\"+\" then 1 else -1 end)\
+          \ end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k):\
+          \ if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length))\
+          \ then error(\"Inventory truncated: increase inventory_limit\") else arr(k)\
+          \ end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"\
+          Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId\
+          \ // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if\
+          \ .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch)\
+          \ else null end),url:(.Links.Web // \"\")}] | point(([.[] | .start | select(.!=null)\
+          \ | now-.] | max // 0))"
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 3600
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 5m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: octopus
+      severity: warning
+    annotations:
+      summary: Слишком долгое выполнение
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-octopus-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-octopus-http-slow
+    title: 'CI/CD octopus: HTTP response time больше 3 секунд'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-prometheus
+      model:
+        refId: A
+        datasource:
+          type: prometheus
+          uid: cicd-prometheus
+        expr: max(probe_duration_seconds{job="cicd-blackbox",component="octopus"})
+        instant: true
+        range: false
+        legendFormat: '{{component}} {{pod}} {{container}}'
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 3
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 5m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: octopus
+      severity: warning
+    annotations:
+      summary: HTTP response time больше 3 секунд
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-octopus-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-teamcity-scrape-down
+    title: 'CI/CD teamcity: Prometheus scrape недоступен'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-prometheus
+      model:
+        refId: A
+        datasource:
+          type: prometheus
+          uid: cicd-prometheus
+        expr: min(up{job="cicd-teamcity"}) or vector(0)
+        instant: true
+        range: false
+        legendFormat: '{{component}} {{pod}} {{container}}'
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: lt
+            params:
+            - 1
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 3m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: teamcity
+      severity: warning
+    annotations:
+      summary: Prometheus scrape недоступен
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-teamcity-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-jenkins-scrape-down
+    title: 'CI/CD jenkins: Prometheus scrape недоступен'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-prometheus
+      model:
+        refId: A
+        datasource:
+          type: prometheus
+          uid: cicd-prometheus
+        expr: min(up{job="cicd-jenkins"}) or vector(0)
+        instant: true
+        range: false
+        legendFormat: '{{component}} {{pod}} {{container}}'
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: lt
+            params:
+            - 1
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 3m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: jenkins
+      severity: warning
+    annotations:
+      summary: Prometheus scrape недоступен
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-jenkins-details
+      __panelId__: '2'
+    isPaused: false
+  - uid: cicd-kubernetes-pods-not-ready
+    title: 'CI/CD kubernetes: Pod не Ready более 5 минут'
+    condition: C
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: cicd-prometheus
+      model:
+        refId: A
+        datasource:
+          type: prometheus
+          uid: cicd-prometheus
+        expr: min by(namespace,pod) (kube_pod_status_ready{namespace=~"teamcity|jenkins|octopus",pod=~".*",condition="true"})
+        instant: true
+        range: false
+        legendFormat: '{{component}} {{pod}} {{container}}'
+    - refId: B
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: B
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: C
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        datasource:
+          type: __expr__
+          uid: __expr__
+        type: threshold
+        expression: B
+        conditions:
+        - type: query
+          evaluator:
+            type: lt
+            params:
+            - 1
+          operator:
+            type: and
+          query:
+            params:
+            - C
+          reducer:
+            type: last
+            params: []
+    for: 5m
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      team: cicd
+      component: kubernetes
+      severity: warning
+    annotations:
+      summary: Pod не Ready более 5 минут
+      description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
+        источника также требует внимания; это не подтверждённый сбой сборки.
+      __dashboardUid__: cicd-kubernetes-details
+      __panelId__: '2'
+    isPaused: false

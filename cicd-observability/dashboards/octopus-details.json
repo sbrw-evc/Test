@@ -1,0 +1,1230 @@
+{
+  "id": null,
+  "uid": "cicd-octopus-details",
+  "title": "CI/CD • Octopus Details",
+  "tags": [
+    "cicd",
+    "operational"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "1m",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Octopus • детали",
+      "type": "row",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 2,
+      "title": "Успешность • последние N",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/tasks",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "name",
+                "value": "Deploy"
+              },
+              {
+                "key": "states",
+                "value": "Success,Failed,Canceled,TimedOut"
+              },
+              {
+                "key": "take",
+                "value": "100"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | map(select((.status==\"Success\" or (.status==\"Failed\" or .status==\"TimedOut\")))) | if length==0 then empty else point((map(select(.status==\"Success\"))|length)/length*100) end",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Завершённые SUCCESS/FAILURE в выборке",
+      "type": "stat",
+      "gridPos": {
+        "x": 4,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/tasks",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "name",
+                "value": "Deploy"
+              },
+              {
+                "key": "states",
+                "value": "Success,Failed,Canceled,TimedOut"
+              },
+              {
+                "key": "take",
+                "value": "100"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point(map(select((.status==\"Success\" or (.status==\"Failed\" or .status==\"TimedOut\"))))|length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Доступные агенты / workers",
+      "type": "stat",
+      "gridPos": {
+        "x": 8,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/workers",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "take",
+                "value": "1000"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | point([.[] | select(.HealthStatus==\"Healthy\" and .IsDisabled==false)] | length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Неожиданно недоступные агенты / workers",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/workers",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "take",
+                "value": "1000"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | point([.[] | select(.HealthStatus!=\"Healthy\" and .IsDisabled==false)] | length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Очередь",
+      "type": "stat",
+      "gridPos": {
+        "x": 16,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/tasks",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "name",
+                "value": "Deploy"
+              },
+              {
+                "key": "states",
+                "value": "New,Queued"
+              },
+              {
+                "key": "take",
+                "value": "1"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\nif (.TotalResults|type)!=\"number\" then error(\"Expected TotalResults\") else point(.TotalResults) end",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Самое долгое текущее выполнение",
+      "type": "stat",
+      "gridPos": {
+        "x": 20,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/tasks",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "name",
+                "value": "Deploy"
+              },
+              {
+                "key": "states",
+                "value": "Executing,Cancelling"
+              },
+              {
+                "key": "take",
+                "value": "1000"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Последние 100 завершённых результатов",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 12
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "SUCCESS": {
+                        "text": "SUCCESS",
+                        "color": "green"
+                      },
+                      "Success": {
+                        "text": "SUCCESS",
+                        "color": "green"
+                      },
+                      "FAILURE": {
+                        "text": "FAILED",
+                        "color": "red"
+                      },
+                      "Failed": {
+                        "text": "FAILED",
+                        "color": "red"
+                      },
+                      "TimedOut": {
+                        "text": "TIMEOUT",
+                        "color": "red"
+                      },
+                      "UNSTABLE": {
+                        "text": "UNSTABLE",
+                        "color": "orange"
+                      },
+                      "CANCELED": {
+                        "text": "CANCELED",
+                        "color": "gray"
+                      },
+                      "Canceled": {
+                        "text": "CANCELED",
+                        "color": "gray"
+                      },
+                      "ABORTED": {
+                        "text": "ABORTED",
+                        "color": "gray"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Open"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Открыть результат",
+                    "url": "${__value.raw}",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Duration"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/tasks",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "name",
+                "value": "Deploy"
+              },
+              {
+                "key": "states",
+                "value": "Success,Failed,Canceled,TimedOut"
+              },
+              {
+                "key": "take",
+                "value": "100"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "table",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | .[]",
+          "columns": [
+            {
+              "selector": "workflow",
+              "text": "Workflow",
+              "type": "string"
+            },
+            {
+              "selector": "id",
+              "text": "ID",
+              "type": "string"
+            },
+            {
+              "selector": "status",
+              "text": "Status",
+              "type": "string"
+            },
+            {
+              "selector": "duration",
+              "text": "Duration",
+              "type": "number"
+            },
+            {
+              "selector": "start",
+              "text": "Start",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "finish",
+              "text": "Finish",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "url",
+              "text": "Open",
+              "type": "string"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Текущие выполнения",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 12,
+        "h": 10
+      },
+      "description": "Нет выполняющихся задач — пустая таблица, а не ошибка.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/tasks",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "name",
+                "value": "Deploy"
+              },
+              {
+                "key": "states",
+                "value": "Executing,Cancelling"
+              },
+              {
+                "key": "take",
+                "value": "1000"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "table",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | .[] | {workflow,status,age:(if .start==null then null else now-.start end),url}",
+          "columns": [
+            {
+              "selector": "workflow",
+              "text": "workflow",
+              "type": "string"
+            },
+            {
+              "selector": "status",
+              "text": "status",
+              "type": "string"
+            },
+            {
+              "selector": "age",
+              "text": "age",
+              "type": "number"
+            },
+            {
+              "selector": "url",
+              "text": "url",
+              "type": "string"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Агенты / workers • инвентарь",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 17,
+        "w": 12,
+        "h": 10
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/workers",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "take",
+                "value": "1000"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "table",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | .[] | {agent:.Name,health:.HealthStatus,enabled:(.IsDisabled|not),workerPools:(.WorkerPoolIds|join(\", \"))}",
+          "columns": [
+            {
+              "selector": "agent",
+              "text": "agent",
+              "type": "string"
+            },
+            {
+              "selector": "health",
+              "text": "health",
+              "type": "string"
+            },
+            {
+              "selector": "enabled",
+              "text": "enabled",
+              "type": "boolean"
+            },
+            {
+              "selector": "workerPools",
+              "text": "workerPools",
+              "type": "string"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "HTTP response time",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 12,
+        "h": 7
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cicd-prometheus"
+          },
+          "expr": "probe_duration_seconds{job=\"cicd-blackbox\",component=\"octopus\"}",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{component}} {{pod}} {{container}}"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "HTTP availability",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 27,
+        "w": 12,
+        "h": 7
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cicd-prometheus"
+          },
+          "expr": "probe_success{job=\"cicd-blackbox\",component=\"octopus\"}",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{component}} {{pod}} {{container}}"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Deployment targets • отдельно от workers",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 34,
+        "w": 24,
+        "h": 10
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/machines",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "take",
+                "value": "1000"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "table",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\")[] | {name:.Name,health:.HealthStatus,disabled:.IsDisabled}",
+          "columns": [
+            {
+              "selector": "name",
+              "text": "name",
+              "type": "string"
+            },
+            {
+              "selector": "health",
+              "text": "health",
+              "type": "string"
+            },
+            {
+              "selector": "disabled",
+              "text": "disabled",
+              "type": "boolean"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "label": "Kubernetes namespace regex",
+        "type": "textbox",
+        "query": "teamcity|jenkins|octopus",
+        "current": {
+          "text": "teamcity|jenkins|octopus",
+          "value": "teamcity|jenkins|octopus"
+        }
+      },
+      {
+        "name": "pod",
+        "label": "Pod regex",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        }
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "CI/CD Health",
+      "url": "/d/cicd-operational-health",
+      "type": "link"
+    },
+    {
+      "title": "TeamCity",
+      "url": "/d/cicd-teamcity-details",
+      "type": "link"
+    },
+    {
+      "title": "Jenkins",
+      "url": "/d/cicd-jenkins-details",
+      "type": "link"
+    },
+    {
+      "title": "Octopus",
+      "url": "/d/cicd-octopus-details",
+      "type": "link"
+    },
+    {
+      "title": "Открыть Octopus",
+      "url": "https://octopus.example.com",
+      "type": "link",
+      "targetBlank": true
+    }
+  ]
+}

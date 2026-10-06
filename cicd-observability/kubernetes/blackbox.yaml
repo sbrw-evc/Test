@@ -1,0 +1,90 @@
+# Official prometheus/blackbox_exporter only. Change image to your approved digest.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cicd-blackbox
+  namespace: monitoring
+data:
+  blackbox.yml: |
+    modules:
+      http_2xx_no_redirect:
+        prober: http
+        timeout: 10s
+        http:
+          valid_status_codes: [200]
+          follow_redirects: false
+          preferred_ip_protocol: ip4
+          tls_config:
+            insecure_skip_verify: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cicd-blackbox
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cicd-blackbox
+  template:
+    metadata:
+      labels:
+        app: cicd-blackbox
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: blackbox
+          image: quay.io/prometheus/blackbox-exporter:v0.27.0
+          args: [--config.file=/etc/blackbox/blackbox.yml]
+          ports:
+            - name: http
+              containerPort: 9115
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          readinessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+          volumeMounts:
+            - name: config
+              mountPath: /etc/blackbox
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: cicd-blackbox
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cicd-blackbox
+  namespace: monitoring
+spec:
+  selector:
+    app: cicd-blackbox
+  ports:
+    - name: http
+      port: 9115
+      targetPort: http

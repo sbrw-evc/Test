@@ -1,0 +1,4189 @@
+{
+  "id": null,
+  "uid": "cicd-operational-health",
+  "title": "CI/CD • Operational Health",
+  "tags": [
+    "cicd",
+    "operational"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "1m",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "CI/CD • Operational Health",
+      "type": "row",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 2,
+      "title": "Вся CI/CD цепочка",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 6,
+        "h": 5
+      },
+      "description": "0: HTTP недоступен; 1: деградация (ошибки за 10 минут, очередь, агенты, длительность); 2: здоров. Ошибка API: нет данных. KPI — текущий snapshot.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "green",
+                "value": 2
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "НЕДОСТУПЕН",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "ДЕГРАДАЦИЯ",
+                  "color": "orange"
+                },
+                "2": {
+                  "text": "ЗДОРОВ",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^H$/",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "0A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cicd-prometheus"
+          },
+          "expr": "min(probe_success{job=\"cicd-blackbox\",component=\"teamcity\"}) or vector(0)",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{component}} {{pod}} {{container}}"
+        },
+        {
+          "refId": "0B",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-teamcity"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/app/rest/buildQueue",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "locator",
+                "value": "count:1000"
+              },
+              {
+                "key": "fields",
+                "value": "nextHref,build(id)"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\npoint(complete_inventory(\"build\")|length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "0C",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-teamcity"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/app/rest/agents",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "locator",
+                "value": "defaultFilter:false,count:1000"
+              },
+              {
+                "key": "fields",
+                "value": "nextHref,agent(id,name,connected,enabled,authorized)"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"agent\") | point([.[] | select(.connected==true and .enabled==true and .authorized==true)] | length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "0D",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-teamcity"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/app/rest/builds",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "locator",
+                "value": "state:finished,branch:default:any,count:100"
+              },
+              {
+                "key": "fields",
+                "value": "nextHref,build(id,buildTypeId,number,status,state,startDate,finishDate,webUrl,canceledInfo,agent(id))"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "0E",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-teamcity"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/app/rest/builds",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "locator",
+                "value": "state:running,branch:default:any,count:1000"
+              },
+              {
+                "key": "fields",
+                "value": "nextHref,build(id,buildTypeId,number,status,state,startDate,finishDate,webUrl,canceledInfo,agent(id))"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "0F",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-teamcity"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/app/rest/agents",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "locator",
+                "value": "defaultFilter:false,count:1000"
+              },
+              {
+                "key": "fields",
+                "value": "nextHref,agent(id,name,connected,enabled,authorized)"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"agent\") | point([.[] | select(.connected==false and .enabled==true and .authorized==true)] | length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "0RA",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "0A",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "0RB",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "0B",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "0RC",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "0C",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "0RD",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "0D",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "0RE",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "0E",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "0RF",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "0F",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "0H",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "math",
+          "expression": "2*${0RA} - ${0RA}*((${0RB}>10) || (${0RC}<1) || (${0RD}>0) || (${0RE}>1800) || (${0RF}>0))"
+        },
+        {
+          "refId": "1A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cicd-prometheus"
+          },
+          "expr": "min(probe_success{job=\"cicd-blackbox\",component=\"jenkins\"}) or vector(0)",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{component}} {{pod}} {{container}}"
+        },
+        {
+          "refId": "1B",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-jenkins"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/queue/api/json",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "tree",
+                "value": "items[id]"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\npoint(arr(\"items\")|length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "1C",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-jenkins"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/computer/api/json",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "tree",
+                "value": "computer[displayName,offline,temporarilyOffline,numExecutors,idle]"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"computer\") | map(select(.numExecutors>0)) | point([.[] | select(.offline==false and .temporarilyOffline==false)] | length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "1D",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-jenkins"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/json",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "tree",
+                "value": "jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[name,_class]]]]]]"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100] | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "1E",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-jenkins"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/json",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "tree",
+                "value": "jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[name,_class]]]]]]"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | map(select(.status == \"RUNNING\")) | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "1F",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-jenkins"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/computer/api/json",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "tree",
+                "value": "computer[displayName,offline,temporarilyOffline,numExecutors,idle]"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"computer\") | map(select(.numExecutors>0)) | point([.[] | select(.offline==true and .temporarilyOffline==false)] | length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "1RA",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "1A",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "1RB",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "1B",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "1RC",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "1C",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "1RD",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "1D",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "1RE",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "1E",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "1RF",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "1F",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "1H",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "math",
+          "expression": "2*${1RA} - ${1RA}*((${1RB}>10) || (${1RC}<1) || (${1RD}>0) || (${1RE}>1800) || (${1RF}>0))"
+        },
+        {
+          "refId": "2A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cicd-prometheus"
+          },
+          "expr": "min(probe_success{job=\"cicd-blackbox\",component=\"octopus\"}) or vector(0)",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{component}} {{pod}} {{container}}"
+        },
+        {
+          "refId": "2B",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/tasks",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "name",
+                "value": "Deploy"
+              },
+              {
+                "key": "states",
+                "value": "New,Queued"
+              },
+              {
+                "key": "take",
+                "value": "1"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\nif (.TotalResults|type)!=\"number\" then error(\"Expected TotalResults\") else point(.TotalResults) end",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "2C",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/workers",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "take",
+                "value": "1000"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | point([.[] | select(.HealthStatus==\"Healthy\" and .IsDisabled==false)] | length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "2D",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/tasks",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "name",
+                "value": "Deploy"
+              },
+              {
+                "key": "states",
+                "value": "Success,Failed,Canceled,TimedOut"
+              },
+              {
+                "key": "take",
+                "value": "100"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point([.[] | select((.status==\"Failed\" or .status==\"TimedOut\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "2E",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/tasks",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "name",
+                "value": "Deploy"
+              },
+              {
+                "key": "states",
+                "value": "Executing,Cancelling"
+              },
+              {
+                "key": "take",
+                "value": "1000"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "2F",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/workers",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "take",
+                "value": "1000"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | point([.[] | select(.HealthStatus!=\"Healthy\" and .IsDisabled==false)] | length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "2RA",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "2A",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "2RB",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "2B",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "2RC",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "2C",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "2RD",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "2D",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "2RE",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "2E",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "2RF",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "2F",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "2H",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "math",
+          "expression": "2*${2RA} - ${2RA}*((${2RB}>10) || (${2RC}<0) || (${2RD}>0) || (${2RE}>3600) || (${2RF}>0))"
+        },
+        {
+          "refId": "H",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "math",
+          "expression": "(${0H}==0 || ${1H}==0 || ${2H}==0)*0 + (${0H}>0 && ${1H}>0 && ${2H}>0)*(1+(${0H}==2 && ${1H}==2 && ${2H}==2))"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Teamcity",
+      "type": "stat",
+      "gridPos": {
+        "x": 6,
+        "y": 1,
+        "w": 6,
+        "h": 5
+      },
+      "description": "0: HTTP недоступен; 1: деградация (ошибки за 10 минут, очередь, агенты, длительность); 2: здоров. Ошибка API: нет данных. KPI — текущий snapshot.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "green",
+                "value": 2
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "НЕДОСТУПЕН",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "ДЕГРАДАЦИЯ",
+                  "color": "orange"
+                },
+                "2": {
+                  "text": "ЗДОРОВ",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^H$/",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cicd-prometheus"
+          },
+          "expr": "min(probe_success{job=\"cicd-blackbox\",component=\"teamcity\"}) or vector(0)",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{component}} {{pod}} {{container}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-teamcity"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/app/rest/buildQueue",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "locator",
+                "value": "count:1000"
+              },
+              {
+                "key": "fields",
+                "value": "nextHref,build(id)"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\npoint(complete_inventory(\"build\")|length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-teamcity"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/app/rest/agents",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "locator",
+                "value": "defaultFilter:false,count:1000"
+              },
+              {
+                "key": "fields",
+                "value": "nextHref,agent(id,name,connected,enabled,authorized)"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"agent\") | point([.[] | select(.connected==true and .enabled==true and .authorized==true)] | length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-teamcity"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/app/rest/builds",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "locator",
+                "value": "state:finished,branch:default:any,count:100"
+              },
+              {
+                "key": "fields",
+                "value": "nextHref,build(id,buildTypeId,number,status,state,startDate,finishDate,webUrl,canceledInfo,agent(id))"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "E",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-teamcity"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/app/rest/builds",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "locator",
+                "value": "state:running,branch:default:any,count:1000"
+              },
+              {
+                "key": "fields",
+                "value": "nextHref,build(id,buildTypeId,number,status,state,startDate,finishDate,webUrl,canceledInfo,agent(id))"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "F",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-teamcity"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/app/rest/agents",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "locator",
+                "value": "defaultFilter:false,count:1000"
+              },
+              {
+                "key": "fields",
+                "value": "nextHref,agent(id,name,connected,enabled,authorized)"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"agent\") | point([.[] | select(.connected==false and .enabled==true and .authorized==true)] | length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "RA",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "A",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "RB",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "B",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "RC",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "C",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "RD",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "D",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "RE",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "E",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "RF",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "F",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "H",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "math",
+          "expression": "2*$RA - $RA*(($RB>10) || ($RC<1) || ($RD>0) || ($RE>1800) || ($RF>0))"
+        }
+      ],
+      "links": [
+        {
+          "title": "Открыть подробности",
+          "url": "/d/cicd-teamcity-details",
+          "targetBlank": false
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Jenkins",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 6,
+        "h": 5
+      },
+      "description": "0: HTTP недоступен; 1: деградация (ошибки за 10 минут, очередь, агенты, длительность); 2: здоров. Ошибка API: нет данных. KPI — текущий snapshot.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "green",
+                "value": 2
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "НЕДОСТУПЕН",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "ДЕГРАДАЦИЯ",
+                  "color": "orange"
+                },
+                "2": {
+                  "text": "ЗДОРОВ",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^H$/",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cicd-prometheus"
+          },
+          "expr": "min(probe_success{job=\"cicd-blackbox\",component=\"jenkins\"}) or vector(0)",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{component}} {{pod}} {{container}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-jenkins"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/queue/api/json",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "tree",
+                "value": "items[id]"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\npoint(arr(\"items\")|length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-jenkins"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/computer/api/json",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "tree",
+                "value": "computer[displayName,offline,temporarilyOffline,numExecutors,idle]"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"computer\") | map(select(.numExecutors>0)) | point([.[] | select(.offline==false and .temporarilyOffline==false)] | length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-jenkins"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/json",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "tree",
+                "value": "jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[name,_class]]]]]]"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100] | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "E",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-jenkins"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/json",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "tree",
+                "value": "jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[name,_class]]]]]]"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | map(select(.status == \"RUNNING\")) | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "F",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-jenkins"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/computer/api/json",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "tree",
+                "value": "computer[displayName,offline,temporarilyOffline,numExecutors,idle]"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"computer\") | map(select(.numExecutors>0)) | point([.[] | select(.offline==true and .temporarilyOffline==false)] | length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "RA",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "A",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "RB",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "B",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "RC",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "C",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "RD",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "D",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "RE",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "E",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "RF",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "F",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "H",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "math",
+          "expression": "2*$RA - $RA*(($RB>10) || ($RC<1) || ($RD>0) || ($RE>1800) || ($RF>0))"
+        }
+      ],
+      "links": [
+        {
+          "title": "Открыть подробности",
+          "url": "/d/cicd-jenkins-details",
+          "targetBlank": false
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Octopus",
+      "type": "stat",
+      "gridPos": {
+        "x": 18,
+        "y": 1,
+        "w": 6,
+        "h": 5
+      },
+      "description": "0: HTTP недоступен; 1: деградация (ошибки за 10 минут, очередь, агенты, длительность); 2: здоров. Ошибка API: нет данных. KPI — текущий snapshot.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "green",
+                "value": 2
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "НЕДОСТУПЕН",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "ДЕГРАДАЦИЯ",
+                  "color": "orange"
+                },
+                "2": {
+                  "text": "ЗДОРОВ",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^H$/",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cicd-prometheus"
+          },
+          "expr": "min(probe_success{job=\"cicd-blackbox\",component=\"octopus\"}) or vector(0)",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{component}} {{pod}} {{container}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/tasks",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "name",
+                "value": "Deploy"
+              },
+              {
+                "key": "states",
+                "value": "New,Queued"
+              },
+              {
+                "key": "take",
+                "value": "1"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\nif (.TotalResults|type)!=\"number\" then error(\"Expected TotalResults\") else point(.TotalResults) end",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/workers",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "take",
+                "value": "1000"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | point([.[] | select(.HealthStatus==\"Healthy\" and .IsDisabled==false)] | length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/tasks",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "name",
+                "value": "Deploy"
+              },
+              {
+                "key": "states",
+                "value": "Success,Failed,Canceled,TimedOut"
+              },
+              {
+                "key": "take",
+                "value": "100"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point([.[] | select((.status==\"Failed\" or .status==\"TimedOut\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "E",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/tasks",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "name",
+                "value": "Deploy"
+              },
+              {
+                "key": "states",
+                "value": "Executing,Cancelling"
+              },
+              {
+                "key": "take",
+                "value": "1000"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "F",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/workers",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "take",
+                "value": "1000"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | point([.[] | select(.HealthStatus!=\"Healthy\" and .IsDisabled==false)] | length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "refId": "RA",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "A",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "RB",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "B",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "RC",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "C",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "RD",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "D",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "RE",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "E",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "RF",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "F",
+          "reducer": "last",
+          "settings": {
+            "mode": "strict"
+          }
+        },
+        {
+          "refId": "H",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "math",
+          "expression": "2*$RA - $RA*(($RB>10) || ($RC<0) || ($RD>0) || ($RE>3600) || ($RF>0))"
+        }
+      ],
+      "links": [
+        {
+          "title": "Открыть подробности",
+          "url": "/d/cicd-octopus-details",
+          "targetBlank": false
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Требуют внимания • Grafana Alerting",
+      "type": "alertlist",
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 24,
+        "h": 7
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "viewMode": "list",
+        "groupMode": "default",
+        "maxItems": 20,
+        "sortOrder": 1,
+        "stateFilter": {
+          "firing": true,
+          "pending": true,
+          "error": true,
+          "noData": true,
+          "normal": false
+        },
+        "alertName": "CI/CD",
+        "dashboardAlerts": false
+      },
+      "targets": []
+    },
+    {
+      "id": 7,
+      "title": "KPI • последние результаты и текущая загрузка",
+      "type": "row",
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 24,
+        "h": 1
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 8,
+      "title": "Teamcity • Успешность последних N",
+      "type": "gauge",
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 3,
+        "h": 4
+      },
+      "description": "Последние N завершённых сборок/Deploy tasks. N=100. Canceled исключены из успешности; Jenkins UNSTABLE считается неуспехом. Workers Octopus не равны deployment targets; built-in worker здесь не учитывается.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 90
+              },
+              {
+                "color": "green",
+                "value": 99
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100,
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-teamcity"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/app/rest/builds",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "locator",
+                "value": "state:finished,branch:default:any,count:100"
+              },
+              {
+                "key": "fields",
+                "value": "nextHref,build(id,buildTypeId,number,status,state,startDate,finishDate,webUrl,canceledInfo,agent(id))"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | map(select((.status==\"SUCCESS\" or (.status==\"FAILURE\" or .status==\"UNSTABLE\")))) | if length==0 then empty else point((map(select(.status==\"SUCCESS\"))|length)/length*100) end",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Teamcity • Доступные агенты / workers",
+      "type": "stat",
+      "gridPos": {
+        "x": 3,
+        "y": 14,
+        "w": 3,
+        "h": 4
+      },
+      "description": "Последние N завершённых сборок/Deploy tasks. N=100. Canceled исключены из успешности; Jenkins UNSTABLE считается неуспехом. Workers Octopus не равны deployment targets; built-in worker здесь не учитывается.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-teamcity"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/app/rest/agents",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "locator",
+                "value": "defaultFilter:false,count:1000"
+              },
+              {
+                "key": "fields",
+                "value": "nextHref,agent(id,name,connected,enabled,authorized)"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"agent\") | point([.[] | select(.connected==true and .enabled==true and .authorized==true)] | length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Teamcity • Очередь",
+      "type": "stat",
+      "gridPos": {
+        "x": 6,
+        "y": 14,
+        "w": 2,
+        "h": 4
+      },
+      "description": "Последние N завершённых сборок/Deploy tasks. N=100. Canceled исключены из успешности; Jenkins UNSTABLE считается неуспехом. Workers Octopus не равны deployment targets; built-in worker здесь не учитывается.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 11
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-teamcity"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/app/rest/buildQueue",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "locator",
+                "value": "count:1000"
+              },
+              {
+                "key": "fields",
+                "value": "nextHref,build(id)"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\npoint(complete_inventory(\"build\")|length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Teamcity • Средняя длительность • последние N",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 4,
+        "h": 4
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-teamcity"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/app/rest/builds",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "locator",
+                "value": "state:finished,branch:default:any,count:100"
+              },
+              {
+                "key": "fields",
+                "value": "nextHref,build(id,buildTypeId,number,status,state,startDate,finishDate,webUrl,canceledInfo,agent(id))"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | map(.duration | select(.!=null)) | if length==0 then empty else point(mean) end",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Teamcity • Самая долгая текущая сборка / деплой",
+      "type": "stat",
+      "gridPos": {
+        "x": 4,
+        "y": 18,
+        "w": 4,
+        "h": 4
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-teamcity"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/app/rest/builds",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "locator",
+                "value": "state:running,branch:default:any,count:1000"
+              },
+              {
+                "key": "fields",
+                "value": "nextHref,build(id,buildTypeId,number,status,state,startDate,finishDate,webUrl,canceledInfo,agent(id))"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Jenkins • Успешность последних N",
+      "type": "gauge",
+      "gridPos": {
+        "x": 8,
+        "y": 14,
+        "w": 3,
+        "h": 4
+      },
+      "description": "Последние N завершённых сборок/Deploy tasks. N=100. Canceled исключены из успешности; Jenkins UNSTABLE считается неуспехом. Workers Octopus не равны deployment targets; built-in worker здесь не учитывается.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 90
+              },
+              {
+                "color": "green",
+                "value": 99
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100,
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-jenkins"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/json",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "tree",
+                "value": "jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[name,_class]]]]]]"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100] | map(select((.status==\"SUCCESS\" or (.status==\"FAILURE\" or .status==\"UNSTABLE\")))) | if length==0 then empty else point((map(select(.status==\"SUCCESS\"))|length)/length*100) end",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "title": "Jenkins • Доступные агенты / workers",
+      "type": "stat",
+      "gridPos": {
+        "x": 11,
+        "y": 14,
+        "w": 3,
+        "h": 4
+      },
+      "description": "Последние N завершённых сборок/Deploy tasks. N=100. Canceled исключены из успешности; Jenkins UNSTABLE считается неуспехом. Workers Octopus не равны deployment targets; built-in worker здесь не учитывается.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-jenkins"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/computer/api/json",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "tree",
+                "value": "computer[displayName,offline,temporarilyOffline,numExecutors,idle]"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"computer\") | map(select(.numExecutors>0)) | point([.[] | select(.offline==false and .temporarilyOffline==false)] | length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "title": "Jenkins • Очередь",
+      "type": "stat",
+      "gridPos": {
+        "x": 14,
+        "y": 14,
+        "w": 2,
+        "h": 4
+      },
+      "description": "Последние N завершённых сборок/Deploy tasks. N=100. Canceled исключены из успешности; Jenkins UNSTABLE считается неуспехом. Workers Octopus не равны deployment targets; built-in worker здесь не учитывается.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 11
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-jenkins"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/queue/api/json",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "tree",
+                "value": "items[id]"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\npoint(arr(\"items\")|length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "title": "Jenkins • Средняя длительность • последние N",
+      "type": "stat",
+      "gridPos": {
+        "x": 8,
+        "y": 18,
+        "w": 4,
+        "h": 4
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-jenkins"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/json",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "tree",
+                "value": "jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[name,_class]]]]]]"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100] | map(.duration | select(.!=null)) | if length==0 then empty else point(mean) end",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "title": "Jenkins • Самая долгая текущая сборка / деплой",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 18,
+        "w": 4,
+        "h": 4
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-jenkins"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/json",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "tree",
+                "value": "jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[name,_class]]]]]]"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | map(select(.status == \"RUNNING\")) | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "title": "Octopus • Успешность последних N",
+      "type": "gauge",
+      "gridPos": {
+        "x": 16,
+        "y": 14,
+        "w": 3,
+        "h": 4
+      },
+      "description": "Последние N завершённых сборок/Deploy tasks. N=100. Canceled исключены из успешности; Jenkins UNSTABLE считается неуспехом. Workers Octopus не равны deployment targets; built-in worker здесь не учитывается.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 90
+              },
+              {
+                "color": "green",
+                "value": 99
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100,
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/tasks",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "name",
+                "value": "Deploy"
+              },
+              {
+                "key": "states",
+                "value": "Success,Failed,Canceled,TimedOut"
+              },
+              {
+                "key": "take",
+                "value": "100"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | map(select((.status==\"Success\" or (.status==\"Failed\" or .status==\"TimedOut\")))) | if length==0 then empty else point((map(select(.status==\"Success\"))|length)/length*100) end",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "title": "Octopus • Доступные агенты / workers",
+      "type": "stat",
+      "gridPos": {
+        "x": 19,
+        "y": 14,
+        "w": 3,
+        "h": 4
+      },
+      "description": "Последние N завершённых сборок/Deploy tasks. N=100. Canceled исключены из успешности; Jenkins UNSTABLE считается неуспехом. Workers Octopus не равны deployment targets; built-in worker здесь не учитывается.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/workers",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "take",
+                "value": "1000"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | point([.[] | select(.HealthStatus==\"Healthy\" and .IsDisabled==false)] | length)",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "title": "Octopus • Очередь",
+      "type": "stat",
+      "gridPos": {
+        "x": 22,
+        "y": 14,
+        "w": 2,
+        "h": 4
+      },
+      "description": "Последние N завершённых сборок/Deploy tasks. N=100. Canceled исключены из успешности; Jenkins UNSTABLE считается неуспехом. Workers Octopus не равны deployment targets; built-in worker здесь не учитывается.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 11
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/tasks",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "name",
+                "value": "Deploy"
+              },
+              {
+                "key": "states",
+                "value": "New,Queued"
+              },
+              {
+                "key": "take",
+                "value": "1"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\nif (.TotalResults|type)!=\"number\" then error(\"Expected TotalResults\") else point(.TotalResults) end",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "title": "Octopus • Средняя длительность • последние N",
+      "type": "stat",
+      "gridPos": {
+        "x": 16,
+        "y": 18,
+        "w": 4,
+        "h": 4
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/tasks",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "name",
+                "value": "Deploy"
+              },
+              {
+                "key": "states",
+                "value": "Success,Failed,Canceled,TimedOut"
+              },
+              {
+                "key": "take",
+                "value": "100"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | map(.duration | select(.!=null)) | if length==0 then empty else point(mean) end",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "title": "Octopus • Самая долгая текущая сборка / деплой",
+      "type": "stat",
+      "gridPos": {
+        "x": 20,
+        "y": 18,
+        "w": 4,
+        "h": 4
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cicd-octopus"
+          },
+          "type": "json",
+          "source": "url",
+          "url": "/api/Spaces-1/tasks",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              {
+                "key": "name",
+                "value": "Deploy"
+              },
+              {
+                "key": "states",
+                "value": "Executing,Cancelling"
+              },
+              {
+                "key": "take",
+                "value": "1000"
+              }
+            ]
+          },
+          "parser": "jq-backend",
+          "format": "timeseries",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "columns": [
+            {
+              "selector": "time",
+              "text": "Time",
+              "type": "timestamp_epoch"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "title": "Доступность и время отклика • Prometheus / Blackbox",
+      "type": "row",
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 24,
+        "h": 1
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 24,
+      "title": "HTTP availability",
+      "type": "state-timeline",
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 8,
+        "h": 7
+      },
+      "description": "Проверяются HTTP-код 200 и TLS, редиректы отключены. Это проверка сервера, не статуса pod.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "never",
+        "alignValue": "left",
+        "rowHeight": 0.8,
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cicd-prometheus"
+          },
+          "expr": "probe_success{job=\"cicd-blackbox\"}",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{component}} {{pod}} {{container}}"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "title": "HTTP response time",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 8,
+        "y": 23,
+        "w": 8,
+        "h": 7
+      },
+      "description": "Проверяются HTTP-код 200 и TLS, редиректы отключены. Это проверка сервера, не статуса pod.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cicd-prometheus"
+          },
+          "expr": "probe_duration_seconds{job=\"cicd-blackbox\"}",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{component}} {{pod}} {{container}}"
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "title": "Availability за выбранный период",
+      "type": "gauge",
+      "gridPos": {
+        "x": 16,
+        "y": 23,
+        "w": 8,
+        "h": 7
+      },
+      "description": "Проверяются HTTP-код 200 и TLS, редиректы отключены. Это проверка сервера, не статуса pod.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100,
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cicd-prometheus"
+          },
+          "expr": "100*avg_over_time(probe_success{job=\"cicd-blackbox\"}[$__range])",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{component}} {{pod}} {{container}}"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "title": "Kubernetes • состояние инфраструктуры",
+      "type": "row",
+      "gridPos": {
+        "x": 0,
+        "y": 30,
+        "w": 24,
+        "h": 1
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 28,
+      "title": "Pod Ready",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 8,
+        "h": 7
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cicd-prometheus"
+          },
+          "expr": "min by(namespace,pod) (kube_pod_status_ready{namespace=~\"$namespace\",pod=~\"$pod\",condition=\"true\"})",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{component}} {{pod}} {{container}}"
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "title": "CPU • cores",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 8,
+        "y": 31,
+        "w": 8,
+        "h": 7
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cores",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cicd-prometheus"
+          },
+          "expr": "sum by(namespace,pod) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",pod=~\"$pod\",container!=\"\",container!=\"POD\"}[$__rate_interval]))",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{component}} {{pod}} {{container}}"
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "title": "Memory • working set",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 16,
+        "y": 31,
+        "w": 8,
+        "h": 7
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cicd-prometheus"
+          },
+          "expr": "sum by(namespace,pod) (container_memory_working_set_bytes{namespace=~\"$namespace\",pod=~\"$pod\",container!=\"\",container!=\"POD\"})",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{component}} {{pod}} {{container}}"
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "title": "Рестарты контейнеров",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 38,
+        "w": 12,
+        "h": 6
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cicd-prometheus"
+          },
+          "expr": "sum by(namespace,pod) (increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{component}} {{pod}} {{container}}"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "title": "Состояние сбора • /app/metrics и /prometheus/",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 38,
+        "w": 12,
+        "h": 6
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cicd-prometheus"
+          },
+          "expr": "up{job=~\"cicd-teamcity|cicd-jenkins\"}",
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{component}} {{pod}} {{container}}"
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "title": "Границы данных",
+      "type": "text",
+      "gridPos": {
+        "x": 0,
+        "y": 44,
+        "w": 24,
+        "h": 4
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Infinity = snapshot API; Prometheus = временные ряды.** Последние 100 завершённых результатов не зависят от time picker. История Kubernetes и HTTP зависит от периода. Алерты опрашивают API каждую минуту без открытого dashboard. Общий health включает HTTP, очередь, доступность агентов, ошибки за последние 10 минут и текущие долгие выполнения. При ошибке/неполном ответе API показывается «Нет данных». Клики на карточках открывают подробности. Octopus: workers, только tasks типа Deploy; targets показаны отдельно."
+      },
+      "targets": []
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "label": "Kubernetes namespace regex",
+        "type": "textbox",
+        "query": "teamcity|jenkins|octopus",
+        "current": {
+          "text": "teamcity|jenkins|octopus",
+          "value": "teamcity|jenkins|octopus"
+        }
+      },
+      {
+        "name": "pod",
+        "label": "Pod regex",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        }
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "CI/CD Health",
+      "url": "/d/cicd-operational-health",
+      "type": "link"
+    },
+    {
+      "title": "TeamCity",
+      "url": "/d/cicd-teamcity-details",
+      "type": "link"
+    },
+    {
+      "title": "Jenkins",
+      "url": "/d/cicd-jenkins-details",
+      "type": "link"
+    },
+    {
+      "title": "Octopus",
+      "url": "/d/cicd-octopus-details",
+      "type": "link"
+    }
+  ]
+}

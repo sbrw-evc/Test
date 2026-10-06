@@ -1,0 +1,21 @@
+name: Validate CI-CD Grafana package
+on:
+  push:
+    paths: ['cicd-observability/**', '.github/workflows/cicd-observability.yml']
+  pull_request:
+    paths: ['cicd-observability/**', '.github/workflows/cicd-observability.yml']
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r cicd-observability/requirements-dev.txt
+      - run: jq --version
+      - run: python cicd-observability/scripts/generate.py
+      - run: python -m unittest discover -s cicd-observability/tests -v
+      - run: git diff --exit-code -- cicd-observability/dashboards cicd-observability/provisioning/alerting/rules.yaml cicd-observability/tests/query-catalog.json

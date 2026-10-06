@@ -1,0 +1,46 @@
+# Synthetic template only: .invalid domains cannot resolve to a real system.
+# Replace targets with your authorized endpoints before use.
+# Merge this list into Prometheus scrape_configs or existing Helm values.
+# Configure authentication through your platform's existing Secret mechanism.
+scrape_configs:
+  - job_name: cicd-teamcity
+    scheme: https
+    metrics_path: /app/metrics
+    scrape_interval: 30s
+    scrape_timeout: 15s
+    static_configs:
+      - targets: [teamcity.example.invalid:443]
+        labels:
+          component: teamcity
+  - job_name: cicd-jenkins
+    scheme: https
+    metrics_path: /prometheus/
+    scrape_interval: 30s
+    scrape_timeout: 15s
+    static_configs:
+      - targets: [jenkins.example.invalid:443]
+        labels:
+          component: jenkins
+  - job_name: cicd-blackbox
+    metrics_path: /probe
+    scrape_interval: 30s
+    scrape_timeout: 15s
+    params:
+      module: [http_2xx_no_redirect]
+    static_configs:
+      - targets: [https://teamcity.example.invalid/healthCheck/ready]
+        labels:
+          component: teamcity
+      - targets: [https://jenkins.example.invalid/login]
+        labels:
+          component: jenkins
+      - targets: [https://octopus.example.invalid/]
+        labels:
+          component: octopus
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox.example.invalid:9115

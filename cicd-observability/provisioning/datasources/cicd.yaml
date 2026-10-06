@@ -1,0 +1,54 @@
+apiVersion: 1
+datasources:
+  - name: CI-CD Prometheus
+    uid: cicd-prometheus
+    type: prometheus
+    access: proxy
+    url: $PROMETHEUS_URL
+    jsonData:
+      timeInterval: 30s
+  - name: CI-CD TeamCity API
+    uid: cicd-teamcity
+    type: yesoreyeram-infinity-datasource
+    access: proxy
+    url: $TEAMCITY_URL
+    jsonData:
+      auth_method: bearerToken
+      allowedHosts: [$TEAMCITY_URL]
+      timeoutInSeconds: 15
+      tlsSkipVerify: false
+      httpHeaderName1: Accept
+      allowDangerousHTTPMethods: false
+    secureJsonData:
+      bearerToken: $TEAMCITY_TOKEN
+      httpHeaderValue1: application/json
+  - name: CI-CD Jenkins API
+    uid: cicd-jenkins
+    type: yesoreyeram-infinity-datasource
+    access: proxy
+    url: $JENKINS_URL
+    basicAuth: true
+    basicAuthUser: $JENKINS_USER
+    jsonData:
+      auth_method: basicAuth
+      allowedHosts: [$JENKINS_URL]
+      timeoutInSeconds: 15
+      tlsSkipVerify: false
+      allowDangerousHTTPMethods: false
+    secureJsonData:
+      basicAuthPassword: $JENKINS_TOKEN
+  - name: CI-CD Octopus API
+    uid: cicd-octopus
+    type: yesoreyeram-infinity-datasource
+    access: proxy
+    url: $OCTOPUS_URL
+    jsonData:
+      auth_method: apiKey
+      apiKeyKey: X-Octopus-ApiKey
+      apiKeyType: header
+      allowedHosts: [$OCTOPUS_URL]
+      timeoutInSeconds: 15
+      tlsSkipVerify: false
+      allowDangerousHTTPMethods: false
+    secureJsonData:
+      apiKeyValue: $OCTOPUS_API_KEY
