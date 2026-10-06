@@ -75,8 +75,8 @@ groups:
       summary: Сервер HTTP недоступен
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-teamcity-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '41'
     isPaused: false
   - uid: cicd-teamcity-api-check
     title: 'CI/CD teamcity: REST API: ошибка сбора / неверные права / неполный инвентарь'
@@ -175,8 +175,8 @@ groups:
       summary: 'REST API: ошибка сбора / неверные права / неполный инвентарь'
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-teamcity-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '41'
     isPaused: false
   - uid: cicd-teamcity-failure
     title: 'CI/CD teamcity: Неуспешная сборка за последние 10 минут'
@@ -280,8 +280,8 @@ groups:
       summary: Неуспешная сборка за последние 10 минут
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-teamcity-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '41'
     isPaused: false
   - uid: cicd-teamcity-agents-offline
     title: 'CI/CD teamcity: Неожиданно недоступный агент / worker'
@@ -381,8 +381,8 @@ groups:
       summary: Неожиданно недоступный агент / worker
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-teamcity-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '41'
     isPaused: false
   - uid: cicd-teamcity-capacity
     title: 'CI/CD teamcity: Доступных агентов / workers меньше минимума'
@@ -482,8 +482,8 @@ groups:
       summary: Доступных агентов / workers меньше минимума
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-teamcity-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '41'
     isPaused: false
   - uid: cicd-teamcity-queue
     title: 'CI/CD teamcity: Очередь больше порога'
@@ -582,8 +582,8 @@ groups:
       summary: Очередь больше порога
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-teamcity-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '41'
     isPaused: false
   - uid: cicd-teamcity-long-running
     title: 'CI/CD teamcity: Слишком долгое выполнение'
@@ -686,8 +686,8 @@ groups:
       summary: Слишком долгое выполнение
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-teamcity-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '41'
     isPaused: false
   - uid: cicd-teamcity-http-slow
     title: 'CI/CD teamcity: HTTP response time больше 3 секунд'
@@ -759,8 +759,8 @@ groups:
       summary: HTTP response time больше 3 секунд
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-teamcity-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '41'
     isPaused: false
   - uid: cicd-jenkins-http-down
     title: 'CI/CD jenkins: Сервер HTTP недоступен'
@@ -832,8 +832,8 @@ groups:
       summary: Сервер HTTP недоступен
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-jenkins-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '56'
     isPaused: false
   - uid: cicd-jenkins-api-check
     title: 'CI/CD jenkins: REST API: ошибка сбора / неверные права / неполный инвентарь'
@@ -930,8 +930,8 @@ groups:
       summary: 'REST API: ошибка сбора / неверные права / неполный инвентарь'
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-jenkins-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '56'
     isPaused: false
   - uid: cicd-jenkins-failure
     title: 'CI/CD jenkins: Неуспешная сборка за последние 10 минут'
@@ -1035,8 +1035,8 @@ groups:
       summary: Неуспешная сборка за последние 10 минут
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-jenkins-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '56'
     isPaused: false
   - uid: cicd-jenkins-agents-offline
     title: 'CI/CD jenkins: Неожиданно недоступный агент / worker'
@@ -1134,8 +1134,8 @@ groups:
       summary: Неожиданно недоступный агент / worker
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-jenkins-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '56'
     isPaused: false
   - uid: cicd-jenkins-capacity
     title: 'CI/CD jenkins: Доступных агентов / workers меньше минимума'
@@ -1233,8 +1233,8 @@ groups:
       summary: Доступных агентов / workers меньше минимума
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-jenkins-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '56'
     isPaused: false
   - uid: cicd-jenkins-queue
     title: 'CI/CD jenkins: Очередь больше порога'
@@ -1331,8 +1331,8 @@ groups:
       summary: Очередь больше порога
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-jenkins-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '56'
     isPaused: false
   - uid: cicd-jenkins-long-running
     title: 'CI/CD jenkins: Слишком долгое выполнение'
@@ -1435,8 +1435,8 @@ groups:
       summary: Слишком долгое выполнение
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-jenkins-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '56'
     isPaused: false
   - uid: cicd-jenkins-http-slow
     title: 'CI/CD jenkins: HTTP response time больше 3 секунд'
@@ -1508,8 +1508,8 @@ groups:
       summary: HTTP response time больше 3 секунд
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-jenkins-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '56'
     isPaused: false
   - uid: cicd-octopus-http-down
     title: 'CI/CD octopus: Сервер HTTP недоступен'
@@ -1581,8 +1581,8 @@ groups:
       summary: Сервер HTTP недоступен
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-octopus-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '72'
     isPaused: false
   - uid: cicd-octopus-api-check
     title: 'CI/CD octopus: REST API: ошибка сбора / неверные права / неполный инвентарь'
@@ -1679,8 +1679,8 @@ groups:
       summary: 'REST API: ошибка сбора / неверные права / неполный инвентарь'
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-octopus-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '72'
     isPaused: false
   - uid: cicd-octopus-failure
     title: 'CI/CD octopus: Неуспешный деплой за последние 10 минут'
@@ -1785,8 +1785,8 @@ groups:
       summary: Неуспешный деплой за последние 10 минут
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-octopus-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '72'
     isPaused: false
   - uid: cicd-octopus-agents-offline
     title: 'CI/CD octopus: Неожиданно недоступный агент / worker'
@@ -1884,8 +1884,8 @@ groups:
       summary: Неожиданно недоступный агент / worker
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-octopus-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '72'
     isPaused: false
   - uid: cicd-octopus-queue
     title: 'CI/CD octopus: Очередь больше порога'
@@ -1987,8 +1987,8 @@ groups:
       summary: Очередь больше порога
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-octopus-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '72'
     isPaused: false
   - uid: cicd-octopus-long-running
     title: 'CI/CD octopus: Слишком долгое выполнение'
@@ -2093,8 +2093,8 @@ groups:
       summary: Слишком долгое выполнение
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-octopus-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '72'
     isPaused: false
   - uid: cicd-octopus-http-slow
     title: 'CI/CD octopus: HTTP response time больше 3 секунд'
@@ -2166,8 +2166,8 @@ groups:
       summary: HTTP response time больше 3 секунд
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-octopus-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '72'
     isPaused: false
   - uid: cicd-teamcity-scrape-down
     title: 'CI/CD teamcity: Prometheus scrape недоступен'
@@ -2239,8 +2239,8 @@ groups:
       summary: Prometheus scrape недоступен
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-teamcity-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '41'
     isPaused: false
   - uid: cicd-jenkins-scrape-down
     title: 'CI/CD jenkins: Prometheus scrape недоступен'
@@ -2312,8 +2312,8 @@ groups:
       summary: Prometheus scrape недоступен
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-jenkins-details
-      __panelId__: '2'
+      __dashboardUid__: cicd-operational-health
+      __panelId__: '56'
     isPaused: false
   - uid: cicd-kubernetes-pods-not-ready
     title: 'CI/CD kubernetes: Pod не Ready более 5 минут'
@@ -2385,6 +2385,6 @@ groups:
       summary: Pod не Ready более 5 минут
       description: Проверьте подробный dashboard и Query Inspector. Ошибка/NoData
         источника также требует внимания; это не подтверждённый сбой сборки.
-      __dashboardUid__: cicd-kubernetes-details
+      __dashboardUid__: cicd-operational-health
       __panelId__: '2'
     isPaused: false

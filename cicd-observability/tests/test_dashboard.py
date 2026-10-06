@@ -103,6 +103,14 @@ class Contracts(unittest.TestCase):
         for file in (ROOT/'dashboards').glob('*.json'):
             d=json.loads(file.read_text());self.assertNotIn(d['uid'],uids);uids.add(d['uid'])
             ids=[p['id'] for p in d['panels']];self.assertEqual(len(ids),len(set(ids)))
+            detail_rows=[p for p in d['panels'] if p['type']=='row' and p['title'].endswith(' • детали')]
+            self.assertEqual({p['title'] for p in detail_rows},{'Teamcity • детали','Jenkins • детали','Octopus • детали'})
+            self.assertTrue(all(p['collapsed'] is False for p in detail_rows))
+            links=d['links']+[link for p in d['panels'] for link in p.get('links',[])]
+            for link in links:
+                if 'viewPanel=' in link['url']:
+                    self.assertTrue(link['url'].startswith('/d/cicd-operational-health?viewPanel='))
+                    self.assertIn(int(link['url'].split('viewPanel=')[1]),ids)
             boxes=[]
             for p in d['panels']:
                 b=p['gridPos'];self.assertLessEqual(b['x']+b['w'],24)
@@ -115,13 +123,17 @@ class Contracts(unittest.TestCase):
                     if q['datasource']['uid'].startswith('cicd-') and q.get('type')=='json':
                         self.assertEqual(q['parser'],'jq-backend')
                         self.assertEqual(q['url_options']['method'],'GET')
-        self.assertEqual(len(uids),4)
+        self.assertEqual(uids,{'cicd-operational-health'})
 
     def test_alerts_use_backend_and_no_dashboard_variables(self):
         d=yaml.safe_load((ROOT/'provisioning/alerting/rules.yaml').read_text())
         rules=d['groups'][0]['rules']
+        dashboard=json.loads((ROOT/'dashboards/cicd-health.json').read_text())
+        panel_ids={str(p['id']) for p in dashboard['panels']}
         self.assertGreaterEqual(len(rules),24)
         for rule in rules:
+            self.assertEqual(rule['annotations']['__dashboardUid__'],'cicd-operational-health')
+            self.assertIn(rule['annotations']['__panelId__'],panel_ids)
             self.assertEqual(rule['noDataState'],'Alerting')
             self.assertEqual(rule['execErrState'],'Alerting')
             for target in rule['data']:

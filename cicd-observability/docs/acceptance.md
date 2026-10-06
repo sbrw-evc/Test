@@ -8,8 +8,11 @@
 2. Prometheus Targets: 2 native scrapes UP и 3 Blackbox probes с component labels.
    TeamCity `/healthCheck/ready`; проверить, что отключение backend даёт probe_success=0.
 3. Убедиться, что kube-state-metrics/cAdvisor series присутствуют в нужных namespaces.
-4. Импортировать 4 JSON или подключить provider; проверить health expressions и ссылки,
+4. Импортировать один `dashboards/cicd-health.json` или подключить provider; проверить health expressions и ссылки,
    что карточки H видны, а промежуточные результаты не показываются в Stat cards.
+   Убедиться, что детали трёх компонентов находятся ниже обзора на той же странице,
+   IDs панелей уникальны, ссылки алертов ведут в этот dashboard. При обновлении удалить
+   старые отдельные details dashboards и их файлы из ConfigMap.
 5. Сверить последние N результатов, очереди и agents с интерфейсами CI/CD. Проверить
    nested Jenkins folders, aborted/unstable, canceled TC, Failed/TimedOut Octopus.
 6. Сопоставить внешние Octopus workers с worker pools, built-in workers и targets;

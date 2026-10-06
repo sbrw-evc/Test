@@ -195,7 +195,7 @@ for i,c in enumerate(COMPONENTS):
 overall.append(expr('H','(${0H}==0 || ${1H}==0 || ${2H}==0)*0 + (${0H}>0 && ${1H}>0 && ${2H}>0)*(1+(${0H}==2 && ${1H}==2 && ${2H}==2))'))
 health_panel('Вся CI/CD цепочка',0,1,6,overall)
 for i,c in enumerate(COMPONENTS):
-    health_panel(c.capitalize(),6+i*6,1,6,health_targets(c),'/d/cicd-'+c+'-details')
+    health_panel(c.capitalize(),6+i*6,1,6,health_targets(c))
 p=panel('Требуют внимания • Grafana Alerting', 'alertlist',0,6,24,7)
 p['options']={'viewMode':'list','groupMode':'default','maxItems':20,'sortOrder':1,'stateFilter':{'firing':True,'pending':True,'error':True,'noData':True,'normal':False},'alertName':'CI/CD','dashboardAlerts':False}
 row('KPI • последние результаты и текущая загрузка',13)
@@ -223,21 +223,24 @@ p['options']={'mode':'markdown','content':f'**Infinity = snapshot API; Prometheu
 
 
 def dashboard(uid, title, panels):
-    return {'id':None,'uid':uid,'title':title,'tags':['cicd','operational'],'timezone':'browser','schemaVersion':39,'version':1,'editable':True,'refresh':'1m','time':{'from':'now-6h','to':'now'},'panels':panels,'annotations':{'list':[{'builtIn':1,'datasource':{'type':'grafana','uid':'-- Grafana --'},'enable':True,'hide':True,'iconColor':'rgba(0, 211, 255, 1)','name':'Annotations & Alerts','type':'dashboard'}]},'templating':{'list':[{'name':'namespace','label':'Kubernetes namespace regex','type':'textbox','query':ns,'current':{'text':ns,'value':ns}}, {'name':'pod','label':'Pod regex','type':'textbox','query':pods,'current':{'text':pods,'value':pods}}]},'links':[{'title':'CI/CD Health','url':'/d/cicd-operational-health','type':'link'},{'title':'TeamCity','url':'/d/cicd-teamcity-details','type':'link'},{'title':'Jenkins','url':'/d/cicd-jenkins-details','type':'link'},{'title':'Octopus','url':'/d/cicd-octopus-details','type':'link'}]}
+    return {'id':None,'uid':uid,'title':title,'tags':['cicd','operational'],'timezone':'browser','schemaVersion':39,'version':1,'editable':True,'refresh':'1m','time':{'from':'now-6h','to':'now'},'panels':panels,'annotations':{'list':[{'builtIn':1,'datasource':{'type':'grafana','uid':'-- Grafana --'},'enable':True,'hide':True,'iconColor':'rgba(0, 211, 255, 1)','name':'Annotations & Alerts','type':'dashboard'}]},'templating':{'list':[{'name':'namespace','label':'Kubernetes namespace regex','type':'textbox','query':ns,'current':{'text':ns,'value':ns}}, {'name':'pod','label':'Pod regex','type':'textbox','query':pods,'current':{'text':pods,'value':pods}}]},'links':[{'title':c.capitalize()+' UI','url':CFG['public_urls'][c],'type':'link','targetBlank':True} for c in COMPONENTS]}
 
 
 def save_json(path, data):
     (ROOT/path).write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
 
-save_json('dashboards/cicd-health.json',dashboard('cicd-operational-health','CI/CD • Operational Health',panels))
+main_panels = panels
+detail_panel_ids = {}
+section_y = max(p['gridPos']['y'] + p['gridPos']['h'] for p in main_panels)
 for c in COMPONENTS:
-    panels=[];next_id=1
+    panels=[]
     row(c.capitalize()+' • детали',0)
     for i,key in enumerate(['success','sample','agents','offline','queue','age']):
         panel({'success':'Успешность • последние N','sample':'Завершённые SUCCESS/FAILURE в выборке','agents':'Доступные агенты / workers','offline':'Неожиданно недоступные агенты / workers','queue':'Очередь','age':'Самое долгое текущее выполнение'}[key],'stat',i*4,1,4,4,[queries[c][key]],'percent' if key=='success' else 's' if key=='age' else 'short')
     cols=[{'selector':name,'text':title,'type':typ} for name,title,typ in [('workflow','Workflow','string'),('id','ID','string'),('status','Status','string'),('duration','Duration','number'),('start','Start','timestamp_epoch_s'),('finish','Finish','timestamp_epoch_s'),('url','Open','string')]]
     q=copy.deepcopy(queries[c]['history']);q.update(format='table',columns=cols)
-    p=panel('Последние '+str(LIMIT)+' завершённых результатов','table',0,5,24,12,[q])
+    p=panel(c.capitalize()+' • последние '+str(LIMIT)+' завершённых результатов','table',0,5,24,12,[q])
+    detail_panel_ids[c] = p['id']
     p['fieldConfig']['overrides']=[{'matcher':{'id':'byName','options':'Status'},'properties':[{'id':'mappings','value':[{'type':'value','options':{'SUCCESS':{'text':'SUCCESS','color':'green'},'Success':{'text':'SUCCESS','color':'green'},'FAILURE':{'text':'FAILED','color':'red'},'Failed':{'text':'FAILED','color':'red'},'TimedOut':{'text':'TIMEOUT','color':'red'},'UNSTABLE':{'text':'UNSTABLE','color':'orange'},'CANCELED':{'text':'CANCELED','color':'gray'},'Canceled':{'text':'CANCELED','color':'gray'},'ABORTED':{'text':'ABORTED','color':'gray'}}}]},{'id':'custom.cellOptions','value':{'type':'color-background'}}]},{'matcher':{'id':'byName','options':'Open'},'properties':[{'id':'links','value':[{'title':'Открыть результат','url':'${__value.raw}','targetBlank':True}]}]},{'matcher':{'id':'byName','options':'Duration'},'properties':[{'id':'unit','value':'s'}]}]
     q=copy.deepcopy(queries[c]['running']);q.update(format='table',columns=[{'selector':k,'text':k,'type':t} for k,t in [('workflow','string'),('status','string'),('age','number'),('url','string')]])
     panel('Текущие выполнения','table',0,17,12,10,[q],'short','Нет выполняющихся задач — пустая таблица, а не ошибка.')
@@ -259,9 +262,20 @@ for c in COMPONENTS:
     if c=='teamcity':
         for i,(title,metric_name) in enumerate([('Running builds','builds_running_number'),('Queue','builds_queued_number'),('Connected authorized agents','agents_connected_authorized_number')]):
             panel(title+' • /app/metrics','timeseries',i*8,34,8,7,[prom('max('+metric_name+'{job="cicd-teamcity"})',instant=False)],description='Нативные метрики, используемые в публичном TeamCity dashboard 11669. Проверьте имена в вашей версии /app/metrics; этот ряд не участвует в общем health.')
-    d=dashboard('cicd-'+c+'-details','CI/CD • '+c.capitalize()+' Details',panels)
-    d['links'].append({'title':'Открыть '+c.capitalize(),'url':CFG['public_urls'][c],'type':'link','targetBlank':True})
-    save_json('dashboards/'+c+'-details.json',d)
+    for p in panels:
+        p['gridPos']['y'] += section_y
+    main_panels.extend(panels)
+    section_y = max(p['gridPos']['y'] + p['gridPos']['h'] for p in panels) + 1
+for p in main_panels:
+    for c in COMPONENTS:
+        if p['type']=='stat' and p['title']==c.capitalize():
+            p['links']=[{'title':'Детали '+c.capitalize()+' на этом dashboard','url':'/d/cicd-operational-health?viewPanel='+str(detail_panel_ids[c]),'targetBlank':False}]
+d=dashboard('cicd-operational-health','CI/CD • Operational Health',main_panels)
+d['links'].extend({'title':c.capitalize()+' • детали','url':'/d/cicd-operational-health?viewPanel='+str(detail_panel_ids[c]),'type':'link'} for c in COMPONENTS)
+save_json('dashboards/cicd-health.json',d)
+# Remove obsolete generated dashboards when upgrading a previous checkout.
+for c in COMPONENTS:
+    (ROOT/'dashboards'/f'{c}-details.json').unlink(missing_ok=True)
 
 # Grafana managed alerts use fixed datasource UIDs and no dashboard variables.
 rules=[]
@@ -272,7 +286,7 @@ def alert(c,key,title,target,op,threshold,hold='0s',severity='warning'):
     cond=expr('C','B','threshold');cond['conditions']=[{'type':'query','evaluator':{'type':op,'params':[threshold]},'operator':{'type':'and'},'query':{'params':['C']},'reducer':{'type':'last','params':[]}}]
     def data(model):
         return {'refId':model['refId'],'relativeTimeRange':{'from':300,'to':0},'datasourceUid':model['datasource']['uid'],'model':model}
-    rules.append({'uid':f'cicd-{c}-{key}','title':f'CI/CD {c}: {title}','condition':'C','data':[data(a),data(b),data(cond)],'for':hold,'noDataState':'Alerting','execErrState':'Alerting','labels':{'team':'cicd','component':c,'severity':severity},'annotations':{'summary':title,'description':'Проверьте подробный dashboard и Query Inspector. Ошибка/NoData источника также требует внимания; это не подтверждённый сбой сборки.','__dashboardUid__':'cicd-'+c+'-details','__panelId__':'2'},'isPaused':False})
+    rules.append({'uid':f'cicd-{c}-{key}','title':f'CI/CD {c}: {title}','condition':'C','data':[data(a),data(b),data(cond)],'for':hold,'noDataState':'Alerting','execErrState':'Alerting','labels':{'team':'cicd','component':c,'severity':severity},'annotations':{'summary':title,'description':'Проверьте подробный dashboard и Query Inspector. Ошибка/NoData источника также требует внимания; это не подтверждённый сбой сборки.','__dashboardUid__':'cicd-operational-health','__panelId__':str(detail_panel_ids.get(c,2))},'isPaused':False})
 
 for c in COMPONENTS:
     alert(c,'http-down','Сервер HTTP недоступен',prom(probe(c)),'lt',1,'2m','critical')
@@ -295,4 +309,4 @@ def escape(value):
     return value
 (ROOT/'provisioning/alerting/rules.yaml').write_text(yaml.safe_dump(escape({'apiVersion':1,'groups':[{'orgId':1,'name':'CI/CD operational','folder':'CI/CD','interval':'1m','rules':rules}]}),allow_unicode=True,sort_keys=False))
 save_json('tests/query-catalog.json',queries)
-print(f'Generated 4 dashboards, {len(rules)} Grafana alert rules, query catalog')
+print(f'Generated 1 dashboard, {len(rules)} Grafana alert rules, query catalog')

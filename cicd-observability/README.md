@@ -9,10 +9,7 @@
 
 | Файл | Назначение |
 |---|---|
-| `dashboards/cicd-health.json` | Общий health, KPI, алерты, HTTP и Kubernetes |
-| `dashboards/teamcity-details.json` | Сборки, агенты, длительности и `/app/metrics` |
-| `dashboards/jenkins-details.json` | Сборки, ноды, executor capacity и Prometheus Plugin |
-| `dashboards/octopus-details.json` | Deploy tasks, workers и отдельный список targets |
+| `dashboards/cicd-health.json` | Один большой dashboard: общий health, KPI, алерты, HTTP, Kubernetes и подробные секции всех трёх компонентов |
 | `provisioning/datasources/cicd.yaml` | Prometheus + 3 отдельных Infinity datasource |
 | `provisioning/alerting/rules.yaml` | 26 Grafana-managed alert rules, период 1 минута |
 | `provisioning/alerting/notifications.yaml.example` | Teams Workflow + PagerDuty, шаблон маршрутизации |
@@ -20,6 +17,11 @@
 | `kubernetes/blackbox.yaml` | Только официальный Blackbox Exporter |
 | `kubernetes/grafana-values.yaml.example` | Подключение файлов в существующий Grafana Helm release |
 | `scripts/generate.py` | Генерация статических JSON/YAML на рабочей машине, не компонент Kubernetes |
+
+Обзор и все подробности находятся на одной странице с UID `cicd-operational-health`.
+Ниже общих KPI размещены секции TeamCity, Jenkins и Octopus с таблицами результатов,
+агентами и графиками. Секции развёрнуты по умолчанию и могут сворачиваться. Карточки
+и навигация открывают таблицу нужного компонента на том же dashboard.
 
 Визуальные референсы из публичной галереи Grafana указаны в
 [docs/design-references.md](docs/design-references.md). Используются native Stat,
@@ -56,8 +58,8 @@ python scripts/generate.py config.json
 python -m unittest discover -s tests -v
 ```
 
-Для тестов требуется CLI `jq`. `config.json` не коммитится. Генератор обновляет четыре
-дашборда, alert rules и query catalog; после изменений коммитьте сгенерированные файлы.
+Для тестов требуется CLI `jq`. `config.json` не коммитится. Генератор обновляет один
+дашборд, alert rules и query catalog; после изменений коммитьте сгенерированные файлы.
 `namespace_regex`/`pod_regex` определяют область Kubernetes-алерта, а textbox-переменные
 дашборда меняют только отображение. Выберите server pods: временные build agents могут
 намеренно быть Pending/NotReady/удаляться, их не стоит включать в общий server-pod alert.
@@ -95,7 +97,7 @@ Grafana provisioning разворачивает `$ENV`; в alert rules лите�
 Если импортируете rules через HTTP API вместо file provisioning, сначала разверните
 file-provisioning escaping в литеральные `$` и преобразуйте формат к API schema.
 
-Ручной импорт: сначала настройте datasource с этими UIDs, затем импортируйте 4 JSON
+Ручной импорт: сначала настройте datasource с этими UIDs, затем импортируйте `dashboards/cicd-health.json`
 через Dashboards → New → Import. Это импортирует dashboard, **не alert rules**.
 
 ### 3. Prometheus и HTTP
@@ -184,6 +186,16 @@ Prometheus. Time picker управляет HTTP/Kubernetes/native Prometheus gra
   в конфигурации. Отсутствующая native metric → No data, без подстановки нуля.
 - Availability за период — доля успешных полученных probes, не SLA с полной поправкой
   на пробелы scrape. Сами пробелы контролируются сбором/alerting.
+
+## Обновление предыдущего варианта
+
+В каталоге `dashboards/` теперь один JSON. При file provisioning обновите ConfigMap
+из этого каталога целиком: он больше не должен содержать старые `*-details.json`.
+Provider использует `disableDeletion: false`, поэтому удалённые файлы этого provider
+удаляют и соответствующие ранее provisioned dashboards. При ручном импорте удалите
+три старых dashboard с UIDs `cicd-teamcity-details`, `cicd-jenkins-details`,
+`cicd-octopus-details` вручную. Все 26 alert rules теперь ссылаются на единый UID и
+соответствующие панели, их provisioning также нужно обновить.
 
 ## Ввод в эксплуатацию
 
