@@ -288,3 +288,19 @@ RAM: sum by(namespace,pod)(container_memory_working_set_bytes{...}).
 через Edit panel → Query. Если kube-state-metrics/cAdvisor series не собираются,
 соответствующий график останется «Нет данных» — dashboard не устанавливает их.
 Это использование текущих данных, а не требование доступа к Kubernetes.
+
+8. ИСПРАВЛЕНИЕ REDUCE EXPRESSION
+-------------------------------
+Если старая версия JSON выдаёт:
+  failed to parse expression [RA]: reducer mode 'strict' is not supported
+это ошибка сериализации Reduce settings, а не ошибка токена Octopus.
+В обновлённом JSON settings.mode удалён из всех Reduce expressions.
+Strict является режимом по умолчанию; явно допустимы только dropNN/replaceNN.
+Null/NaN не заменяются нулём и пропуски не скрываются.
+Импортируйте обновлённый JSON с overwrite того же UID, выбрав существующие
+три Infinity datasource и Prometheus. После импорта проверьте свой Space ID.
+Для точечного исправления без повторного импорта: в JSON модели панели
+у всех targets с type=reduce удалите объект settings:{mode:"strict"}.
+Не меняйте авторизацию источника ради устранения этой ошибки.
+Подтверждение: Grafana pkg/expr/commands.go, UnmarshalReduceCommand:
+https://github.com/grafana/grafana/blob/main/pkg/expr/commands.go

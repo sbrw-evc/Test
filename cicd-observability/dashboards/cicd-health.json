@@ -8,7 +8,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": true,
   "refresh": "1m",
   "time": {
@@ -371,10 +371,7 @@
           },
           "type": "reduce",
           "expression": "0A",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "0RB",
@@ -384,10 +381,7 @@
           },
           "type": "reduce",
           "expression": "0B",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "0RC",
@@ -397,10 +391,7 @@
           },
           "type": "reduce",
           "expression": "0C",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "0RD",
@@ -410,10 +401,7 @@
           },
           "type": "reduce",
           "expression": "0D",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "0RE",
@@ -423,10 +411,7 @@
           },
           "type": "reduce",
           "expression": "0E",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "0RF",
@@ -436,10 +421,7 @@
           },
           "type": "reduce",
           "expression": "0F",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "0H",
@@ -662,10 +644,7 @@
           },
           "type": "reduce",
           "expression": "1A",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "1RB",
@@ -675,10 +654,7 @@
           },
           "type": "reduce",
           "expression": "1B",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "1RC",
@@ -688,10 +664,7 @@
           },
           "type": "reduce",
           "expression": "1C",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "1RD",
@@ -701,10 +674,7 @@
           },
           "type": "reduce",
           "expression": "1D",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "1RE",
@@ -714,10 +684,7 @@
           },
           "type": "reduce",
           "expression": "1E",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "1RF",
@@ -727,10 +694,7 @@
           },
           "type": "reduce",
           "expression": "1F",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "1H",
@@ -977,10 +941,7 @@
           },
           "type": "reduce",
           "expression": "2A",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "2RB",
@@ -990,10 +951,7 @@
           },
           "type": "reduce",
           "expression": "2B",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "2RC",
@@ -1003,10 +961,7 @@
           },
           "type": "reduce",
           "expression": "2C",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "2RD",
@@ -1016,10 +971,7 @@
           },
           "type": "reduce",
           "expression": "2D",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "2RE",
@@ -1029,10 +981,7 @@
           },
           "type": "reduce",
           "expression": "2E",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "2RF",
@@ -1042,10 +991,7 @@
           },
           "type": "reduce",
           "expression": "2F",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "2H",
@@ -1375,10 +1321,7 @@
           },
           "type": "reduce",
           "expression": "A",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "RB",
@@ -1388,10 +1331,7 @@
           },
           "type": "reduce",
           "expression": "B",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "RC",
@@ -1401,10 +1341,7 @@
           },
           "type": "reduce",
           "expression": "C",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "RD",
@@ -1414,10 +1351,7 @@
           },
           "type": "reduce",
           "expression": "D",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "RE",
@@ -1427,10 +1361,7 @@
           },
           "type": "reduce",
           "expression": "E",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "RF",
@@ -1440,10 +1371,7 @@
           },
           "type": "reduce",
           "expression": "F",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "H",
@@ -1747,10 +1675,7 @@
           },
           "type": "reduce",
           "expression": "A",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "RB",
@@ -1760,10 +1685,7 @@
           },
           "type": "reduce",
           "expression": "B",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "RC",
@@ -1773,10 +1695,7 @@
           },
           "type": "reduce",
           "expression": "C",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "RD",
@@ -1786,10 +1705,7 @@
           },
           "type": "reduce",
           "expression": "D",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "RE",
@@ -1799,10 +1715,7 @@
           },
           "type": "reduce",
           "expression": "E",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "RF",
@@ -1812,10 +1725,7 @@
           },
           "type": "reduce",
           "expression": "F",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "H",
@@ -2143,10 +2053,7 @@
           },
           "type": "reduce",
           "expression": "A",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "RB",
@@ -2156,10 +2063,7 @@
           },
           "type": "reduce",
           "expression": "B",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "RC",
@@ -2169,10 +2073,7 @@
           },
           "type": "reduce",
           "expression": "C",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "RD",
@@ -2182,10 +2083,7 @@
           },
           "type": "reduce",
           "expression": "D",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "RE",
@@ -2195,10 +2093,7 @@
           },
           "type": "reduce",
           "expression": "E",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "RF",
@@ -2208,10 +2103,7 @@
           },
           "type": "reduce",
           "expression": "F",
-          "reducer": "last",
-          "settings": {
-            "mode": "strict"
-          }
+          "reducer": "last"
         },
         {
           "refId": "H",
