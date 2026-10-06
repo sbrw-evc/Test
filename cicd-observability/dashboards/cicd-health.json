@@ -8,7 +8,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "editable": true,
   "refresh": "1m",
   "time": {
@@ -191,13 +191,13 @@
               },
               {
                 "key": "fields",
-                "value": "nextHref,build(id)"
+                "value": "nextHref,build(id,buildTypeId)"
               }
             ]
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\npoint(complete_inventory(\"build\")|length)",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | ${teamcity_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.buildTypeId) as $id | ($selected | index($id)) != null))) | point(length)",
           "columns": [
             {
               "selector": "time",
@@ -273,7 +273,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | ${teamcity_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
           "columns": [
             {
               "selector": "time",
@@ -311,7 +311,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | ${teamcity_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
           "columns": [
             {
               "selector": "time",
@@ -480,13 +480,13 @@
             "params": [
               {
                 "key": "tree",
-                "value": "items[id]"
+                "value": "items[id,task[fullName]]"
               }
             ]
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\npoint(arr(\"items\")|length)",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"items\") | ${jenkins_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.task.fullName) as $id | ($selected | index($id)) != null))) | point(length)",
           "columns": [
             {
               "selector": "time",
@@ -554,7 +554,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100] | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | ${jenkins_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100] | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
           "columns": [
             {
               "selector": "time",
@@ -588,7 +588,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | map(select(.status == \"RUNNING\")) | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | ${jenkins_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | map(select(.status == \"RUNNING\")) | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
           "columns": [
             {
               "selector": "time",
@@ -761,13 +761,13 @@
               },
               {
                 "key": "take",
-                "value": "1"
+                "value": "1000"
               }
             ]
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\nif (.TotalResults|type)!=\"number\" then error(\"Expected TotalResults\") else point(.TotalResults) end",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | ${octopus_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.ProjectId) as $id | ($selected | index($id)) != null))) | point(length)",
           "columns": [
             {
               "selector": "time",
@@ -843,7 +843,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point([.[] | select((.status==\"Failed\" or .status==\"TimedOut\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | ${octopus_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | point([.[] | select((.status==\"Failed\" or .status==\"TimedOut\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
           "columns": [
             {
               "selector": "time",
@@ -885,7 +885,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | ${octopus_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
           "columns": [
             {
               "selector": "time",
@@ -1141,13 +1141,13 @@
               },
               {
                 "key": "fields",
-                "value": "nextHref,build(id)"
+                "value": "nextHref,build(id,buildTypeId)"
               }
             ]
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\npoint(complete_inventory(\"build\")|length)",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | ${teamcity_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.buildTypeId) as $id | ($selected | index($id)) != null))) | point(length)",
           "columns": [
             {
               "selector": "time",
@@ -1223,7 +1223,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | ${teamcity_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
           "columns": [
             {
               "selector": "time",
@@ -1261,7 +1261,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | ${teamcity_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
           "columns": [
             {
               "selector": "time",
@@ -1511,13 +1511,13 @@
             "params": [
               {
                 "key": "tree",
-                "value": "items[id]"
+                "value": "items[id,task[fullName]]"
               }
             ]
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\npoint(arr(\"items\")|length)",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"items\") | ${jenkins_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.task.fullName) as $id | ($selected | index($id)) != null))) | point(length)",
           "columns": [
             {
               "selector": "time",
@@ -1585,7 +1585,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100] | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | ${jenkins_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100] | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
           "columns": [
             {
               "selector": "time",
@@ -1619,7 +1619,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | map(select(.status == \"RUNNING\")) | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | ${jenkins_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | map(select(.status == \"RUNNING\")) | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
           "columns": [
             {
               "selector": "time",
@@ -1873,13 +1873,13 @@
               },
               {
                 "key": "take",
-                "value": "1"
+                "value": "1000"
               }
             ]
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\nif (.TotalResults|type)!=\"number\" then error(\"Expected TotalResults\") else point(.TotalResults) end",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | ${octopus_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.ProjectId) as $id | ($selected | index($id)) != null))) | point(length)",
           "columns": [
             {
               "selector": "time",
@@ -1955,7 +1955,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point([.[] | select((.status==\"Failed\" or .status==\"TimedOut\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | ${octopus_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | point([.[] | select((.status==\"Failed\" or .status==\"TimedOut\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
           "columns": [
             {
               "selector": "time",
@@ -1997,7 +1997,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | ${octopus_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
           "columns": [
             {
               "selector": "time",
@@ -2196,7 +2196,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | ${teamcity_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
           "columns": [
             {
               "selector": "time",
@@ -2370,7 +2370,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100] | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | ${jenkins_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100] | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
           "columns": [
             {
               "selector": "time",
@@ -2548,7 +2548,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point([.[] | select((.status==\"Failed\" or .status==\"TimedOut\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | ${octopus_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | point([.[] | select((.status==\"Failed\" or .status==\"TimedOut\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
           "columns": [
             {
               "selector": "time",
@@ -2774,7 +2774,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | map(select((.status==\"SUCCESS\" or (.status==\"FAILURE\" or .status==\"UNSTABLE\")))) | if length==0 then empty else point((map(select(.status==\"SUCCESS\"))|length)/length*100) end",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | ${teamcity_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | map(select((.status==\"SUCCESS\" or (.status==\"FAILURE\" or .status==\"UNSTABLE\")))) | if length==0 then empty else point((map(select(.status==\"SUCCESS\"))|length)/length*100) end",
           "columns": [
             {
               "selector": "time",
@@ -2942,13 +2942,13 @@
               },
               {
                 "key": "fields",
-                "value": "nextHref,build(id)"
+                "value": "nextHref,build(id,buildTypeId)"
               }
             ]
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\npoint(complete_inventory(\"build\")|length)",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | ${teamcity_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.buildTypeId) as $id | ($selected | index($id)) != null))) | point(length)",
           "columns": [
             {
               "selector": "time",
@@ -3038,7 +3038,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100] | map(select((.status==\"SUCCESS\" or (.status==\"FAILURE\" or .status==\"UNSTABLE\")))) | if length==0 then empty else point((map(select(.status==\"SUCCESS\"))|length)/length*100) end",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | ${jenkins_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100] | map(select((.status==\"SUCCESS\" or (.status==\"FAILURE\" or .status==\"UNSTABLE\")))) | if length==0 then empty else point((map(select(.status==\"SUCCESS\"))|length)/length*100) end",
           "columns": [
             {
               "selector": "time",
@@ -3198,13 +3198,13 @@
             "params": [
               {
                 "key": "tree",
-                "value": "items[id]"
+                "value": "items[id,task[fullName]]"
               }
             ]
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\npoint(arr(\"items\")|length)",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"items\") | ${jenkins_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.task.fullName) as $id | ($selected | index($id)) != null))) | point(length)",
           "columns": [
             {
               "selector": "time",
@@ -3302,7 +3302,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | map(select((.status==\"Success\" or (.status==\"Failed\" or .status==\"TimedOut\")))) | if length==0 then empty else point((map(select(.status==\"Success\"))|length)/length*100) end",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | ${octopus_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | map(select((.status==\"Success\" or (.status==\"Failed\" or .status==\"TimedOut\")))) | if length==0 then empty else point((map(select(.status==\"Success\"))|length)/length*100) end",
           "columns": [
             {
               "selector": "time",
@@ -3470,13 +3470,13 @@
               },
               {
                 "key": "take",
-                "value": "1"
+                "value": "1000"
               }
             ]
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\nif (.TotalResults|type)!=\"number\" then error(\"Expected TotalResults\") else point(.TotalResults) end",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | ${octopus_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.ProjectId) as $id | ($selected | index($id)) != null))) | point(length)",
           "columns": [
             {
               "selector": "time",
@@ -3561,7 +3561,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | map(.duration | select(.!=null)) | if length==0 then empty else point(mean) end",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | ${teamcity_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | map(.duration | select(.!=null)) | if length==0 then empty else point(mean) end",
           "columns": [
             {
               "selector": "time",
@@ -3646,7 +3646,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | ${teamcity_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
           "columns": [
             {
               "selector": "time",
@@ -3727,7 +3727,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100] | map(.duration | select(.!=null)) | if length==0 then empty else point(mean) end",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | ${jenkins_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100] | map(.duration | select(.!=null)) | if length==0 then empty else point(mean) end",
           "columns": [
             {
               "selector": "time",
@@ -3808,7 +3808,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | map(select(.status == \"RUNNING\")) | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | ${jenkins_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | map(select(.status == \"RUNNING\")) | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
           "columns": [
             {
               "selector": "time",
@@ -3897,7 +3897,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | map(.duration | select(.!=null)) | if length==0 then empty else point(mean) end",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | ${octopus_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | map(.duration | select(.!=null)) | if length==0 then empty else point(mean) end",
           "columns": [
             {
               "selector": "time",
@@ -3986,7 +3986,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | ${octopus_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
           "columns": [
             {
               "selector": "time",
@@ -4034,7 +4034,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "**REST API через Infinity + метрики подов из существующего Prometheus.** Последние 100 завершённых результатов, очереди, агенты и текущие выполнения. Зелёный статус означает успешное чтение API и KPI в норме; ошибка API/доступа/таймаут означает «Нет данных». HTTP SLA и время отклика сервера здесь не измеряются. Состояние подов, CPU/RAM и рестарты показаны ниже из выбранного существующего Prometheus; в API health они не входят. Детали всех трёх систем расположены ниже на этой странице. Самостоятельных alert rules и уведомлений этот JSON не создаёт. При необходимости их можно отдельно настроить в Grafana с backend JQ."
+        "content": "**REST API через Infinity + метрики подов из существующего Prometheus.** Последние 100 завершённых результатов, очереди, агенты и текущие выполнения. Зелёный статус означает успешное чтение API и KPI в норме; ошибка API/доступа/таймаут означает «Нет данных». HTTP SLA и время отклика сервера здесь не измеряются. Состояние подов, CPU/RAM и рестарты показаны ниже из выбранного существующего Prometheus; в API health они не входят. Детали всех трёх систем расположены ниже на этой странице. Самостоятельных alert rules и уведомлений этот JSON не создаёт. При необходимости их можно отдельно настроить в Grafana с backend JQ.\n\n**Фильтры:** Space → проекты Octopus; Namespace → Pod. TeamCity/Jenkins/Octopus фильтруются независимо по идентификатору pipeline/project. Агенты и API-доступность остаются общими. История TeamCity/Octopus фильтруется в последних 100 результатах системы; пустая выборка — «Нет данных»."
       },
       "targets": []
     },
@@ -4130,7 +4130,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "min by(namespace,pod) (kube_pod_status_ready{namespace=~\"$namespace\",pod=~\"$pod\",condition=\"true\"})",
+          "expr": "min by(namespace,pod) (kube_pod_status_ready{namespace=~\"${namespace:regex}\",pod=~\"${pod:regex}\",condition=\"true\"})",
           "instant": false,
           "range": true,
           "legendFormat": "{{namespace}} / {{pod}}"
@@ -4184,7 +4184,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by(namespace,pod) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",pod=~\"$pod\",container!=\"\",container!=\"POD\"}[$__rate_interval]))",
+          "expr": "sum by(namespace,pod) (rate(container_cpu_usage_seconds_total{namespace=~\"${namespace:regex}\",pod=~\"${pod:regex}\",container!=\"\",container!=\"POD\"}[$__rate_interval]))",
           "instant": false,
           "range": true,
           "legendFormat": "{{namespace}} / {{pod}}"
@@ -4238,7 +4238,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by(namespace,pod) (container_memory_working_set_bytes{namespace=~\"$namespace\",pod=~\"$pod\",container!=\"\",container!=\"POD\"})",
+          "expr": "sum by(namespace,pod) (container_memory_working_set_bytes{namespace=~\"${namespace:regex}\",pod=~\"${pod:regex}\",container!=\"\",container!=\"POD\"})",
           "instant": false,
           "range": true,
           "legendFormat": "{{namespace}} / {{pod}}"
@@ -4292,7 +4292,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by(namespace,pod) (increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\",pod=~\"$pod\"}[$__range]))",
+          "expr": "sum by(namespace,pod) (increase(kube_pod_container_status_restarts_total{namespace=~\"${namespace:regex}\",pod=~\"${pod:regex}\"}[$__range]))",
           "instant": false,
           "range": true,
           "legendFormat": "{{namespace}} / {{pod}}"
@@ -4447,7 +4447,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | map(select((.status==\"SUCCESS\" or (.status==\"FAILURE\" or .status==\"UNSTABLE\")))) | if length==0 then empty else point((map(select(.status==\"SUCCESS\"))|length)/length*100) end",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | ${teamcity_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | map(select((.status==\"SUCCESS\" or (.status==\"FAILURE\" or .status==\"UNSTABLE\")))) | if length==0 then empty else point((map(select(.status==\"SUCCESS\"))|length)/length*100) end",
           "columns": [
             {
               "selector": "time",
@@ -4532,7 +4532,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point(map(select((.status==\"SUCCESS\" or (.status==\"FAILURE\" or .status==\"UNSTABLE\"))))|length)",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | ${teamcity_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | point(map(select((.status==\"SUCCESS\" or (.status==\"FAILURE\" or .status==\"UNSTABLE\"))))|length)",
           "columns": [
             {
               "selector": "time",
@@ -4781,13 +4781,13 @@
               },
               {
                 "key": "fields",
-                "value": "nextHref,build(id)"
+                "value": "nextHref,build(id,buildTypeId)"
               }
             ]
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\npoint(complete_inventory(\"build\")|length)",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | ${teamcity_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.buildTypeId) as $id | ($selected | index($id)) != null))) | point(length)",
           "columns": [
             {
               "selector": "time",
@@ -4872,7 +4872,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | ${teamcity_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
           "columns": [
             {
               "selector": "time",
@@ -5041,7 +5041,7 @@
           },
           "parser": "jq-backend",
           "format": "table",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | .[]",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | ${teamcity_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | .[]",
           "columns": [
             {
               "selector": "workflow",
@@ -5144,7 +5144,7 @@
           },
           "parser": "jq-backend",
           "format": "table",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | .[] | {workflow,status,age:(if .start==null then null else now-.start end),url}",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | ${teamcity_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | .[] | {workflow,status,age:(if .start==null then null else now-.start end),url}",
           "columns": [
             {
               "selector": "workflow",
@@ -5370,7 +5370,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100] | map(select((.status==\"SUCCESS\" or (.status==\"FAILURE\" or .status==\"UNSTABLE\")))) | if length==0 then empty else point((map(select(.status==\"SUCCESS\"))|length)/length*100) end",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | ${jenkins_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100] | map(select((.status==\"SUCCESS\" or (.status==\"FAILURE\" or .status==\"UNSTABLE\")))) | if length==0 then empty else point((map(select(.status==\"SUCCESS\"))|length)/length*100) end",
           "columns": [
             {
               "selector": "time",
@@ -5451,7 +5451,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100] | point(map(select((.status==\"SUCCESS\" or (.status==\"FAILURE\" or .status==\"UNSTABLE\"))))|length)",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | ${jenkins_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100] | point(map(select((.status==\"SUCCESS\" or (.status==\"FAILURE\" or .status==\"UNSTABLE\"))))|length)",
           "columns": [
             {
               "selector": "time",
@@ -5688,13 +5688,13 @@
             "params": [
               {
                 "key": "tree",
-                "value": "items[id]"
+                "value": "items[id,task[fullName]]"
               }
             ]
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\npoint(arr(\"items\")|length)",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"items\") | ${jenkins_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.task.fullName) as $id | ($selected | index($id)) != null))) | point(length)",
           "columns": [
             {
               "selector": "time",
@@ -5775,7 +5775,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | map(select(.status == \"RUNNING\")) | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | ${jenkins_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | map(select(.status == \"RUNNING\")) | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
           "columns": [
             {
               "selector": "time",
@@ -5940,7 +5940,7 @@
           },
           "parser": "jq-backend",
           "format": "table",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100] | .[]",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | ${jenkins_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100] | .[]",
           "columns": [
             {
               "selector": "workflow",
@@ -6039,7 +6039,7 @@
           },
           "parser": "jq-backend",
           "format": "table",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | map(select(.status == \"RUNNING\")) | .[] | {workflow,status,age:(if .start==null then null else now-.start end),url}",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}] | ${jenkins_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | map(select(.status == \"RUNNING\")) | .[] | {workflow,status,age:(if .start==null then null else now-.start end),url}",
           "columns": [
             {
               "selector": "workflow",
@@ -6274,7 +6274,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | map(select((.status==\"Success\" or (.status==\"Failed\" or .status==\"TimedOut\")))) | if length==0 then empty else point((map(select(.status==\"Success\"))|length)/length*100) end",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | ${octopus_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | map(select((.status==\"Success\" or (.status==\"Failed\" or .status==\"TimedOut\")))) | if length==0 then empty else point((map(select(.status==\"Success\"))|length)/length*100) end",
           "columns": [
             {
               "selector": "time",
@@ -6363,7 +6363,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point(map(select((.status==\"Success\" or (.status==\"Failed\" or .status==\"TimedOut\"))))|length)",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | ${octopus_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | point(map(select((.status==\"Success\" or (.status==\"Failed\" or .status==\"TimedOut\"))))|length)",
           "columns": [
             {
               "selector": "time",
@@ -6608,13 +6608,13 @@
               },
               {
                 "key": "take",
-                "value": "1"
+                "value": "1000"
               }
             ]
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\nif (.TotalResults|type)!=\"number\" then error(\"Expected TotalResults\") else point(.TotalResults) end",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | ${octopus_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.ProjectId) as $id | ($selected | index($id)) != null))) | point(length)",
           "columns": [
             {
               "selector": "time",
@@ -6703,7 +6703,7 @@
           },
           "parser": "jq-backend",
           "format": "timeseries",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | ${octopus_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
           "columns": [
             {
               "selector": "time",
@@ -6876,7 +6876,7 @@
           },
           "parser": "jq-backend",
           "format": "table",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | .[]",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | ${octopus_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | .[]",
           "columns": [
             {
               "selector": "workflow",
@@ -6983,7 +6983,7 @@
           },
           "parser": "jq-backend",
           "format": "table",
-          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | .[] | {workflow,status,age:(if .start==null then null else now-.start end),url}",
+          "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | ${octopus_pipeline:json} as $selected | map(select((($selected | index(\"__all\")) != null) or ((.workflow) as $id | ($selected | index($id)) != null))) | .[] | {workflow,status,age:(if .start==null then null else now-.start end),url}",
           "columns": [
             {
               "selector": "workflow",
@@ -7193,33 +7193,317 @@
     "list": [
       {
         "name": "octopus_space",
-        "label": "Octopus Space ID",
-        "type": "textbox",
-        "query": "Spaces-1",
+        "label": "Octopus Space",
+        "type": "query",
+        "datasource": {
+          "type": "yesoreyeram-infinity-datasource",
+          "uid": "${DS_OCTOPUS}"
+        },
+        "query": {
+          "queryType": "infinity",
+          "refId": "variable",
+          "infinityQuery": {
+            "refId": "variable",
+            "datasource": {
+              "type": "yesoreyeram-infinity-datasource",
+              "uid": "${DS_OCTOPUS}"
+            },
+            "type": "json",
+            "source": "url",
+            "url": "/api/spaces/all",
+            "url_options": {
+              "method": "GET",
+              "params": []
+            },
+            "parser": "jq-backend",
+            "format": "table",
+            "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\nif type!=\"array\" then error(\"Expected spaces array\") else .[] | {__text:.Name,__value:.Id} end",
+            "columns": [
+              {
+                "selector": "__text",
+                "text": "__text",
+                "type": "string"
+              },
+              {
+                "selector": "__value",
+                "text": "__value",
+                "type": "string"
+              }
+            ]
+          },
+          "meta": {
+            "textField": "__text",
+            "valueField": "__value"
+          }
+        },
+        "definition": "/api/spaces/all",
+        "refresh": 1,
+        "sort": 1,
+        "hide": 0,
+        "multi": false,
+        "includeAll": false,
+        "current": {},
+        "options": []
+      },
+      {
+        "name": "teamcity_pipeline",
+        "label": "TeamCity pipeline",
+        "type": "query",
+        "datasource": {
+          "type": "yesoreyeram-infinity-datasource",
+          "uid": "${DS_TEAMCITY}"
+        },
+        "query": {
+          "queryType": "infinity",
+          "refId": "variable",
+          "infinityQuery": {
+            "refId": "variable",
+            "datasource": {
+              "type": "yesoreyeram-infinity-datasource",
+              "uid": "${DS_TEAMCITY}"
+            },
+            "type": "json",
+            "source": "url",
+            "url": "/app/rest/buildTypes",
+            "url_options": {
+              "method": "GET",
+              "params": [
+                {
+                  "key": "locator",
+                  "value": "count:1000"
+                },
+                {
+                  "key": "fields",
+                  "value": "nextHref,buildType(id,name,projectName)"
+                }
+              ]
+            },
+            "parser": "jq-backend",
+            "format": "table",
+            "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"buildType\")[] | {__text:((.projectName // \"\")+\" / \"+.name),__value:.id}",
+            "columns": [
+              {
+                "selector": "__text",
+                "text": "__text",
+                "type": "string"
+              },
+              {
+                "selector": "__value",
+                "text": "__value",
+                "type": "string"
+              }
+            ]
+          },
+          "meta": {
+            "textField": "__text",
+            "valueField": "__value"
+          }
+        },
+        "definition": "/app/rest/buildTypes",
+        "refresh": 1,
+        "sort": 1,
+        "hide": 0,
+        "multi": true,
+        "includeAll": true,
         "current": {
-          "text": "Spaces-1",
-          "value": "Spaces-1"
-        }
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": []
+      },
+      {
+        "name": "jenkins_pipeline",
+        "label": "Jenkins pipeline",
+        "type": "query",
+        "datasource": {
+          "type": "yesoreyeram-infinity-datasource",
+          "uid": "${DS_JENKINS}"
+        },
+        "query": {
+          "queryType": "infinity",
+          "refId": "variable",
+          "infinityQuery": {
+            "refId": "variable",
+            "datasource": {
+              "type": "yesoreyeram-infinity-datasource",
+              "uid": "${DS_JENKINS}"
+            },
+            "type": "json",
+            "source": "url",
+            "url": "/api/json",
+            "url_options": {
+              "method": "GET",
+              "params": [
+                {
+                  "key": "tree",
+                  "value": "jobs[fullName,_class,jobs[fullName,_class,jobs[fullName,_class,jobs[fullName,_class,jobs[fullName,_class,jobs[name,_class]]]]]]"
+                }
+              ]
+            },
+            "parser": "jq-backend",
+            "format": "table",
+            "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\narr(\"jobs\") | {jobs:.} | . | recurse(.jobs[]?) | select(has(\"_class\") or has(\"fullName\")) | select(has(\"jobs\")|not) | if .fullName==null then error(\"Jenkins folder depth exceeded\") else {__text:.fullName,__value:.fullName} end",
+            "columns": [
+              {
+                "selector": "__text",
+                "text": "__text",
+                "type": "string"
+              },
+              {
+                "selector": "__value",
+                "text": "__value",
+                "type": "string"
+              }
+            ]
+          },
+          "meta": {
+            "textField": "__text",
+            "valueField": "__value"
+          }
+        },
+        "definition": "/api/json",
+        "refresh": 1,
+        "sort": 1,
+        "hide": 0,
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": []
+      },
+      {
+        "name": "octopus_pipeline",
+        "label": "Octopus project",
+        "type": "query",
+        "datasource": {
+          "type": "yesoreyeram-infinity-datasource",
+          "uid": "${DS_OCTOPUS}"
+        },
+        "query": {
+          "queryType": "infinity",
+          "refId": "variable",
+          "infinityQuery": {
+            "refId": "variable",
+            "datasource": {
+              "type": "yesoreyeram-infinity-datasource",
+              "uid": "${DS_OCTOPUS}"
+            },
+            "type": "json",
+            "source": "url",
+            "url": "/api/${octopus_space}/projects",
+            "url_options": {
+              "method": "GET",
+              "params": [
+                {
+                  "key": "take",
+                  "value": "1000"
+                }
+              ]
+            },
+            "parser": "jq-backend",
+            "format": "table",
+            "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\")[] | {__text:.Name,__value:.Id}",
+            "columns": [
+              {
+                "selector": "__text",
+                "text": "__text",
+                "type": "string"
+              },
+              {
+                "selector": "__value",
+                "text": "__value",
+                "type": "string"
+              }
+            ]
+          },
+          "meta": {
+            "textField": "__text",
+            "valueField": "__value"
+          }
+        },
+        "definition": "/api/${octopus_space}/projects",
+        "refresh": 1,
+        "sort": 1,
+        "hide": 0,
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": []
       },
       {
         "name": "namespace",
-        "label": "Namespace regex",
-        "type": "textbox",
-        "query": ".*",
+        "label": "Namespace",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "query": {
+          "query": "label_values({__name__=~\"kube_pod_info|kube_pod_status_ready|container_memory_working_set_bytes|container_cpu_usage_seconds_total|kube_pod_container_status_restarts_total\"}, namespace)",
+          "refId": "StandardVariableQuery"
+        },
+        "definition": "label_values({__name__=~\"kube_pod_info|kube_pod_status_ready|container_memory_working_set_bytes|container_cpu_usage_seconds_total|kube_pod_container_status_restarts_total\"}, namespace)",
+        "refresh": 2,
+        "sort": 1,
+        "hide": 0,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
         "current": {
-          "text": ".*",
-          "value": ".*"
-        }
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": []
       },
       {
         "name": "pod",
-        "label": "Pod regex",
-        "type": "textbox",
-        "query": ".*",
+        "label": "Pod",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "query": {
+          "query": "label_values({__name__=~\"kube_pod_info|kube_pod_status_ready|container_memory_working_set_bytes|container_cpu_usage_seconds_total|kube_pod_container_status_restarts_total\",namespace=~\"${namespace:regex}\"}, pod)",
+          "refId": "StandardVariableQuery"
+        },
+        "definition": "label_values({__name__=~\"kube_pod_info|kube_pod_status_ready|container_memory_working_set_bytes|container_cpu_usage_seconds_total|kube_pod_container_status_restarts_total\",namespace=~\"${namespace:regex}\"}, pod)",
+        "refresh": 2,
+        "sort": 1,
+        "hide": 0,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
         "current": {
-          "text": ".*",
-          "value": ".*"
-        }
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": []
       }
     ]
   },
