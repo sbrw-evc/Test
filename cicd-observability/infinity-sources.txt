@@ -164,40 +164,34 @@ GET запросы API не требуют crumb, если стандартна�
 принимает API token для аутентификации.
 
 GET-запросы Jenkins, используемые dashboard и dropdown variables:
-  1) GET /computer/api/json
+  1) GET /$__combineValues(,/,,${jenkins_pipeline:csv})api/json
+     Query parameters (Infinity URL options → Params):
+       tree = fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[name,_class]]]]]]
+     Используется: Jenkins • Успешность последних N; Вся CI/CD цепочка; Jenkins • Средняя длительность • последние N; Jenkins • Самая долгая текущая сборка / деплой; Jenkins; Успешность • последние N; Завершённые SUCCESS/FAILURE в выборке; Самое долгое текущее выполнение; Jenkins • последние 100 завершённых результатов; Текущие выполнения; Jenkins • Ошибки за 10 минут
+
+  2) GET /computer/api/json
      Query parameters (Infinity URL options → Params):
        tree = computer[displayName,offline,temporarilyOffline,numExecutors,idle]
-     Используется: Вся CI/CD цепочка; Jenkins; Jenkins • Недоступные агенты / workers; Jenkins • Доступные агенты / workers; Доступные агенты / workers; Неожиданно недоступные агенты / workers; Агенты / workers • инвентарь
-     URL с percent-encoded parameters:
-       /computer/api/json?tree=computer%5BdisplayName%2Coffline%2CtemporarilyOffline%2CnumExecutors%2Cidle%5D
+     Используется: Jenkins • Доступные агенты / workers; Вся CI/CD цепочка; Jenkins; Доступные агенты / workers; Неожиданно недоступные агенты / workers; Агенты / workers • инвентарь; Jenkins • Недоступные агенты / workers
 
-  2) GET /queue/api/json
+  3) GET /queue/api/json
      Query parameters (Infinity URL options → Params):
        tree = items[id,task[fullName]]
-     Используется: Вся CI/CD цепочка; Jenkins; Jenkins • Очередь; Очередь
-     URL с percent-encoded parameters:
-       /queue/api/json?tree=items%5Bid%2Ctask%5BfullName%5D%5D
-
-  3) GET /api/json
-     Query parameters (Infinity URL options → Params):
-       tree = jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[name,_class]]]]]]
-     Используется: Вся CI/CD цепочка; Jenkins; Jenkins • Ошибки за 10 минут; Jenkins • Успешность последних N; Jenkins • Средняя длительность • последние N; Jenkins • Самая долгая текущая сборка / деплой; Успешность • последние N; Завершённые SUCCESS/FAILURE в выборке; Самое долгое текущее выполнение; Jenkins • последние 100 завершённых результатов; Текущие выполнения
-     URL с percent-encoded parameters:
-       /api/json?tree=jobs%5BfullName%2Curl%2Cbuilds%5Bnumber%2Cresult%2Cbuilding%2Ctimestamp%2Cduration%2Curl%5D%7B0%2C100%7D%2Cjobs%5BfullName%2Curl%2Cbuilds%5Bnumber%2Cresult%2Cbuilding%2Ctimestamp%2Cduration%2Curl%5D%7B0%2C100%7D%2Cjobs%5BfullName%2Curl%2Cbuilds%5Bnumber%2Cresult%2Cbuilding%2Ctimestamp%2Cduration%2Curl%5D%7B0%2C100%7D%2Cjobs%5BfullName%2Curl%2Cbuilds%5Bnumber%2Cresult%2Cbuilding%2Ctimestamp%2Cduration%2Curl%5D%7B0%2C100%7D%2Cjobs%5BfullName%2Curl%2Cbuilds%5Bnumber%2Cresult%2Cbuilding%2Ctimestamp%2Cduration%2Curl%5D%7B0%2C100%7D%2Cjobs%5Bname%2C_class%5D%5D%5D%5D%5D%5D
+     Используется: Вся CI/CD цепочка; Jenkins • Очередь; Jenkins; Очередь
 
   4) GET /api/json
      Query parameters (Infinity URL options → Params):
        tree = jobs[fullName,_class,jobs[fullName,_class,jobs[fullName,_class,jobs[fullName,_class,jobs[fullName,_class,jobs[name,_class]]]]]]
      Используется: Dropdown: Jenkins pipeline
-     URL с percent-encoded parameters:
-       /api/json?tree=jobs%5BfullName%2C_class%2Cjobs%5BfullName%2C_class%2Cjobs%5BfullName%2C_class%2Cjobs%5BfullName%2C_class%2Cjobs%5BfullName%2C_class%2Cjobs%5Bname%2C_class%5D%5D%5D%5D%5D%5D
 
 Параметр tree длинный: он выбирает вложенные jobs/folders и необходимые поля
 builds. Он уже полностью задан в dashboard JSON. Поддерживается 4 уровня
 вложенных folders/multibranch containers с получением builds на конечных jobs.
 Если структура глубже, dashboard отвергает неполный leaf вместо ложного SUCCESS;
 увеличьте вложенность tree в соответствующих запросах через Query editor.
-N=100 завершённых глобально выбираются из последних 100 builds каждого job.
+All: N=100 завершённых глобально выбираются из последних 100 builds каждого job.
+Выбранный job запрашивается напрямую; используется до 100 завершённых
+результатов из его последних 100 builds. Текущие builds исключены из успешности.
 SUCCESS — успех, FAILURE и UNSTABLE — failure; ABORTED/NOT_BUILT исключаются
 из успешности. Online nodes с numExecutors>0 и без temporarilyOffline
 считаются доступными агентами. Controller с 0 executors не учитывается.
@@ -334,14 +328,16 @@ https://github.com/grafana/grafana/blob/main/pkg/expr/commands.go
 обновляет каталог. Смена Space обновляет зависимый список проектов.
 
 TeamCity pipeline: buildType.id; название Project / Build configuration.
-Jenkins pipeline: fullName конечного job, включая folders/multibranch branch.
+Jenkins pipeline: отображается fullName конечного job, включая folders/multibranch branch;
+значение — URL path job/.../job/... с percent-encoding каждого имени.
 Octopus project: Project.Id из выбранного Space.
 Фильтры независимы: автоматического соответствия job ↔ buildType ↔ project нет.
-TeamCity pipeline и Octopus project: одиночный выбор, Include All, Custom all value = *.
+TeamCity pipeline, Jenkins pipeline и Octopus project: одиночный выбор,
+Include All, Custom all value = *.
 All убирает серверное ограничение конфигурации/проекта; выводится общая выборка.
-Jenkins pipeline сохраняет multiselect и All по доступному каталогу jobs.
-TeamCity/Octopus IDs используются в API queries; Jenkins IDs — в JQ массиве
-[${jenkins_pipeline:doublequote}], без regex-сопоставления.
+Jenkins All запрашивает общий каталог jobs; конкретный job — его собственный API.
+TeamCity/Octopus IDs и Jenkins job path используются в API queries.
+Для Jenkins queue применяется точное сравнение job path, без regex-сопоставления.
 
 Выбор влияет на успех/ошибки, длительность, текущие выполнения, очередь,
 таблицы истории и соответствующие проверки health (включая общую карточку).
@@ -355,8 +351,9 @@ TeamCity/Octopus: ограничение конфигурации/проекта
 Фильтр применён к истории, успешности, длительности, ошибкам, running и очереди,
 включая запросы общей карточки health. Running/queue limits остаются 1000.
 Агенты, workers и поды сохраняют свой общий охват.
-Jenkins: фильтр jobs применяется перед выбором последних 100 завершённых
-результатов из последних 100 builds каждого job, полученных через tree.
+Jenkins: выбор job меняет URL API. История/KPI получают данные только этого job.
+All выбирает последние 100 завершённых результатов глобально из полученных
+последних 100 builds каждого job. Выполняющиеся builds исключены из истории.
 
 Каталоги TeamCity buildTypes и Octopus projects имеют лимит 1000. Если ответ
 обрезан, JQ выдаёт ошибку: увеличьте limit в соответствующей variable query.
@@ -385,3 +382,33 @@ name/states/take задаются только в URL options → Params, без
 Проверены 102 выполнения JQ и раскрытие macros на тестовых данных, включая
 редкую конфигурацию со 150 запусками, не попадающими в общие последние 100.
 Реальные API и Grafana не опрашивались.
+
+11. JENKINS: ОДИНОЧНЫЙ JOB И ALL
+--------------------------------
+Variable jenkins_pipeline возвращает Name=fullName и Value=job/<encoded-name>/job/...
+Пример: team/frontend → job/team/job/frontend.
+Для multibranch feature%2Flogin получается feature%252Flogin в URL path.
+Query URL:
+  /$__combineValues(,/,,${jenkins_pipeline:csv})api/json
+Выбор job: /job/team/job/frontend/api/json; All: /api/json.
+Parser нормализует ответ job или controller к одному формату; старый JQ-фильтр
+истории удалён. Очередь /queue/api/json читается целиком и фильтруется по job;
+неизвестные task без fullName не включаются в выбранный job, но входят в All.
+Агенты и executors сохраняют общий охват. Чтение folders для All — 4 уровня.
+Проверены 81 выполнение JQ: выбранный job/All/пустая история, вложенные folders,
+кириллица, пробелы, percent-encoded имена branch, фильтрация очереди.
+Живые Jenkins/Grafana не опрашивались.
+
+12. ВЫБОР ЧАСОВОГО ПОЯСА
+------------------------
+Variable display_timezone: Москва = Europe/Moscow, Майами = America/New_York.
+Выберите значение в dropdown и нажмите dashboard link «Применить часовой пояс».
+Ссылка передаёт native Grafana timezone URL parameter, сохраняя диапазон времени
+и все переменные. Относительный URL сохраняет префикс /grafana при его наличии.
+Часовой пояс по умолчанию: Europe/Moscow. В колонках Start/Finish отображается
+${__timezone} — именно фактически применённый часовой пояс, а не ещё не
+применённый выбор в dropdown. Выбор без нажатия ссылки timezone не меняет.
+Москва: UTC+03:00. Майами использует America/New_York: UTC−04:00 летом,
+UTC−05:00 зимой; переходы обрабатывает Grafana. Timestamp не сдвигается вручную,
+поэтому фильтрация, длительность и расчёт KPI не меняются от выбора timezone.
+Если timezone переопределён в URL, Grafana использует его поверх default.
