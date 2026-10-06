@@ -49,59 +49,51 @@ Octopus Space — query dropdown: отображает Name, передаёт Id
 Octopus project обновляется при смене Space; выберите нужные проекты или All.
 
 GET-запросы Octopus, используемые dashboard и dropdown variables:
-  1) GET /api/${octopus_space}/workers
-     Query parameters (Infinity URL options → Params):
-       take = 1000
-     Используется: Вся CI/CD цепочка; Octopus; Octopus • Недоступные агенты / workers; Octopus • Доступные агенты / workers; Доступные агенты / workers; Неожиданно недоступные агенты / workers; Агенты / workers • инвентарь
-     URL с percent-encoded parameters:
-       /api/${octopus_space}/workers?take=1000
-
-  2) GET /api/${octopus_space}/tasks
-     Query parameters (Infinity URL options → Params):
-       name = Deploy
-       states = New,Queued
-       take = 1000
-     Используется: Вся CI/CD цепочка; Octopus; Octopus • Очередь; Очередь
-     URL с percent-encoded parameters:
-       /api/${octopus_space}/tasks?name=Deploy&states=New%2CQueued&take=1000
-
-  3) GET /api/${octopus_space}/tasks
+  1) GET http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})
      Query parameters (Infinity URL options → Params):
        name = Deploy
        states = Success,Failed,Canceled,TimedOut
        take = 100
-     Используется: Вся CI/CD цепочка; Octopus; Octopus • Ошибки за 10 минут; Octopus • Успешность последних N; Octopus • Средняя длительность • последние N; Успешность • последние N; Завершённые SUCCESS/FAILURE в выборке; Octopus • последние 100 завершённых результатов
-     URL с percent-encoded parameters:
-       /api/${octopus_space}/tasks?name=Deploy&states=Success%2CFailed%2CCanceled%2CTimedOut&take=100
+     Используется: Octopus • Errors in 10 Minutes; Вся CI/CD цепочка; Octopus • Success of the last N; Octopus • Average duration • last N; Octopus; Successful • last N; Completed (SUCCESS/FAILURE) in the sample; Octopus • last 100 completed results in project
 
-  4) GET /api/${octopus_space}/tasks
+  2) GET http://octopus.admortgage.com/api/${octopus_space}/workers
+     Query parameters (Infinity URL options → Params):
+       take = 1000
+     Используется: Octopus • Unavailable agents / workers; Octopus • Available agents / workers; Octopus; Available agents / workers; Unexpectedly unavailable agents/workers; Agents / workers • inventory
+
+  3) GET http://octopus.admortgage.com/api/${octopus_space}/workerspus_space}/workers
+     Query parameters (Infinity URL options → Params):
+       take = 1000
+     Используется: Вся CI/CD цепочка
+
+  4) GET http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})
+     Query parameters (Infinity URL options → Params):
+       name = Deploy
+       states = New,Queued
+       take = 1000
+     Используется: Вся CI/CD цепочка; Octopus • Queue; Octopus; Queue
+
+  5) GET http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})
      Query parameters (Infinity URL options → Params):
        name = Deploy
        states = Executing,Cancelling
        take = 1000
-     Используется: Вся CI/CD цепочка; Octopus; Octopus • Самая долгая текущая сборка / деплой; Самое долгое текущее выполнение; Текущие выполнения
-     URL с percent-encoded parameters:
-       /api/${octopus_space}/tasks?name=Deploy&states=Executing%2CCancelling&take=1000
+     Используется: Вся CI/CD цепочка; Octopus • Longest-running build/deployment; Octopus; Longest current execution; Current executions
 
-  5) GET /api/${octopus_space}/machines
+  6) GET http://octopus.admortgage.com/api/machines
      Query parameters (Infinity URL options → Params):
        take = 1000
-     Используется: Deployment targets • отдельно от workers
-     URL с percent-encoded parameters:
-       /api/${octopus_space}/machines?take=1000
+     Используется: Deployment targets • separate from workers
 
-  6) GET /api/spaces/all
-     Query parameters: отсутствуют.
+  7) GET http://octopus.admortgage.com/api/spaces/all
+     Query parameters (Infinity URL options → Params):
+       отсутствуют
      Используется: Dropdown: Octopus Space
-     URL с percent-encoded parameters:
-       /api/spaces/all
 
-  7) GET /api/${octopus_space}/projects
+  8) GET http://octopus.admortgage.com/api/${octopus_space}/projects
      Query parameters (Infinity URL options → Params):
        take = 1000
      Используется: Dropdown: Octopus project
-     URL с percent-encoded parameters:
-       /api/${octopus_space}/projects?take=1000
 
 Octopus KPI используют tasks типа Deploy, а не все ServerTasks.
 State Success — успех, Failed/TimedOut — failure, Canceled исключается
@@ -123,45 +115,35 @@ Permissions: чтение build configurations, builds, build queue и agents в
 /app/metrics и право View usage statistics этому варианту не требуются.
 
 GET-запросы TeamCity, используемые dashboard и dropdown variables:
-  1) GET /app/rest/agents
+  1) GET /app/rest/builds
+     Query parameters (Infinity URL options → Params):
+       locator = $__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})state:finished,branch:default:any,count:100
+       fields = nextHref,build(id,buildTypeId,number,status,state,startDate,finishDate,webUrl,canceledInfo,agent(id))
+     Используется: TeamCity • Успешность последних N; TeamCity • Средняя длительность • последние N; Вся CI/CD цепочка; TeamCity; Успешность • последние N; Завершённые SUCCESS/FAILURE в выборке; TeamCity • последние 100 завершённых результатов; TeamCity • Ошибки за 10 минут
+
+  2) GET /app/rest/agents
      Query parameters (Infinity URL options → Params):
        locator = defaultFilter:false,count:1000
        fields = nextHref,agent(id,name,connected,enabled,authorized)
-     Используется: Вся CI/CD цепочка; TeamCity; TeamCity • Недоступные агенты / workers; TeamCity • Доступные агенты / workers; Доступные агенты / workers; Неожиданно недоступные агенты / workers; Агенты / workers • инвентарь
-     URL с percent-encoded parameters:
-       /app/rest/agents?locator=defaultFilter%3Afalse%2Ccount%3A1000&fields=nextHref%2Cagent%28id%2Cname%2Cconnected%2Cenabled%2Cauthorized%29
+     Используется: TeamCity • Доступные агенты / workers; Вся CI/CD цепочка; TeamCity; Доступные агенты / workers; Неожиданно недоступные агенты / workers; Агенты / workers • инвентарь; TeamCity • Недоступные агенты / workers
 
-  2) GET /app/rest/buildQueue
+  3) GET /app/rest/buildQueue
      Query parameters (Infinity URL options → Params):
-       locator = count:1000
+       locator = $__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})count:1000
        fields = nextHref,build(id,buildTypeId)
-     Используется: Вся CI/CD цепочка; TeamCity; TeamCity • Очередь; Очередь
-     URL с percent-encoded parameters:
-       /app/rest/buildQueue?locator=count%3A1000&fields=nextHref%2Cbuild%28id%2CbuildTypeId%29
-
-  3) GET /app/rest/builds
-     Query parameters (Infinity URL options → Params):
-       locator = state:finished,branch:default:any,count:100
-       fields = nextHref,build(id,buildTypeId,number,status,state,startDate,finishDate,webUrl,canceledInfo,agent(id))
-     Используется: Вся CI/CD цепочка; TeamCity; TeamCity • Ошибки за 10 минут; TeamCity • Успешность последних N; TeamCity • Средняя длительность • последние N; Успешность • последние N; Завершённые SUCCESS/FAILURE в выборке; TeamCity • последние 100 завершённых результатов
-     URL с percent-encoded parameters:
-       /app/rest/builds?locator=state%3Afinished%2Cbranch%3Adefault%3Aany%2Ccount%3A100&fields=nextHref%2Cbuild%28id%2CbuildTypeId%2Cnumber%2Cstatus%2Cstate%2CstartDate%2CfinishDate%2CwebUrl%2CcanceledInfo%2Cagent%28id%29%29
+     Используется: TeamCity • Очередь; Вся CI/CD цепочка; TeamCity; Очередь
 
   4) GET /app/rest/builds
      Query parameters (Infinity URL options → Params):
-       locator = state:running,branch:default:any,count:1000
+       locator = $__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})state:running,branch:default:any,count:1000
        fields = nextHref,build(id,buildTypeId,number,status,state,startDate,finishDate,webUrl,canceledInfo,agent(id))
-     Используется: Вся CI/CD цепочка; TeamCity; TeamCity • Самая долгая текущая сборка / деплой; Самое долгое текущее выполнение; Текущие выполнения
-     URL с percent-encoded parameters:
-       /app/rest/builds?locator=state%3Arunning%2Cbranch%3Adefault%3Aany%2Ccount%3A1000&fields=nextHref%2Cbuild%28id%2CbuildTypeId%2Cnumber%2Cstatus%2Cstate%2CstartDate%2CfinishDate%2CwebUrl%2CcanceledInfo%2Cagent%28id%29%29
+     Используется: TeamCity • Самая долгая текущая сборка / деплой; Вся CI/CD цепочка; TeamCity; Самое долгое текущее выполнение; Текущие выполнения
 
   5) GET /app/rest/buildTypes
      Query parameters (Infinity URL options → Params):
        locator = count:1000
        fields = nextHref,buildType(id,name,projectName)
      Используется: Dropdown: TeamCity pipeline
-     URL с percent-encoded parameters:
-       /app/rest/buildTypes?locator=count%3A1000&fields=nextHref%2CbuildType%28id%2Cname%2CprojectName%29
 
 Сборки читаются по всем веткам: branch:default:any.
 SUCCESS — успех; FAILURE — failure; canceledInfo/UNKNOWN — canceled.
@@ -355,9 +337,11 @@ TeamCity pipeline: buildType.id; название Project / Build configuration.
 Jenkins pipeline: fullName конечного job, включая folders/multibranch branch.
 Octopus project: Project.Id из выбранного Space.
 Фильтры независимы: автоматического соответствия job ↔ buildType ↔ project нет.
-Можно выбрать несколько значений. All разворачивается в все значения текущего
-каталога, доступные учётной записи. Результаты удалённых/скрытых pipelines
-не входят в All. IDs передаются в JQ через ${variable:json}, без regex-сопоставления.
+TeamCity pipeline и Octopus project: одиночный выбор, Include All, Custom all value = *.
+All убирает серверное ограничение конфигурации/проекта; выводится общая выборка.
+Jenkins pipeline сохраняет multiselect и All по доступному каталогу jobs.
+TeamCity/Octopus IDs используются в API queries; Jenkins IDs — в JQ массиве
+[${jenkins_pipeline:doublequote}], без regex-сопоставления.
 
 Выбор влияет на успех/ошибки, длительность, текущие выполнения, очередь,
 таблицы истории и соответствующие проверки health (включая общую карточку).
@@ -365,16 +349,14 @@ API availability, агенты/workers и deployment targets остаются о
 или Space; Prometheus pod-фильтры независимы от пайплайнов. Количество агентов
 не означает количество свободных агентов, совместимых с выбранным pipeline.
 
-TeamCity/Octopus: фильтр истории применяется после получения последних
-100 результатов системы/Space. Это НЕ последние 100 именно выбранного
-pipeline. При редких сборках выборка может быть пустой; KPI покажет Нет данных.
-Jenkins: выбор jobs применяется перед выбором глобальных последних 100
-завершённых результатов из полученных последних 100 builds каждого job.
-Running/queue фильтруются по ID; для Octopus очередь теперь читается целиком
-в пределах take=1000, а не take=1, чтобы считать выбранные проекты.
-Build queue TeamCity дополнительно запрашивает buildTypeId; Jenkins queue —
-task.fullName; Octopus tasks используют ProjectId. Если версия API не возвращает
-эти поля, проверьте ответ в Query Inspector до использования фильтрованных KPI.
+TeamCity/Octopus: ограничение конфигурации/проекта передаётся серверу ДО count/take.
+История: до 100 завершённых результатов выбранной конфигурации TeamCity либо
+проекта Octopus. All: до 100 результатов всего сервера TeamCity или Space Octopus.
+Фильтр применён к истории, успешности, длительности, ошибкам, running и очереди,
+включая запросы общей карточки health. Running/queue limits остаются 1000.
+Агенты, workers и поды сохраняют свой общий охват.
+Jenkins: фильтр jobs применяется перед выбором последних 100 завершённых
+результатов из последних 100 builds каждого job, полученных через tree.
 
 Каталоги TeamCity buildTypes и Octopus projects имеют лимит 1000. Если ответ
 обрезан, JQ выдаёт ошибку: увеличьте limit в соответствующей variable query.
@@ -388,3 +370,18 @@ https://grafana.com/docs/plugins/yesoreyeram-infinity-datasource/latest/variable
 https://octopus.com/docs/octopus-rest-api/examples/spaces
 https://octopus.com/docs/api/projects
 https://www.jetbrains.com/help/teamcity/rest/manage-build-configuration-details.html
+
+10. СЕРВЕРНЫЙ ФИЛЬТР TEAMCITY / OCTOPUS
+--------------------------------------
+TeamCity: locator начинается с
+  $__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})
+При выбранной конфигурации это buildType:(id:<BuildTypeId>), а при All — пустая строка.
+Остальная часть locator сохраняет state, branch и count нужного запроса.
+Octopus: URL tasks заканчивается макросом
+  $__combineValues(?project=,,__comma,${octopus_project:csv})
+При выборе проекта добавляется ?project=Projects-N; All не передаёт project.
+name/states/take задаются только в URL options → Params, без дублирования в URL.
+Старые клиентские JQ фильтры TeamCity/Octopus удалены.
+Проверены 102 выполнения JQ и раскрытие macros на тестовых данных, включая
+редкую конфигурацию со 150 запусками, не попадающими в общие последние 100.
+Реальные API и Grafana не опрашивались.
