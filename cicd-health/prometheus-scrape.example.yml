@@ -28,12 +28,6 @@ scrape_configs:
     labels:
       env: prod
       component: jenkins
-- job_name: cicd-adapter
-  metrics_path: /metrics
-  honor_labels: true
-  static_configs:
-  - targets:
-    - cicd-adapter.monitoring.svc.cluster.local:8000
 - job_name: cicd-http
   scrape_timeout: 15s
   metrics_path: /probe

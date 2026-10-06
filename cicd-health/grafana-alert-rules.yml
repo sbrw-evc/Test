@@ -1,31 +1,53 @@
 apiVersion: 1
 deleteRules:
 - orgId: 1
+  uid: cicd-server-down
+- orgId: 1
+  uid: cicd-data-stale
+- orgId: 1
+  uid: cicd-build-failed
+- orgId: 1
+  uid: cicd-deploy-failed
+- orgId: 1
+  uid: cicd-agent-down
+- orgId: 1
+  uid: cicd-agents-low
+- orgId: 1
   uid: cicd-capacity
 - orgId: 1
+  uid: cicd-queue-size
+- orgId: 1
+  uid: cicd-queue-age
+- orgId: 1
+  uid: cicd-long-build
+- orgId: 1
+  uid: cicd-slow-http
+- orgId: 1
   uid: cicd-native-scrape
+- orgId: 1
+  uid: cicd-rules-missing
 groups:
 - orgId: 1
-  name: CI-CD Health
+  name: CI-CD Native REST
   folder: CI-CD Operations
-  interval: 30s
+  interval: 60s
   rules:
-  - uid: cicd-server-down
-    title: CI/CD · HTTP or API unavailable
+  - uid: oss-service-down
+    title: CI/CD · Server HTTP or scrape unavailable
     condition: B
     for: 2m
-    noDataState: OK
-    execErrState: Error
+    noDataState: Alerting
+    execErrState: Alerting
     isPaused: false
     labels:
       domain: cicd
       severity: critical
+      env: prod
       team: platform
     annotations:
-      summary: Observed HTTP/API check failed. API failure may also indicate credentials,
-        permissions or an unavailable pipeline.
+      summary: HTTP/readiness or authenticated native scrape failed.
       __dashboardUid__: cicd-health
-      __panelId__: '2'
+      __panelId__: '5'
     data:
     - refId: A
       datasourceUid: cicd-prometheus
@@ -34,7 +56,7 @@ groups:
         to: 0
       model:
         refId: A
-        expr: 1 - ci:component_available
+        expr: ci:observed_down{env="prod"}
         instant: true
         range: false
         format: time_series
@@ -53,22 +75,23 @@ groups:
         datasource:
           type: __expr__
           uid: __expr__
-  - uid: cicd-data-stale
-    title: CI/CD · Data stale or incomplete
+        hide: false
+  - uid: oss-observation-missing
+    title: CI/CD · Missing observations
     condition: B
     for: 3m
-    noDataState: OK
-    execErrState: Error
+    noDataState: Alerting
+    execErrState: Alerting
     isPaused: false
     labels:
       domain: cicd
       severity: warning
+      env: prod
       team: platform
     annotations:
-      summary: No complete snapshot within 180 s, missing probe/exporter, or incomplete
-        API pagination.
+      summary: Expected probe/native KPI missing; do not treat missing as success.
       __dashboardUid__: cicd-health
-      __panelId__: '2'
+      __panelId__: '5'
     data:
     - refId: A
       datasourceUid: cicd-prometheus
@@ -77,7 +100,7 @@ groups:
         to: 0
       model:
         refId: A
-        expr: ci:data_stale
+        expr: ci:observation_missing{env="prod"}
         instant: true
         range: false
         format: time_series
@@ -96,22 +119,76 @@ groups:
         datasource:
           type: __expr__
           uid: __expr__
-  - uid: cicd-build-failed
-    title: CI/CD · Last build failed
+        hide: false
+  - uid: oss-tc-failed
+    title: CI/CD · TeamCity last build failed
     condition: B
     for: 0s
-    noDataState: OK
-    execErrState: Error
+    noDataState: Alerting
+    execErrState: Alerting
     isPaused: false
     labels:
       domain: cicd
       severity: warning
+      env: prod
       team: platform
     annotations:
-      summary: Latest observed terminal result is failed or timed out. Resolves when
-        a later terminal result replaces it. Polling can miss intermediate failures.
+      summary: Latest selected terminal build is failure. Polling may miss fail→success
+        between polls.
       __dashboardUid__: cicd-health
-      __panelId__: '2'
+      __panelId__: '5'
+    data:
+    - refId: A
+      datasourceUid: teamcity-api
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        refId: A
+        type: json
+        source: url
+        parser: backend
+        format: table
+        url: https://teamcity.example.internal/app/rest/builds?locator=buildType%3A%28id%3APlatform_BackendBuild%29%2Cstate%3Afinished%2CdefaultFilter%3Afalse%2Ccount%3A1&fields=count%2Cbuild%28id%2Cstatus%2CcanceledInfo%2CstartDate%2CfinishDate%2CwebUrl%29
+        url_options:
+          method: GET
+        root_selector: '($exists(count) ? true : $error("Invalid TeamCity response");count>0
+          and build[0].status="FAILURE" and ($not($exists(build[0].canceledInfo))
+          or build[0].canceledInfo=null) ? 1 : 0)'
+        columns: []
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: teamcity-api
+        pagination_mode: none
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $A > 0
+        datasource:
+          type: __expr__
+          uid: __expr__
+        hide: false
+  - uid: oss-jenkins-failed
+    title: CI/CD · Jenkins last build failed
+    condition: B
+    for: 0s
+    noDataState: Alerting
+    execErrState: Alerting
+    isPaused: false
+    labels:
+      domain: cicd
+      severity: warning
+      env: prod
+      team: platform
+    annotations:
+      summary: Latest observed job result FAILURE; unstable/aborted distinct.
+      __dashboardUid__: cicd-health
+      __panelId__: '5'
     data:
     - refId: A
       datasourceUid: cicd-prometheus
@@ -120,9 +197,8 @@ groups:
         to: 0
       model:
         refId: A
-        expr: (ci_last_operation_status{operation="build"} == 2 or ci_last_operation_status{operation="build"}
-          == 4) and on (env, component) (ci:data_stale == 0) and on (env, component)
-          (ci:component_available == 1)
+        expr: default_jenkins_builds_last_build_result_ordinal{job="jenkins",env="prod",jenkins_job=~"platform/.*"}
+          == bool 2
         instant: true
         range: false
         format: time_series
@@ -141,39 +217,47 @@ groups:
         datasource:
           type: __expr__
           uid: __expr__
-  - uid: cicd-deploy-failed
-    title: CI/CD · Last deploy failed
+        hide: false
+  - uid: oss-deploy-failed
+    title: CI/CD · Octopus last deploy failed
     condition: B
     for: 0s
-    noDataState: OK
-    execErrState: Error
+    noDataState: Alerting
+    execErrState: Alerting
     isPaused: false
     labels:
       domain: cicd
       severity: critical
+      env: prod
       team: platform
     annotations:
-      summary: Latest observed terminal result is failed or timed out. Resolves when
-        a later terminal result replaces it. Polling can miss intermediate failures.
+      summary: Latest-created terminal Deploy task failed/timed out in configured
+        project/environment.
       __dashboardUid__: cicd-health
-      __panelId__: '2'
+      __panelId__: '5'
     data:
     - refId: A
-      datasourceUid: cicd-prometheus
+      datasourceUid: octopus-api
       relativeTimeRange:
         from: 600
         to: 0
       model:
         refId: A
-        expr: (ci_last_operation_status{operation="deploy"} == 2 or ci_last_operation_status{operation="deploy"}
-          == 4) and on (env, component) (ci:data_stale == 0) and on (env, component)
-          (ci:component_available == 1)
-        instant: true
-        range: false
-        format: time_series
+        type: json
+        source: url
+        parser: backend
+        format: table
+        url: https://octopus.example.internal/api/Spaces-1/tasks?name=Deploy&project=Projects-1&environment=Environments-1&active=false&take=1
+        url_options:
+          method: GET
+        root_selector: '($exists(TotalResults) and $exists(Items) ? true : $error("Invalid
+          Octopus response");TotalResults>0 and Items[0].State in ["Failed","TimedOut"]
+          ? 1 : 0)'
+        columns: []
         datasource:
-          type: prometheus
-          uid: cicd-prometheus
+          type: yesoreyeram-infinity-datasource
+          uid: octopus-api
+        pagination_mode: none
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -186,37 +270,98 @@ groups:
         datasource:
           type: __expr__
           uid: __expr__
-  - uid: cicd-agent-down
-    title: CI/CD · Expected agent unavailable
+        hide: false
+  - uid: oss-octopus-api
+    title: CI/CD · Octopus API unavailable
+    condition: B
+    for: 2m
+    noDataState: Alerting
+    execErrState: Alerting
+    isPaused: false
+    labels:
+      domain: cicd
+      severity: critical
+      env: prod
+      team: platform
+    annotations:
+      summary: Live REST query must return a valid tasks response. HTTP/auth/schema/query
+        errors alert, even with dashboard closed.
+      __dashboardUid__: cicd-health
+      __panelId__: '5'
+    data:
+    - refId: A
+      datasourceUid: octopus-api
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        refId: A
+        type: json
+        source: url
+        parser: backend
+        format: table
+        url: https://octopus.example.internal/api/Spaces-1/tasks?name=Deploy&project=Projects-1&environment=Environments-1&take=1
+        url_options:
+          method: GET
+        root_selector: '($exists(TotalResults) and $exists(Items) ? true : $error("Invalid
+          Octopus response");1)'
+        columns: []
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: octopus-api
+        pagination_mode: none
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $A < 1
+        datasource:
+          type: __expr__
+          uid: __expr__
+        hide: false
+  - uid: oss-tc-agent
+    title: CI/CD · TeamCity expected agent unavailable
     condition: B
     for: 5m
-    noDataState: OK
-    execErrState: Error
+    noDataState: Alerting
+    execErrState: Alerting
     isPaused: false
     labels:
       domain: cicd
       severity: warning
+      env: prod
       team: platform
     annotations:
-      summary: Explicitly expected stable agent is missing, disconnected or disabled.
+      summary: Expected stable ID missing, disconnected, unauthorized or disabled.
       __dashboardUid__: cicd-health
-      __panelId__: '2'
+      __panelId__: '5'
     data:
     - refId: A
-      datasourceUid: cicd-prometheus
+      datasourceUid: teamcity-api
       relativeTimeRange:
         from: 600
         to: 0
       model:
         refId: A
-        expr: (1 - ci_resource_online) and on (env, component) (ci:data_stale == 0)
-          and on (env, component) (ci:component_available == 1)
-        instant: true
-        range: false
-        format: time_series
+        type: json
+        source: url
+        parser: backend
+        format: table
+        url: https://teamcity.example.internal/app/rest/agents?locator=id%3A101%2CdefaultFilter%3Afalse&fields=count%2Cagent%28id%2Cconnected%2Cauthorized%2Cenabled%29
+        url_options:
+          method: GET
+        root_selector: '($exists(count) ? true : $error("Invalid TeamCity response");count>0
+          and agent[0].connected and agent[0].authorized and agent[0].enabled ? 1
+          : 0)'
+        columns: []
         datasource:
-          type: prometheus
-          uid: cicd-prometheus
+          type: yesoreyeram-infinity-datasource
+          uid: teamcity-api
+        pagination_mode: none
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -225,26 +370,28 @@ groups:
       model:
         refId: B
         type: math
-        expression: $A > 0
+        expression: $A < 1
         datasource:
           type: __expr__
           uid: __expr__
-  - uid: cicd-agents-low
-    title: CI/CD · Too few online agents
+        hide: false
+  - uid: oss-jenkins-agent
+    title: CI/CD · Jenkins expected node unavailable
     condition: B
     for: 5m
-    noDataState: OK
-    execErrState: Error
+    noDataState: Alerting
+    execErrState: Alerting
     isPaused: false
     labels:
       domain: cicd
       severity: warning
+      env: prod
       team: platform
     annotations:
-      summary: Online agent count below configured minimum. Not a compatibility or
-        free-slot guarantee.
+      summary: Expected stable node offline. Missing node is separately detected by
+        inventory alert.
       __dashboardUid__: cicd-health
-      __panelId__: '2'
+      __panelId__: '5'
     data:
     - refId: A
       datasourceUid: cicd-prometheus
@@ -253,9 +400,8 @@ groups:
         to: 0
       model:
         refId: A
-        expr: (ci_agents_online < bool ci_agents_minimum) and on (env, component)
-          (ci:data_stale == 0) and on (env, component) (ci:component_available ==
-          1)
+        expr: (default_jenkins_nodes_online{job="jenkins",env="prod",node="linux-01"}
+          == bool 0) or vector(0)
         instant: true
         range: false
         format: time_series
@@ -274,21 +420,112 @@ groups:
         datasource:
           type: __expr__
           uid: __expr__
-  - uid: cicd-queue-size
-    title: CI/CD · Queue exceeds limit
+        hide: false
+  - uid: oss-jenkins-node-missing
+    title: CI/CD · Jenkins expected node metric missing
+    condition: B
+    for: 5m
+    noDataState: OK
+    execErrState: Alerting
+    isPaused: false
+    labels:
+      domain: cicd
+      severity: warning
+      env: prod
+      team: platform
+    annotations:
+      summary: Expected stable node disappeared from plugin metrics.
+      __dashboardUid__: cicd-health
+      __panelId__: '5'
+    data:
+    - refId: A
+      datasourceUid: cicd-prometheus
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        refId: A
+        expr: absent(default_jenkins_nodes_online{job="jenkins",env="prod",node="linux-01"})
+        instant: true
+        range: false
+        format: time_series
+        datasource:
+          type: prometheus
+          uid: cicd-prometheus
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $A > 0
+        datasource:
+          type: __expr__
+          uid: __expr__
+        hide: false
+  - uid: oss-teamcity-agents-low
+    title: CI/CD · teamcity insufficient agents
+    condition: B
+    for: 5m
+    noDataState: Alerting
+    execErrState: Alerting
+    isPaused: false
+    labels:
+      domain: cicd
+      severity: warning
+      env: prod
+      team: platform
+    annotations:
+      summary: Online/connected agent count below configured minimum; not a compatibility
+        guarantee.
+      __dashboardUid__: cicd-health
+      __panelId__: '5'
+    data:
+    - refId: A
+      datasourceUid: cicd-prometheus
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        refId: A
+        expr: ci:agents_online{env="prod",component="teamcity"}
+        instant: true
+        range: false
+        format: time_series
+        datasource:
+          type: prometheus
+          uid: cicd-prometheus
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $A < 2
+        datasource:
+          type: __expr__
+          uid: __expr__
+        hide: false
+  - uid: oss-teamcity-queue
+    title: CI/CD · teamcity queue over limit
     condition: B
     for: 10m
-    noDataState: OK
-    execErrState: Error
+    noDataState: Alerting
+    execErrState: Alerting
     isPaused: false
     labels:
       domain: cicd
       severity: warning
+      env: prod
       team: platform
     annotations:
-      summary: Selected-pipeline queue above configured limit.
+      summary: ''
       __dashboardUid__: cicd-health
-      __panelId__: '2'
+      __panelId__: '5'
     data:
     - refId: A
       datasourceUid: cicd-prometheus
@@ -297,8 +534,7 @@ groups:
         to: 0
       model:
         refId: A
-        expr: (ci_queue_length > bool ci_queue_limit) and on (env, component) (ci:data_stale
-          == 0) and on (env, component) (ci:component_available == 1)
+        expr: ci:queue_length{env="prod",component="teamcity"}
         instant: true
         range: false
         format: time_series
@@ -313,68 +549,28 @@ groups:
       model:
         refId: B
         type: math
-        expression: $A > 0
+        expression: $A > 10
         datasource:
           type: __expr__
           uid: __expr__
-  - uid: cicd-queue-age
-    title: CI/CD · Queue waiting too long
+        hide: false
+  - uid: oss-jenkins-agents-low
+    title: CI/CD · jenkins insufficient agents
     condition: B
     for: 5m
-    noDataState: OK
-    execErrState: Error
-    isPaused: false
-    labels:
-      domain: cicd
-      severity: critical
-      team: platform
-    annotations:
-      summary: Oldest queued operation waiting longer than 15 min.
-      __dashboardUid__: cicd-health
-      __panelId__: '2'
-    data:
-    - refId: A
-      datasourceUid: cicd-prometheus
-      relativeTimeRange:
-        from: 600
-        to: 0
-      model:
-        refId: A
-        expr: (ci_queue_oldest_age_seconds > bool 900) and on (env, component) (ci:data_stale
-          == 0) and on (env, component) (ci:component_available == 1)
-        instant: true
-        range: false
-        format: time_series
-        datasource:
-          type: prometheus
-          uid: cicd-prometheus
-    - refId: B
-      datasourceUid: __expr__
-      relativeTimeRange:
-        from: 0
-        to: 0
-      model:
-        refId: B
-        type: math
-        expression: $A > 0
-        datasource:
-          type: __expr__
-          uid: __expr__
-  - uid: cicd-long-build
-    title: CI/CD · Build running too long
-    condition: B
-    for: 5m
-    noDataState: OK
-    execErrState: Error
+    noDataState: Alerting
+    execErrState: Alerting
     isPaused: false
     labels:
       domain: cicd
       severity: warning
+      env: prod
       team: platform
     annotations:
-      summary: Current build exceeds configured timeout.
+      summary: Online/connected agent count below configured minimum; not a compatibility
+        guarantee.
       __dashboardUid__: cicd-health
-      __panelId__: '2'
+      __panelId__: '5'
     data:
     - refId: A
       datasourceUid: cicd-prometheus
@@ -383,9 +579,7 @@ groups:
         to: 0
       model:
         refId: A
-        expr: (ci_running_elapsed_seconds{operation="build"} > bool ci_operation_timeout_seconds{operation="build"})
-          and on (env, component) (ci:data_stale == 0) and on (env, component) (ci:component_available
-          == 1)
+        expr: ci:agents_online{env="prod",component="jenkins"}
         instant: true
         range: false
         format: time_series
@@ -400,25 +594,219 @@ groups:
       model:
         refId: B
         type: math
-        expression: $A > 0
+        expression: $A < 2
         datasource:
           type: __expr__
           uid: __expr__
-  - uid: cicd-slow-http
+        hide: false
+  - uid: oss-jenkins-queue
+    title: CI/CD · jenkins queue over limit
+    condition: B
+    for: 10m
+    noDataState: Alerting
+    execErrState: Alerting
+    isPaused: false
+    labels:
+      domain: cicd
+      severity: warning
+      env: prod
+      team: platform
+    annotations:
+      summary: ''
+      __dashboardUid__: cicd-health
+      __panelId__: '5'
+    data:
+    - refId: A
+      datasourceUid: cicd-prometheus
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        refId: A
+        expr: ci:queue_length{env="prod",component="jenkins"}
+        instant: true
+        range: false
+        format: time_series
+        datasource:
+          type: prometheus
+          uid: cicd-prometheus
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $A > 10
+        datasource:
+          type: __expr__
+          uid: __expr__
+        hide: false
+  - uid: oss-octopus-queue
+    title: CI/CD · Octopus queue over limit
+    condition: B
+    for: 10m
+    noDataState: Alerting
+    execErrState: Alerting
+    isPaused: false
+    labels:
+      domain: cicd
+      severity: warning
+      env: prod
+      team: platform
+    annotations:
+      summary: ''
+      __dashboardUid__: cicd-health
+      __panelId__: '5'
+    data:
+    - refId: A
+      datasourceUid: octopus-api
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        refId: A
+        type: json
+        source: url
+        parser: backend
+        format: table
+        url: https://octopus.example.internal/api/Spaces-1/tasks?name=Deploy&project=Projects-1&environment=Environments-1&states=Queued&take=1
+        url_options:
+          method: GET
+        root_selector: '($exists(TotalResults) and $exists(Items) ? true : $error("Invalid
+          Octopus response");TotalResults)'
+        columns: []
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: octopus-api
+        pagination_mode: none
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $A > 5
+        datasource:
+          type: __expr__
+          uid: __expr__
+        hide: false
+  - uid: oss-tc-long
+    title: CI/CD · TeamCity build too long
+    condition: B
+    for: 5m
+    noDataState: Alerting
+    execErrState: Alerting
+    isPaused: false
+    labels:
+      domain: cicd
+      severity: warning
+      env: prod
+      team: platform
+    annotations:
+      summary: ''
+      __dashboardUid__: cicd-health
+      __panelId__: '5'
+    data:
+    - refId: A
+      datasourceUid: teamcity-api
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        refId: A
+        type: json
+        source: url
+        parser: backend
+        format: table
+        url: https://teamcity.example.internal/app/rest/builds?locator=buildType%3A%28id%3APlatform_BackendBuild%29%2Cstate%3Arunning%2CdefaultFilter%3Afalse%2Ccount%3A100&fields=count%2CnextHref%2Cbuild%28id%2CstartDate%29
+        url_options:
+          method: GET
+        root_selector: '($exists(count) ? true : $error("Invalid TeamCity response");$date
+          := function($s){$toMillis($substring($s,0,4)&"-"&$substring($s,4,2)&"-"&$substring($s,6,2)&"T"&$substring($s,9,2)&":"&$substring($s,11,2)&":"&$substring($s,13,2)&$substring($s,15,3)&":"&$substring($s,18,2))};$exists(nextHref)
+          ? $error("Running build page truncated") : count=0 ? 0 : $max(build.($millis()-$date(startDate)))/1000)'
+        columns: []
+        datasource:
+          type: yesoreyeram-infinity-datasource
+          uid: teamcity-api
+        pagination_mode: none
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $A > 3600
+        datasource:
+          type: __expr__
+          uid: __expr__
+        hide: false
+  - uid: oss-jenkins-long
+    title: CI/CD · Jenkins build too long
+    condition: B
+    for: 5m
+    noDataState: OK
+    execErrState: Alerting
+    isPaused: false
+    labels:
+      domain: cicd
+      severity: warning
+      env: prod
+      team: platform
+    annotations:
+      summary: Plugin may omit runtime when no builds are running; verify metric contract
+        on installed version.
+      __dashboardUid__: cicd-health
+      __panelId__: '5'
+    data:
+    - refId: A
+      datasourceUid: cicd-prometheus
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        refId: A
+        expr: max(default_jenkins_builds_running_build_duration_milliseconds{job="jenkins",env="prod",jenkins_job=~"platform/.*"})/1000
+        instant: true
+        range: false
+        format: time_series
+        datasource:
+          type: prometheus
+          uid: cicd-prometheus
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $A > 3600
+        datasource:
+          type: __expr__
+          uid: __expr__
+        hide: false
+  - uid: oss-http-slow
     title: CI/CD · HTTP response too slow
     condition: B
     for: 5m
-    noDataState: OK
-    execErrState: Error
+    noDataState: Alerting
+    execErrState: Alerting
     isPaused: false
     labels:
       domain: cicd
       severity: warning
+      env: prod
       team: platform
     annotations:
-      summary: HTTP probe exceeds 2 s.
+      summary: ''
       __dashboardUid__: cicd-health
-      __panelId__: '2'
+      __panelId__: '5'
     data:
     - refId: A
       datasourceUid: cicd-prometheus
@@ -427,8 +815,7 @@ groups:
         to: 0
       model:
         refId: A
-        expr: (probe_duration_seconds{job="cicd-http"} > bool 2) and (probe_success{job="cicd-http"}
-          == 1)
+        expr: probe_duration_seconds{job="cicd-http",env="prod"}
         instant: true
         range: false
         format: time_series
@@ -443,25 +830,27 @@ groups:
       model:
         refId: B
         type: math
-        expression: $A > 0
+        expression: $A > 2
         datasource:
           type: __expr__
           uid: __expr__
-  - uid: cicd-rules-missing
+        hide: false
+  - uid: oss-rules-missing
     title: CI/CD · Recording rules missing
     condition: B
     for: 2m
     noDataState: OK
-    execErrState: Error
+    execErrState: Alerting
     isPaused: false
     labels:
       domain: cicd
       severity: critical
+      env: prod
       team: platform
     annotations:
-      summary: Expected component inventory rules missing.
+      summary: ''
       __dashboardUid__: cicd-health
-      __panelId__: '2'
+      __panelId__: '5'
     data:
     - refId: A
       datasourceUid: cicd-prometheus
@@ -490,3 +879,4 @@ groups:
         datasource:
           type: __expr__
           uid: __expr__
+        hide: false

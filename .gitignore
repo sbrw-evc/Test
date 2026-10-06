@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
 credentials*.env
-adapter/config.yml
+monitoring-config.yml
 .venv/
+node_modules/

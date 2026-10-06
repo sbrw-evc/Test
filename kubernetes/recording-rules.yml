@@ -7,7 +7,7 @@ metadata:
     release: kube-prometheus-stack
 spec:
   groups:
-  - name: cicd-normalized
+  - name: cicd-native
     interval: 30s
     rules:
     - record: ci:expected_component
@@ -25,39 +25,65 @@ spec:
       labels:
         env: prod
         component: octopus
-    - record: ci:probe_up
-      expr: max by (env, component) (probe_success{job="cicd-http"} and (time()-timestamp(probe_success{job="cicd-http"})
-        < 90)) or on (env, component) ci:expected_component
-    - record: ci:api_up
-      expr: max by (env, component) (ci_api_up and (time()-timestamp(ci_api_up) <
-        90)) or on (env, component) ci:expected_component
+    - record: ci:agents_online
+      expr: max(agents_connected_authorized_number{job="teamcity",env="prod"})
+      labels:
+        env: prod
+        component: teamcity
+    - record: ci:agents_online
+      expr: sum(default_jenkins_nodes_online{job="jenkins",env="prod",node=~"linux-.*"})
+      labels:
+        env: prod
+        component: jenkins
+    - record: ci:queue_length
+      expr: max(builds_queued_number{job="teamcity",env="prod"})
+      labels:
+        env: prod
+        component: teamcity
+    - record: ci:queue_length
+      expr: max(default_jenkins_executors_queue_length{job="jenkins",env="prod",label="linux"})
+      labels:
+        env: prod
+        component: jenkins
+    - record: ci:native_up
+      expr: min(up{job="teamcity",env="prod"} and (time()-timestamp(up{job="teamcity",env="prod"})
+        < 90))
+      labels:
+        env: prod
+        component: teamcity
+    - record: ci:native_up
+      expr: min(up{job="jenkins",env="prod"} and (time()-timestamp(up{job="jenkins",env="prod"})
+        < 90))
+      labels:
+        env: prod
+        component: jenkins
+    - record: ci:http_observed
+      expr: min by (env, component) (probe_success{job="cicd-http"} and (time()-timestamp(probe_success{job="cicd-http"})
+        < 90))
+    - record: ci:http_up
+      expr: ci:http_observed or on (env,component) ci:expected_component
+    - record: ci:source_up
+      expr: ci:native_up or on (env,component) ci:expected_component
+    - record: ci:observed_down
+      expr: clamp_max((1-ci:http_up) + on (env,component) (1-ci:source_up),1)
     - record: ci:observation_missing
-      expr: (ci:expected_component unless on (env, component) (max by (env, component)
-        (probe_success{job="cicd-http"} and (time()-timestamp(probe_success{job="cicd-http"})
-        < 90)))) or on (env, component) (ci:expected_component unless on (env, component)
-        (max by (env, component) (ci_api_up and (time()-timestamp(ci_api_up) < 90))))
-        or on (env, component) (0 * ci:expected_component)
-    - record: ci:data_age_seconds
-      expr: (time() - max by (env, component) (ci_collection_last_success_timestamp_seconds))
-        or on (env, component) (1000000000 * ci:expected_component)
-    - record: ci:collector_healthy
-      expr: max by (env, component) (ci_collection_complete) or on (env, component)
-        (0 * ci:expected_component)
-    - record: ci:component_available
-      expr: ci:probe_up * on (env, component) ci:api_up
-    - record: ci:data_stale
-      expr: clamp_max((ci:data_age_seconds > bool 180) + on (env, component) (ci:collector_healthy
-        == bool 0) + on (env, component) ci:observation_missing, 1)
+      expr: (ci:expected_component unless on (env,component) ci:http_observed) or
+        on (env,component) ((ci:expected_component{component!="octopus"} unless on
+        (env,component) ci:native_up) or on (env,component) (ci:expected_component{component!="octopus"}
+        unless on (env,component) ci:agents_online) or on (env,component) (ci:expected_component{component!="octopus"}
+        unless on (env,component) ci:queue_length)) or on (env,component) (0*ci:expected_component)
     - record: ci:degraded
-      expr: clamp_max((max by (env, component) (ci_queue_oldest_age_seconds > bool
-        300) or on (env, component) (0 * ci:expected_component)) + on (env, component)
-        (max by (env, component) (ci_queue_length > bool ci_queue_limit) or on (env,
-        component) (0 * ci:expected_component)) + on (env, component) (max by (env,
-        component) (ci_resource_online == bool 0) or on (env, component) (0 * ci:expected_component))
-        + on (env, component) (max by (env, component) (ci_agents_online < bool ci_agents_minimum)
-        or on (env, component) (0 * ci:expected_component)) + on (env, component)
-        (max by (env, component) (ci_last_operation_status > bool 0) or on (env, component)
-        (0 * ci:expected_component)), 1)
-    - record: ci:operational_state
-      expr: ci:component_available * on (env, component) (3 - 2 * ci:data_stale -
-        (1 - ci:data_stale) * on (env, component) ci:degraded)
+      expr: ((ci:queue_length{component="teamcity"} > bool 10) + on (env,component)
+        (ci:agents_online{component="teamcity"} < bool 2)) > bool 0
+      labels:
+        env: prod
+        component: teamcity
+    - record: ci:degraded
+      expr: ((ci:queue_length{component="jenkins"} > bool 10) + on (env,component)
+        (ci:agents_online{component="jenkins"} < bool 2)) > bool 0
+      labels:
+        env: prod
+        component: jenkins
+    - record: ci:infrastructure_state
+      expr: (1-ci:observed_down) * on (env,component) (3-2*ci:observation_missing-(1-ci:observation_missing)
+        * on (env,component) (ci:degraded or on (env,component) (0*ci:expected_component)))

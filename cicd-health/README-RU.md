@@ -1,15 +1,13 @@
-# CI/CD Health в Grafana
+# Grafana Native и REST
 
-[Пошаговая настройка DevOps](../docs/SETUP-RU.md) · [Документ Word](../docs/devops-cicd-monitoring-request.docx) · [REST adapter](../adapter) · [Kubernetes manifests](../kubernetes)
+Установка: [docs/SETUP-RU.md](../docs/SETUP-RU.md). Исследованные OSS решения: [docs/OSS-SOURCES.md](../docs/OSS-SOURCES.md).
 
-Dashboard JSON — 22 панели: статус трёх систем и всей цепочки, доля успешных **последних результатов**, online agents TC/Jenkins, очереди, HTTP response time, последние результаты/длительность и текущие операции. Карточки открывают UI системы и filtered details. Scope задан config.yml; project filter влияет только на operation panels, не на общую очередь/агентов.
+Импортировать cicd-health-dashboard.json; provision datasources с UID cicd-prometheus, teamcity-api, octopus-api. Обязателен установленный yesoreyeram-infinity-datasource с backend JSONata поддержкой. В JSON `parser: backend` означает JSONata. Grafana-managed alert rules берут fixed URLs напрямую; frontend parsers и dashboard variables не участвуют в alerts.
 
-Импортировать cicd-health-dashboard.json в Grafana, выбрать Prometheus datasource. Для Grafana-managed alerts datasource UID фиксирован `cicd-prometheus`. Заменить hidden URL constants. Recording rules обязательны: Kubernetes обёртка в ../kubernetes/recording-rules.yml, standalone groups в prometheus-recording-rules.yml. Не применять оба способа одновременно. Grafana alert file содержит 11 правил и удаление двух устаревших UID прежнего комплекта; apply через provisioning/alerting и штатный reload/rollout.
+Перед генерацией скопировать ../monitoring-config.example.yml в ../monitoring-config.yml и заполнить env,URLs,IDs,job/node regex, один Jenkins label pool, queue/min-agent/timeouts. Из корня: `python scripts/generate_monitoring.py monitoring-config.yml` (PyYAML). Generator не является exporter: его запускают только для подготовки конфигураций, в кластере собственного кода нет.
 
-DOWN — наблюдаемая ошибка HTTP/API. UNKNOWN — отсутствующий/неполный/старый сбор. DEGRADED — последний результат неуспешен, очередь выше лимита/ждёт >5min, expected agent offline или online count ниже минимума. HEALTHY — эти проверки в норме. Нельзя считать это доказательством успешной доставки каждого релиза. KPI с устаревшими данными скрыты.
+26 panels: three component health + overall selected scope, latest results, online agents, idle executors, queue, duration/latency trends, active operations и details. TeamCity/Octopus REST не получает временной истории от Prometheus. Все scopes фиксированы конфигурацией; для другого buildType/environment нужно сгенерировать отдельный комплект с отдельными dashboard/alert UIDs либо расширить query templates и alerts при подготовке rollout. Не оставлять неподключённые проекты под общим HEALTHY обещанием.
 
-Версия 1 адаптера отдаёт только Gauges, описанные в METRICS-CONTRACT.md. Исключены p95, event counters, success rate за период, свободные совместимые слоты и Octopus worker/target metrics. Failure alert может пропустить краткую ошибку между poll; для каждого события нужен durable webhook/event collector.
+Recording rules применить ровно одним способом: standalone groups или Kubernetes PrometheusRule. Новый Grafana alert file удаляет старые cicd-* rules и создаёт oss-* rules. Сначала проверить provisioning в staging; после настройки удалить старые adapter Deployment/Service/ServiceMonitor/ConfigMap/Secret. Точная миграция в SETUP-RU.md.
 
-Standalone scrape example рассчитан на обычный Prometheus. В Operator кластере использовать ../kubernetes/*.yml. Native names и permissions сверить с установленными версиями. Проверка синтаксиса/mock API не заменяет реальные smoke tests.
-
-Генерация JSON/rules: `python scripts/generate_monitoring.py` из корня, зависимости PyYAML. Примеры community dashboard подходов: [Jenkins Performance and Health](https://grafana.com/grafana/dashboards/9964-jenkins-performance-and-health-overview/), [Octopus Deploy reporting](https://grafana.com/orgs/bhozar/dashboards). Они служат ориентирами по структуре; новый JSON использует наш контракт.
+Проверки: `tests/check-infinity.cjs` с JSONata2.1 и offline PromQL parsing. Требуется реальный smoke test вашей Grafana/Infinity/API/plugin версии; тесты query expressions не доказывают совместимость всех deployed версий. Без access credentials к кластеру комплект не считается установленным.

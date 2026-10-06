@@ -1,0 +1,236 @@
+{
+  "tc_status": {
+    "refId": "A",
+    "type": "json",
+    "source": "url",
+    "parser": "backend",
+    "format": "table",
+    "url": "https://teamcity.example.internal/app/rest/builds?locator=buildType%3A%28id%3APlatform_BackendBuild%29%2Cstate%3Afinished%2CdefaultFilter%3Afalse%2Ccount%3A1&fields=count%2Cbuild%28id%2Cstatus%2CcanceledInfo%2CstartDate%2CfinishDate%2CwebUrl%29",
+    "url_options": {
+      "method": "GET"
+    },
+    "root_selector": "($exists(count) ? true : $error(\"Invalid TeamCity response\");count=0 ? -1 : (($exists(build[0].canceledInfo) and build[0].canceledInfo!=null) ? 3 : build[0].status=\"SUCCESS\" ? 0 : build[0].status=\"FAILURE\" ? 2 : 5))",
+    "columns": [],
+    "datasource": {
+      "type": "yesoreyeram-infinity-datasource",
+      "uid": "teamcity-api"
+    },
+    "pagination_mode": "none"
+  },
+  "tc_health": {
+    "refId": "A",
+    "type": "json",
+    "source": "url",
+    "parser": "backend",
+    "format": "table",
+    "url": "https://teamcity.example.internal/app/rest/builds?locator=buildType%3A%28id%3APlatform_BackendBuild%29%2Cstate%3Afinished%2CdefaultFilter%3Afalse%2Ccount%3A1&fields=count%2Cbuild%28id%2Cstatus%2CcanceledInfo%2CstartDate%2CfinishDate%2CwebUrl%29",
+    "url_options": {
+      "method": "GET"
+    },
+    "root_selector": "($exists(count) ? true : $error(\"Invalid TeamCity response\");count=0 ? 1 : (count=0 ? -1 : (($exists(build[0].canceledInfo) and build[0].canceledInfo!=null) ? 3 : build[0].status=\"SUCCESS\" ? 0 : build[0].status=\"FAILURE\" ? 2 : 5))=0 ? 3 : (count=0 ? -1 : (($exists(build[0].canceledInfo) and build[0].canceledInfo!=null) ? 3 : build[0].status=\"SUCCESS\" ? 0 : build[0].status=\"FAILURE\" ? 2 : 5))=5 ? 1 : 2)",
+    "columns": [],
+    "datasource": {
+      "type": "yesoreyeram-infinity-datasource",
+      "uid": "teamcity-api"
+    },
+    "pagination_mode": "none"
+  },
+  "tc_failed": {
+    "refId": "A",
+    "type": "json",
+    "source": "url",
+    "parser": "backend",
+    "format": "table",
+    "url": "https://teamcity.example.internal/app/rest/builds?locator=buildType%3A%28id%3APlatform_BackendBuild%29%2Cstate%3Afinished%2CdefaultFilter%3Afalse%2Ccount%3A1&fields=count%2Cbuild%28id%2Cstatus%2CcanceledInfo%2CstartDate%2CfinishDate%2CwebUrl%29",
+    "url_options": {
+      "method": "GET"
+    },
+    "root_selector": "($exists(count) ? true : $error(\"Invalid TeamCity response\");count>0 and build[0].status=\"FAILURE\" and ($not($exists(build[0].canceledInfo)) or build[0].canceledInfo=null) ? 1 : 0)",
+    "columns": [],
+    "datasource": {
+      "type": "yesoreyeram-infinity-datasource",
+      "uid": "teamcity-api"
+    },
+    "pagination_mode": "none"
+  },
+  "tc_duration": {
+    "refId": "A",
+    "type": "json",
+    "source": "url",
+    "parser": "backend",
+    "format": "table",
+    "url": "https://teamcity.example.internal/app/rest/builds?locator=buildType%3A%28id%3APlatform_BackendBuild%29%2Cstate%3Afinished%2CdefaultFilter%3Afalse%2Ccount%3A1&fields=count%2Cbuild%28id%2Cstatus%2CcanceledInfo%2CstartDate%2CfinishDate%2CwebUrl%29",
+    "url_options": {
+      "method": "GET"
+    },
+    "root_selector": "($exists(count) ? true : $error(\"Invalid TeamCity response\");$date := function($s){$toMillis($substring($s,0,4)&\"-\"&$substring($s,4,2)&\"-\"&$substring($s,6,2)&\"T\"&$substring($s,9,2)&\":\"&$substring($s,11,2)&\":\"&$substring($s,13,2)&$substring($s,15,3)&\":\"&$substring($s,18,2))};count=0 or $not($exists(build[0].startDate)) or build[0].startDate=null ? -1 : ($date(build[0].finishDate)-$date(build[0].startDate))/1000)",
+    "columns": [],
+    "datasource": {
+      "type": "yesoreyeram-infinity-datasource",
+      "uid": "teamcity-api"
+    },
+    "pagination_mode": "none"
+  },
+  "tc_running": {
+    "refId": "A",
+    "type": "json",
+    "source": "url",
+    "parser": "backend",
+    "format": "table",
+    "url": "https://teamcity.example.internal/app/rest/builds?locator=buildType%3A%28id%3APlatform_BackendBuild%29%2Cstate%3Arunning%2CdefaultFilter%3Afalse%2Ccount%3A100&fields=count%2CnextHref%2Cbuild%28id%2CstartDate%29",
+    "url_options": {
+      "method": "GET"
+    },
+    "root_selector": "($exists(count) ? true : $error(\"Invalid TeamCity response\");$date := function($s){$toMillis($substring($s,0,4)&\"-\"&$substring($s,4,2)&\"-\"&$substring($s,6,2)&\"T\"&$substring($s,9,2)&\":\"&$substring($s,11,2)&\":\"&$substring($s,13,2)&$substring($s,15,3)&\":\"&$substring($s,18,2))};$exists(nextHref) ? $error(\"Running build page truncated\") : count=0 ? 0 : $max(build.($millis()-$date(startDate)))/1000)",
+    "columns": [],
+    "datasource": {
+      "type": "yesoreyeram-infinity-datasource",
+      "uid": "teamcity-api"
+    },
+    "pagination_mode": "none"
+  },
+  "tc_agent": {
+    "refId": "A",
+    "type": "json",
+    "source": "url",
+    "parser": "backend",
+    "format": "table",
+    "url": "https://teamcity.example.internal/app/rest/agents?locator=id%3A101%2CdefaultFilter%3Afalse&fields=count%2Cagent%28id%2Cconnected%2Cauthorized%2Cenabled%29",
+    "url_options": {
+      "method": "GET"
+    },
+    "root_selector": "($exists(count) ? true : $error(\"Invalid TeamCity response\");count>0 and agent[0].connected and agent[0].authorized and agent[0].enabled ? 1 : 0)",
+    "columns": [],
+    "datasource": {
+      "type": "yesoreyeram-infinity-datasource",
+      "uid": "teamcity-api"
+    },
+    "pagination_mode": "none"
+  },
+  "oc_status": {
+    "refId": "A",
+    "type": "json",
+    "source": "url",
+    "parser": "backend",
+    "format": "table",
+    "url": "https://octopus.example.internal/api/Spaces-1/tasks?name=Deploy&project=Projects-1&environment=Environments-1&active=false&take=1",
+    "url_options": {
+      "method": "GET"
+    },
+    "root_selector": "($exists(TotalResults) and $exists(Items) ? true : $error(\"Invalid Octopus response\");TotalResults=0 ? -1 : Items[0].State=\"Success\" ? 0 : Items[0].State=\"Failed\" ? 2 : Items[0].State=\"Canceled\" ? 3 : Items[0].State=\"TimedOut\" ? 4 : 5)",
+    "columns": [],
+    "datasource": {
+      "type": "yesoreyeram-infinity-datasource",
+      "uid": "octopus-api"
+    },
+    "pagination_mode": "none"
+  },
+  "oc_health": {
+    "refId": "A",
+    "type": "json",
+    "source": "url",
+    "parser": "backend",
+    "format": "table",
+    "url": "https://octopus.example.internal/api/Spaces-1/tasks?name=Deploy&project=Projects-1&environment=Environments-1&active=false&take=1",
+    "url_options": {
+      "method": "GET"
+    },
+    "root_selector": "($exists(TotalResults) and $exists(Items) ? true : $error(\"Invalid Octopus response\");TotalResults=0 ? 1 : (TotalResults=0 ? -1 : Items[0].State=\"Success\" ? 0 : Items[0].State=\"Failed\" ? 2 : Items[0].State=\"Canceled\" ? 3 : Items[0].State=\"TimedOut\" ? 4 : 5)=0 ? 3 : (TotalResults=0 ? -1 : Items[0].State=\"Success\" ? 0 : Items[0].State=\"Failed\" ? 2 : Items[0].State=\"Canceled\" ? 3 : Items[0].State=\"TimedOut\" ? 4 : 5)=5 ? 1 : 2)",
+    "columns": [],
+    "datasource": {
+      "type": "yesoreyeram-infinity-datasource",
+      "uid": "octopus-api"
+    },
+    "pagination_mode": "none"
+  },
+  "oc_failed": {
+    "refId": "A",
+    "type": "json",
+    "source": "url",
+    "parser": "backend",
+    "format": "table",
+    "url": "https://octopus.example.internal/api/Spaces-1/tasks?name=Deploy&project=Projects-1&environment=Environments-1&active=false&take=1",
+    "url_options": {
+      "method": "GET"
+    },
+    "root_selector": "($exists(TotalResults) and $exists(Items) ? true : $error(\"Invalid Octopus response\");TotalResults>0 and Items[0].State in [\"Failed\",\"TimedOut\"] ? 1 : 0)",
+    "columns": [],
+    "datasource": {
+      "type": "yesoreyeram-infinity-datasource",
+      "uid": "octopus-api"
+    },
+    "pagination_mode": "none"
+  },
+  "oc_duration": {
+    "refId": "A",
+    "type": "json",
+    "source": "url",
+    "parser": "backend",
+    "format": "table",
+    "url": "https://octopus.example.internal/api/Spaces-1/tasks?name=Deploy&project=Projects-1&environment=Environments-1&active=false&take=1",
+    "url_options": {
+      "method": "GET"
+    },
+    "root_selector": "($exists(TotalResults) and $exists(Items) ? true : $error(\"Invalid Octopus response\");TotalResults=0 or $not($exists(Items[0].StartTime)) or Items[0].StartTime=null ? -1 : ($toMillis(Items[0].CompletedTime)-$toMillis(Items[0].StartTime))/1000)",
+    "columns": [],
+    "datasource": {
+      "type": "yesoreyeram-infinity-datasource",
+      "uid": "octopus-api"
+    },
+    "pagination_mode": "none"
+  },
+  "oc_queue": {
+    "refId": "A",
+    "type": "json",
+    "source": "url",
+    "parser": "backend",
+    "format": "table",
+    "url": "https://octopus.example.internal/api/Spaces-1/tasks?name=Deploy&project=Projects-1&environment=Environments-1&states=Queued&take=1",
+    "url_options": {
+      "method": "GET"
+    },
+    "root_selector": "($exists(TotalResults) and $exists(Items) ? true : $error(\"Invalid Octopus response\");TotalResults)",
+    "columns": [],
+    "datasource": {
+      "type": "yesoreyeram-infinity-datasource",
+      "uid": "octopus-api"
+    },
+    "pagination_mode": "none"
+  },
+  "oc_api": {
+    "refId": "A",
+    "type": "json",
+    "source": "url",
+    "parser": "backend",
+    "format": "table",
+    "url": "https://octopus.example.internal/api/Spaces-1/tasks?name=Deploy&project=Projects-1&environment=Environments-1&take=1",
+    "url_options": {
+      "method": "GET"
+    },
+    "root_selector": "($exists(TotalResults) and $exists(Items) ? true : $error(\"Invalid Octopus response\");1)",
+    "columns": [],
+    "datasource": {
+      "type": "yesoreyeram-infinity-datasource",
+      "uid": "octopus-api"
+    },
+    "pagination_mode": "none"
+  },
+  "oc_running": {
+    "refId": "A",
+    "type": "json",
+    "source": "url",
+    "parser": "backend",
+    "format": "table",
+    "url": "https://octopus.example.internal/api/Spaces-1/tasks?name=Deploy&project=Projects-1&environment=Environments-1&running=true&take=100",
+    "url_options": {
+      "method": "GET"
+    },
+    "root_selector": "($exists(TotalResults) and $exists(Items) ? true : $error(\"Invalid Octopus response\");TotalResults>$count(Items) ? $error(\"Running deployment page truncated\") : TotalResults=0 ? 0 : $max(Items.($millis()-$toMillis(StartTime)))/1000)",
+    "columns": [],
+    "datasource": {
+      "type": "yesoreyeram-infinity-datasource",
+      "uid": "octopus-api"
+    },
+    "pagination_mode": "none"
+  }
+}

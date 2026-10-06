@@ -1,0 +1,20 @@
+env: prod
+teamcity_url: https://teamcity.example.internal
+teamcity_build_type: Platform_BackendBuild
+teamcity_expected_agent: '101'
+teamcity_min_agents: 2
+teamcity_queue_limit: 10
+teamcity_timeout_seconds: 3600
+jenkins_url: https://jenkins.example.internal
+jenkins_job_regex: 'platform/.*'
+jenkins_node_regex: 'linux-.*' # Exclude controller; stable agent fleet only.
+jenkins_capacity_label: linux # ONE label pool; never sum overlapping labels.
+jenkins_min_agents: 2
+jenkins_queue_limit: 10
+jenkins_timeout_seconds: 3600
+jenkins_expected_node: linux-01
+octopus_url: https://octopus.example.internal
+octopus_space: Spaces-1
+octopus_project: Projects-1
+octopus_environment: Environments-1
+octopus_queue_limit: 5

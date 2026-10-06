@@ -1,11 +1,37 @@
 apiVersion: 1
 datasources:
-- name: CI-CD Prometheus
-  uid: cicd-prometheus
-  type: prometheus
-  access: proxy
-  url: http://prometheus:9090
-  isDefault: false
-  jsonData:
-    httpMethod: POST
-    timeInterval: 30s
+  - name: CI-CD Prometheus
+    uid: cicd-prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus-operated.monitoring.svc.cluster.local:9090
+    jsonData:
+      httpMethod: POST
+      timeInterval: 30s
+  - name: TeamCity REST
+    uid: teamcity-api
+    type: yesoreyeram-infinity-datasource
+    access: proxy
+    jsonData:
+      auth_method: bearerToken
+      allowedHosts: [https://teamcity.example.internal]
+      httpHeaderName1: Accept
+      timeoutInSeconds: 10
+      tlsSkipVerify: false
+      allowDangerousHTTPMethods: false
+    secureJsonData:
+      bearerToken: $TEAMCITY_TOKEN
+      httpHeaderValue1: application/json
+  - name: Octopus REST
+    uid: octopus-api
+    type: yesoreyeram-infinity-datasource
+    access: proxy
+    jsonData:
+      auth_method: none
+      allowedHosts: [https://octopus.example.internal]
+      httpHeaderName1: X-Octopus-ApiKey
+      timeoutInSeconds: 10
+      tlsSkipVerify: false
+      allowDangerousHTTPMethods: false
+    secureJsonData:
+      httpHeaderValue1: $OCTOPUS_API_KEY
