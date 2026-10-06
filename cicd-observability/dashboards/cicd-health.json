@@ -4727,6 +4727,10 @@
                       {
                         "id": "displayName",
                         "value": "Start (${__timezone})"
+                      },
+                      {
+                        "id": "unit",
+                        "value": "time:YYYY-MM-DD HH:mm:ss Z"
                       }
                     ]
                   },
@@ -4739,6 +4743,10 @@
                       {
                         "id": "displayName",
                         "value": "Finish (${__timezone})"
+                      },
+                      {
+                        "id": "unit",
+                        "value": "time:YYYY-MM-DD HH:mm:ss Z"
                       }
                     ]
                   }
@@ -6330,6 +6338,10 @@
                       {
                         "id": "displayName",
                         "value": "Start (${__timezone})"
+                      },
+                      {
+                        "id": "unit",
+                        "value": "time:YYYY-MM-DD HH:mm:ss Z"
                       }
                     ]
                   },
@@ -6342,6 +6354,10 @@
                       {
                         "id": "displayName",
                         "value": "Finish (${__timezone})"
+                      },
+                      {
+                        "id": "unit",
+                        "value": "time:YYYY-MM-DD HH:mm:ss Z"
                       }
                     ]
                   }
@@ -8942,6 +8958,10 @@
                       {
                         "id": "displayName",
                         "value": "Start (${__timezone})"
+                      },
+                      {
+                        "id": "unit",
+                        "value": "time:YYYY-MM-DD HH:mm:ss Z"
                       }
                     ]
                   },
@@ -8954,6 +8974,10 @@
                       {
                         "id": "displayName",
                         "value": "Finish (${__timezone})"
+                      },
+                      {
+                        "id": "unit",
+                        "value": "time:YYYY-MM-DD HH:mm:ss Z"
                       }
                     ]
                   }
@@ -10134,13 +10158,13 @@
     },
     "links": [
       {
-        "title": "Применить часовой пояс",
+        "title": "Применить пояс: ${display_timezone:text}",
         "type": "link",
-        "url": "?${__all_variables}&from=${__from}&to=${__to}&timezone=${display_timezone:raw}",
-        "targetBlank": false,
-        "includeVars": false,
-        "keepTime": false,
-        "tooltip": "Выберите Москва или Майами, затем примените часовой пояс ко всем таблицам и графикам."
+        "url": "/d/${__dashboard.uid}?timezone=${display_timezone:percentencode}",
+        "targetBlank": true,
+        "includeVars": true,
+        "keepTime": true,
+        "tooltip": "Открыть дашборд в новой вкладке с выбранным часовым поясом. Фильтры и диапазон времени сохраняются."
       },
       {
         "asDropdown": false,
