@@ -46,7 +46,7 @@ cp monitoring-config.example.yml monitoring-config.yml
 
 ## 3. Подключить штатные метрики в Prometheus
 
-Используется существующий Prometheus Operator. При обычном Prometheus взять [scrape example](../cicd-health/prometheus-scrape.example.yml), а не ServiceMonitor.
+Комплект рассчитан на существующий Prometheus Operator в Kubernetes. Сбор подключается через ServiceMonitor и Probe, правила — через PrometheusRule.
 
 1. В [native-metrics.example.yml](../kubernetes/native-metrics.example.yml) заменить namespaces, selector labels, `release`, named Service port, scheme, paths и TLS serverName.
 2. На Services TeamCity/Jenkins установить labels `monitoring-source=teamcity|jenkins`, `component=teamcity|jenkins`, `env=<контур>`. У Service должны быть соответствующие Endpoints.
