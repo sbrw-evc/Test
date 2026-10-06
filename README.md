@@ -9,7 +9,7 @@ TeamCity native `/app/metrics` + Jenkins Prometheus Plugin + Prometheus Blackbox
 - [Kubernetes ServiceMonitor / Probe / recording rules](kubernetes)
 - [Контракт данных и ограничения](cicd-health/METRICS-CONTRACT.md)
 
-26 панелей, 18 Grafana-managed alerts, 13 live REST query templates. Свой адаптер удалён. Для своего кластера заполнить monitoring-config.yml и сгенерировать фиксированные URLs/scopes. Реальные секреты и конфиг не коммитить.
+26 панелей, 18 Grafana-managed alerts, 13 live REST query templates. Свой адаптер удалён. Dashboard разделён на 7 строк и имеет фильтры пайплайна, Jenkins jobs/агентов/пула и компонентов общих графиков. Для своего кластера заполнить monitoring-config.yml, включая список pipelines, и сгенерировать конфигурации. UI filters не меняют alert scopes. Реальные секреты и конфиг не коммитить.
 
 В кластере ничего не развёрнуто. История REST не хранится в Prometheus; последние результаты не являются процентом за период. Polling не гарантирует уведомление о каждом быстром fail→success. Неподдерживаемые capacity/p95 KPI исключены.
 

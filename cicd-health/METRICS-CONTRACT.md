@@ -24,13 +24,13 @@
 
 0 DOWN — наблюдаемая HTTP/native scrape ошибка. 1 UNKNOWN — отсутствующее обязательное наблюдение или нет последнего запуска. 2 DEGRADED — очередь/число агентов за порогом либо неуспешный последний результат. 3 HEALTHY — выбранные проверки в норме.
 
-Infrastructure recordings знают HTTP и native TC/Jenkins данные. Upper health cards объединяют их с REST result в Grafana server-side Math. Общий health относится к **фиксированным scopes из monitoring-config.yml**, не ко всем незаданным проектам. Infinity query error остаётся error/UNKNOWN; не подставляется здоровое состояние. Scalar queries без labels делают Math joins однозначными. Пустые REST истории дают NO RUNS/UNKNOWN. Ошибки схемы и обрезанная running-page дают query error.
+Infrastructure recordings знают HTTP и native TC/Jenkins данные. Upper health cards объединяют их с REST result в Grafana server-side Math. Общий health объединяет фиксированную infrastructure fleet из monitoring-config.yml с результатами **выбранного dashboard pipeline**. Pipeline mapping связывает TC buildType, Jenkins job scope и Octopus Space/project/environment. Не охватывает незаданные проекты и не меняет фиксированные alert scopes. Infinity query error остаётся error/UNKNOWN; не подставляется здоровое состояние. Scalar queries без labels делают Math joins однозначными. Пустые REST истории дают NO RUNS/UNKNOWN. Ошибки схемы и обрезанная running-page дают query error.
 
 Native availability фильтрует старые scrape samples >90s. Это не доказательство свежести внутреннего async Jenkins collector; scrape UP может отдавать его прежний snapshot. Проверить internal plugin interval и версию. Для защиты именно от остановки internal collection нужен поддерживаемый данной версией сигнал; не вводить выдуманный freshness metric.
 
 ## Алерты и scope
 
-Grafana Alerting выполняет fixed URL/backend JSONata запросы даже при закрытом dashboard. Alert rules не используют dashboard variables. Табличный Infinity result содержит только один numeric field. execErrState=Alerting; noDataState=Alerting для обязательных KPI. У absent(...) правил noDataState=OK, чтобы отсутствие отсутствующей серии не превращалось в alert. Jenkins runtime может отсутствовать без running builds: его NoData=OK.
+Grafana Alerting выполняет fixed URL/backend JSONata запросы даже при закрытом dashboard. Dashboard filters влияют только на представление: alerts используют собственные фиксированные query models. Alert rules не используют dashboard variables. Табличный Infinity result содержит только один numeric field. execErrState=Alerting; noDataState=Alerting для обязательных KPI. У absent(...) правил noDataState=OK, чтобы отсутствие отсутствующей серии не превращалось в alert. Jenkins runtime может отсутствовать без running builds: его NoData=OK.
 
 Last-result alerts держатся до следующего terminal result. Fail→success между poll/внутренними Jenkins updates может быть пропущен. Counter-based Jenkins failure rate — дополнительная диагностика, не гарантия уведомления о каждом запуске. Эту гарантию обеспечивают штатные build/deploy notification/event mechanisms отдельно. Не называть last-result карточки success rate за 24h.
 

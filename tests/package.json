@@ -1,1 +1,10 @@
-{"private":true,"description":"Offline Infinity JSONata fixture checks","dependencies":{"jsonata":"2.1.0"},"scripts":{"test":"node check-infinity.cjs"}}
+{
+  "private": true,
+  "description": "Offline Infinity JSONata fixture checks",
+  "dependencies": {
+    "jsonata": "2.1.0"
+  },
+  "scripts": {
+    "test": "node check-infinity.cjs && node check-dashboard.cjs"
+  }
+}

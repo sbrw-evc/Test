@@ -87,7 +87,23 @@ kubectl apply -f kubernetes/recording-rules.yml
 5. Импортировать [cicd-health-dashboard.json](../cicd-health/cicd-health-dashboard.json). Это 26 панелей: health cards, последние результаты, агенты, очереди, длительности, HTTP latency и детали. Верхние cards ведут к деталям и в соответствующую систему. Пустой scope отображает NO RUNS/UNKNOWN.
 6. Подключить [grafana-alert-rules.yml](../cicd-health/grafana-alert-rules.yml) к provisioning `alerting`; дождаться reload/restart Grafana по вашей процедуре. Файл содержит 18 правил и удаление UID старых кастомных правил этого комплекта. Проверить orgId=1 либо заменить на вашу организацию. Не запускать одновременно старые и новые правила.
 
-Dashboard и alerts имеют фиксированный scope, а не переменные, влияющие только на UI. При расширении scope создать отдельные запросы и alert UIDs; проверить alert cardinality для каждого job.
+Dashboard имеет фильтр пайплайна и фильтры детализации; alerts сохраняют фиксированные scopes из конфигурации. Выбор в браузере не перенастраивает уведомления. При расширении alert scope создать отдельные запросы и alert UIDs; проверить cardinality для каждого job.
+
+### Фильтры и строки dashboard
+
+В `monitoring-config.yml` заполнить список `pipelines`: `id`, `name`, `teamcity_build_type`, `jenkins_job_regex`, `octopus_space`, `octopus_project`, `octopus_environment`. На каждый реальный pipeline добавить одну запись. Пример содержит Backend; если список отсутствует, генератор создаёт один основной pipeline из существующих параметров. Для разных deployment environments можно создать отдельные именованные записи. ID уникален и состоит из букв, цифр, `_` и `-`; имя не должно содержать запятую или двоеточие.
+
+- **Пайплайн** одновременно меняет TeamCity buildType, Jenkins job scope и Octopus Space/project/environment. Связанные IDs вычисляются из одной записи и скрыты, чтобы не смешивать разные pipelines.
+- **Jenkins job** — один или несколько jobs внутри выбранного pipeline; All означает все доступные jobs этого pipeline.
+- **Jenkins агент** — один или несколько nodes из настроенного fleet; влияет на agent count и таблицу nodes.
+- **Jenkins пул** — один label для idle executors и очереди. Несколько pools одновременно не суммируются.
+- **Компоненты графиков** — TeamCity/Jenkins/Octopus для общих графиков HTTP latency и инфраструктуры. Не скрывает верхние health cards и не исключает компоненты из общего здоровья цепочки.
+
+Контур серверов — информационное поле из config, не переключатель адресов REST. Для другого набора серверов нужен отдельный комплект с соответствующими datasource credentials. Инфраструктурные health thresholds и алерты остаются привязаны к fleet/scopes конфигурации; при выбранном другом pipeline это явно указано в верхней панели.
+
+Панели разделены на семь сворачиваемых строк: общее состояние; результаты и длительность; агенты и очереди; текущие сборки и деплои; доступность и время ответа; детали компонентов; активные алерты. Time range влияет на Prometheus-графики; последние REST результаты остаются текущими снимками.
+
+После импорта выбрать два реальных pipeline по очереди: проверить новые IDs в TeamCity/Octopus запросах, список Jenkins jobs и сохранение фильтров по ссылкам на детали. Списки jobs/nodes/pools берутся из Prometheus; pipeline mapping — из config через inline backend JSONata. Grafana-managed alert queries не должны содержать dashboard variables.
 
 ## 6. Настроить Teams и PagerDuty
 
@@ -131,7 +147,7 @@ Dashboard и alerts имеют фиксированный scope, а не пер�
 ```bash
 .venv/bin/python scripts/generate_monitoring.py monitoring-config.example.yml
 npm install --prefix tests
-node tests/check-infinity.cjs
+npm test --prefix tests
 # В среде DevOps, где установлен promtool:
 promtool check rules cicd-health/prometheus-recording-rules.yml
 ```

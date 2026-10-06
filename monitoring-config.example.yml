@@ -18,3 +18,14 @@ octopus_space: Spaces-1
 octopus_project: Projects-1
 octopus_environment: Environments-1
 octopus_queue_limit: 5
+
+# Dashboard pipeline mapping. Add an entry for each real pipeline.
+# Alert scopes above remain fixed and must be extended separately when needed.
+pipelines:
+  - id: backend
+    name: Backend
+    teamcity_build_type: Platform_BackendBuild
+    jenkins_job_regex: 'platform/.*'
+    octopus_space: Spaces-1
+    octopus_project: Projects-1
+    octopus_environment: Environments-1

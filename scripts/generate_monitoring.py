@@ -1,7 +1,7 @@
 """Offline config generator. No runtime service and no custom exporter."""
 from pathlib import Path
 import copy, itertools, json, sys
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl, quote
 import yaml
 
 ROOT=Path(__file__).resolve().parents[1]; OUT=ROOT/'cicd-health'
@@ -138,8 +138,139 @@ panel('Octopus доступность REST','stat',16,27,8,4,[inf('oc_api')],des
 panel('Infrastructure state и пропуски','timeseries',0,39,12,7,[pquery(f'ci:infrastructure_state{{{E}}}')],desc='0 down 1 missing observation 2 degraded 3 healthy. Только native+HTTP; REST state в верхних mixed-source cards.')
 panel('Jenkins failure rate','timeseries',12,39,12,7,[pquery(f'sum(rate(default_jenkins_builds_failed_build_count{{{JOBS}}}[5m]))')],'ops',desc='Нативный counter Jenkins, не TC/Octopus. Редкие события могут появляться с задержкой внутренней collection.')
 panels.append({'id':next(ids),'type':'alertlist','title':'CI/CD активные алерты','gridPos':dict(x=0,y=46,w=24,h=7),'options':{'showOptions':'current','maxItems':20,'alertName':'CI/CD','stateFilter':{'firing':True,'pending':True,'error':True,'noData':True,'normal':False}}})
-# Fixed source UIDs match alert provisioning. Scope is generated, not dashboard variables.
-d={'id':None,'uid':'cicd-health','title':'CI/CD Health · Native and REST','schemaVersion':39,'version':3,'editable':True,'style':'dark','tags':['cicd','opensource'],'timezone':'browser','time':{'from':'now-6h','to':'now'},'refresh':'30s','panels':panels,'templating':{'list':[]},'annotations':{'list':[]},'description':'No custom exporters. Scope fixed by monitoring-config.yml. REST is current snapshot; source errors never imply healthy.'}
+# Dashboard templates are isolated from fixed recording/alert queries above/below.
+# URLs are encoded once; Grafana percentencode interpolates only the selected ID.
+variables=[]
+def current(value):return {'text':value,'value':value,'selected':True}
+def variable(name,label,typ,value,**extra):
+    v={'name':name,'label':label,'type':typ,'hide':0,'skipUrlSync':False,
+       'multi':False,'includeAll':False,'current':current(value),'options':[],**extra}
+    variables.append(v);return v
+variable('server_env','Контур серверов','constant',ENV,query=ENV,skipUrlSync=True,
+         description='Контур и адреса серверов заданы при генерации; это информационное поле, не переключатель REST-серверов.')
+variable('component','Компоненты графиков','custom','$__all',query='teamcity,jenkins,octopus',multi=True,
+         includeAll=True,allValue='.*',options=[{'text':'All','value':'$__all','selected':True}]+
+         [{'text':c,'value':c,'selected':False} for c in ('teamcity','jenkins','octopus')],
+         current={'text':['All'],'value':['$__all'],'selected':True},
+         description='Фильтрует только общие графики HTTP и инфраструктуры. Верхние карточки сохраняют всю цепочку.')
+
+def prom_variable(name,label,metric,field,value,multi=False,regex=''):
+    text=f'label_values({metric}, {field})'
+    return variable(name,label,'query',value,datasource=PROM,query={'query':text,'refId':'variable'},
+                    definition=text,refresh=1,sort=1,regex=regex,multi=multi,includeAll=multi,
+                    **({'allValue':None,'current':{'text':['All'],'value':['$__all'],'selected':True}} if multi else {}))
+pipeline_definitions=C.get('pipelines') or [{'id':'default','name':'Основной пайплайн',
+    'teamcity_build_type':C['teamcity_build_type'],'jenkins_job_regex':C['jenkins_job_regex'],
+    'octopus_space':C['octopus_space'],'octopus_project':C['octopus_project'],
+    'octopus_environment':C['octopus_environment']}]
+import re
+assert len({p['id'] for p in pipeline_definitions})==len(pipeline_definitions),'Pipeline IDs must be unique'
+for item in pipeline_definitions:
+    assert re.fullmatch(r'[A-Za-z0-9_-]+',item['id']),'Pipeline ID must be URL-safe'
+    assert ',' not in item['name'] and ':' not in item['name'],'Pipeline name cannot contain comma or colon'
+    for field in ('name','teamcity_build_type','jenkins_job_regex','octopus_space','octopus_project','octopus_environment'):
+        assert isinstance(item[field],str) and item[field],'Missing pipeline field: '+field
+first=pipeline_definitions[0]
+variable('pipeline','Пайплайн','custom',first['id'],
+         query=','.join(item['name']+' : '+item['id'] for item in pipeline_definitions),
+         current={'text':first['name'],'value':first['id'],'selected':True},
+         options=[{'text':item['name'],'value':item['id'],'selected':item==first} for item in pipeline_definitions],
+         description='Одновременно выбирает TC buildType, Jenkins job scope и Octopus deployment scope из config.')
+# Bound source scopes are derived from one pipeline; independent system overrides
+# would make the pipeline label inaccurate, so these variables stay hidden.
+for name,field in [('tc_build_type','teamcity_build_type'),('pipeline_jenkins_jobs','jenkins_job_regex'),
+                   ('octopus_space','octopus_space'),('octopus_project','octopus_project'),
+                   ('octopus_environment','octopus_environment')]:
+    model={'refId':'variable','type':'json','source':'inline','parser':'backend','format':'table',
+           'data':json.dumps(pipeline_definitions,ensure_ascii=False),
+           'root_selector':'[$[id=${pipeline:json}].({"__text":'+field+',"__value":'+field+'})]',
+           'columns':[{'selector':k,'text':k,'type':'string'} for k in ('__text','__value')]}
+    variable(name,name,'query',first[field],datasource=TC,hide=2,refresh=1,sort=0,regex='',
+             query={'refId':'variable','queryType':'infinity','infinityQuery':model})
+prom_variable('jenkins_job','Jenkins job',
+              f'default_jenkins_builds_last_build_result_ordinal{{{J},jenkins_job=~"${{pipeline_jenkins_jobs:raw}}"}}',
+              'jenkins_job','$__all',multi=True)
+prom_variable('jenkins_node','Jenkins агент',f'default_jenkins_nodes_online{{{NODES}}}',
+              'node','$__all',multi=True)
+prom_variable('jenkins_pool','Jenkins пул',f'default_jenkins_executors_idle{{{J}}}',
+              'label',C['jenkins_capacity_label']) # Single only: labels overlap.
+# Grafana refreshes dependent variables when pipeline changes.
+order=['server_env','pipeline','tc_build_type','pipeline_jenkins_jobs','octopus_space',
+       'octopus_project','octopus_environment','component','jenkins_job','jenkins_node','jenkins_pool']
+variables.sort(key=lambda v:order.index(v['name']))
+DJOBS=J+',jenkins_job=~"${jenkins_job:regex}"'
+DNODES=J+',node=~"${jenkins_node:regex}"'
+DPOOL=J+',label=~"${jenkins_pool:regex}"'
+
+def dashboard_url(q):
+    u=urlsplit(q['url']);params=dict(parse_qsl(u.query));path=u.path
+    if q['datasource']==TC:
+        if 'builds' in path:
+            params['locator']=params['locator'].replace('id:'+str(C['teamcity_build_type']),
+                                                       'id:${tc_build_type:percentencode}')
+    else:
+        path=path.replace('/api/'+C['octopus_space']+'/', '/api/${octopus_space:percentencode}/')
+        params['project']='${octopus_project:percentencode}'
+        params['environment']='${octopus_environment:percentencode}'
+    encoded=urlencode(params)
+    for name in ('tc_build_type','octopus_project','octopus_environment'):
+        token='${'+name+':percentencode}'
+        encoded=encoded.replace(quote(token,safe=''),token)
+    return urlunsplit((u.scheme,u.netloc,path,encoded,u.fragment))
+
+byid={p['id']:p for p in panels}
+for p in panels:
+    for t in p.get('targets',[]):
+        if 'expr' in t:
+            t['expr']=t['expr'].replace(JOBS,DJOBS).replace(NODES,DNODES).replace(POOL,DPOOL)
+        elif t.get('source')=='url':t['url']=dashboard_url(t)
+# Recording totals are fixed scopes; detail filters use the native series directly.
+byid[10]['targets']=[pquery(f'sum(default_jenkins_nodes_online{{{DNODES}}})')]
+byid[10]['description']='Online выбранных агентов. Инфраструктурные thresholds верхних cards сохраняют fleet из config.'
+byid[13]['targets']=[pquery(f'ci:queue_length{{{E},component="teamcity"}}'),
+                      pquery(f'max(default_jenkins_executors_queue_length{{{DPOOL}}})','B')]
+for t,legend in zip(byid[13]['targets'],['TeamCity — вся очередь','Jenkins — ${jenkins_pool:text}']):
+    t.update(instant=False,range=True,legendFormat=legend)
+byid[13]['description']='TeamCity whole server; Jenkins выбранный label pool. Agents/job filters не меняют серверную очередь.'
+for pid in (14,24):
+    for t in byid[pid]['targets']:
+        t['expr']=t['expr'].replace('{'+E+'}', '{'+E+',component=~"${component:regex}"}')
+        if pid==14:t['expr']=f'probe_duration_seconds{{job="cicd-http",{E},component=~"${{component:regex}}"}}'
+byid[21]['title']='Octopus текущие деплои'
+byid[21]['description']='Возраст самой долгой текущей deployment task в выбранных Space/project/environment; >100 => query error.'
+byid[19]['description']+=' Это фиксированный expected agent из alert config, не Jenkins agent filter.'
+byid[1]['gridPos']['h']=5
+byid[1]['options']['content']=f'### CI/CD HEALTH · {ENV}\n**Пайплайн:** ${{pipeline:text}} · **TC:** ${{tc_build_type}} · **Octopus:** ${{octopus_project}} / ${{octopus_environment}}\n\nФильтры меняют представление. Алерты и инфраструктурные пороги используют scopes из конфигурации.'
+byid[5]['description']='Health всей цепочки: fixed infrastructure fleet плюс результаты выбранных TC buildType, Jenkins jobs и Octopus project/environment. Component filter не исключает систему из общего health.'
+for pid in (2,3,4):
+    byid[pid]['description']='Fixed infrastructure scope + последний результат выбранного pipeline. Error/NoData не подставляется как HEALTHY. UI filters не меняют alert scopes.'
+    for link in byid[pid].get('links',[]):
+        if link['title']=='Детали в Grafana':link.update(includeVars=True,keepTime=True)
+# Stable IDs preserve existing details links and alert annotations.
+layout=[('01 Общее состояние',[(2,0,6,5),(3,6,6,5),(4,12,6,5),(5,18,6,5)]),
+        ('02 Результаты и длительность',[(6,0,8,4),(7,8,8,4),(8,16,8,4),
+                                       (15,0,8,4),(16,8,8,4),(17,16,8,4),(25,0,24,6)]),
+        ('03 Агенты и очереди',[(9,0,6,4),(10,6,6,4),(11,12,6,4),(12,18,6,4),(13,0,24,6)]),
+        ('04 Текущие сборки и деплои',[(18,0,8,5),(22,8,8,5),(21,16,8,5)]),
+        ('05 Доступность и время ответа',[(14,0,12,7),(24,12,12,7)]),
+        ('06 Детали компонентов',[(19,0,8,8),(20,8,8,8),(23,16,8,8)]),
+        ('07 Активные алерты',[(26,0,24,7)])]
+arranged=[byid[1]];y=5
+for title,members in layout:
+    arranged.append({'id':next(ids),'type':'row','title':title,'collapsed':False,
+                     'gridPos':{'x':0,'y':y,'w':24,'h':1},'panels':[]})
+    y+=1;xprev=-1;lineheight=0
+    for pid,x,w,h in members:
+        if x<=xprev:y+=lineheight;lineheight=0
+        pp=byid[pid];pp['gridPos']={'x':x,'y':y,'w':w,'h':h}
+        arranged.append(pp);lineheight=max(lineheight,h);xprev=x
+    y+=lineheight
+assert len({p['id'] for p in arranged})==len(arranged)
+d={'id':None,'uid':'cicd-health','title':'CI/CD Health · Native and REST','schemaVersion':39,'version':4,
+   'editable':True,'style':'dark','tags':['cicd','opensource'],'timezone':'browser',
+   'time':{'from':'now-6h','to':'now'},'refresh':'30s','panels':arranged,
+   'templating':{'list':variables},'annotations':{'list':[]},
+   'description':'Dashboard scope filters; fixed server environment and fixed alert scopes. REST errors never imply healthy.'}
 (OUT/'cicd-health-dashboard.json').write_text(json.dumps(d,ensure_ascii=False,indent=2)+'\n')
 
 rules=[]
@@ -168,4 +299,4 @@ alert('oss-http-slow','HTTP response too slow',pquery(f'probe_duration_seconds{{
 alert('oss-rules-missing','Recording rules missing',pquery(' or '.join(f'absent(ci:expected_component{{{E},component="{c}"}})' for c in ('teamcity','jenkins','octopus'))),hold='2m',severity='critical',nodata='OK')
 old=['cicd-server-down','cicd-data-stale','cicd-build-failed','cicd-deploy-failed','cicd-agent-down','cicd-agents-low','cicd-capacity','cicd-queue-size','cicd-queue-age','cicd-long-build','cicd-slow-http','cicd-native-scrape','cicd-rules-missing']
 (OUT/'grafana-alert-rules.yml').write_text(yaml.safe_dump({'apiVersion':1,'deleteRules':[{'orgId':1,'uid':u} for u in old],'groups':[{'orgId':1,'name':'CI-CD Native REST','folder':'CI-CD Operations','interval':'60s','rules':rules}]},sort_keys=False,allow_unicode=True))
-print(f'{len(panels)} panels, {len(queries)} live REST queries, {len(rules)} alert rules')
+print(f'{len(panels)} data panels, {len(layout)} rows, {len(variables)} variables, {len(queries)} live REST queries, {len(rules)} alert rules')
