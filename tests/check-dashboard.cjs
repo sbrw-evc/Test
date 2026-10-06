@@ -22,7 +22,7 @@ function interpolate(s){return s.replace(/\$\{(\w+)(?::(\w+))?\}/g,(_,name,forma
  for(const name of ['tc_build_type','pipeline_jenkins_jobs','octopus_space','octopus_project','octopus_environment']){
   const v=byname[name],q=v.query.infinityQuery;
   assert.equal(v.hide,2);assert.equal(q.source,'inline');
-  const defs=JSON.parse(q.data), test={...defs[0],id:'ui-test',teamcity_build_type:scalar.tc_build_type,jenkins_job_regex:scalar.pipeline_jenkins_jobs,octopus_space:scalar.octopus_space,octopus_project:scalar.octopus_project,octopus_environment:scalar.octopus_environment};
+  const defs=JSON.parse(q.data), test={...defs[0],id:'ui-test',teamcity_build_type:scalar.tc_build_type,jenkins_job_regex:scalar.pipeline_jenkins_jobs,jenkins_job_regex_promql:scalar.pipeline_jenkins_jobs,octopus_space:scalar.octopus_space,octopus_project:scalar.octopus_project,octopus_environment:scalar.octopus_environment};
   const result=await jsonata(interpolate(q.root_selector)).evaluate([...defs,test]);
   assert.equal(result.length,1);assert.equal(result[0].__value,scalar[name]);
  }

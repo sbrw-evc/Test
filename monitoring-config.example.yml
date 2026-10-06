@@ -29,3 +29,22 @@ pipelines:
     octopus_space: Spaces-1
     octopus_project: Projects-1
     octopus_environment: Environments-1
+
+# Auto-discovery: choose naming rules once, rather than list every pipeline.
+# Every rule uses fullmatch; named group pipeline gives the shared matching key.
+discovery:
+  teamcity_locator: 'defaultFilter:false,count:200'
+  teamcity_name_field: project # Or buildType: use the build configuration name.
+  teamcity_name_regex: '(?P<pipeline>.+)'
+  jenkins_name_regex: 'platform/(?P<pipeline>[^/]+)(?:/.*)?'
+  octopus_name_regex: '(?P<pipeline>.+)'
+  octopus_spaces: [Spaces-1]
+  # Missing explicit Space/environment uses the top-level configured IDs.
+  # Optional exceptions, keyed by TeamCity buildType ID; not a pipeline list.
+  overrides: {}
+  # Optional TeamCity build parameters, when names differ across systems:
+  # teamcity_parameters:
+  #   jenkins_job_regex: monitoring.jenkins_job_regex
+  #   octopus_project: monitoring.octopus_project
+  #   octopus_space: monitoring.octopus_space
+  #   octopus_environment: monitoring.octopus_environment

@@ -4,3 +4,7 @@ credentials*.env
 monitoring-config.yml
 .venv/
 node_modules/
+discovery-report.json
+discovery-inventory.json
+_discovery-monitoring.yml
+.venv-discovery/

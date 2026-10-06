@@ -6,6 +6,7 @@ import yaml
 
 ROOT=Path(__file__).resolve().parents[1]; OUT=ROOT/'cicd-health'
 C=yaml.safe_load(Path(sys.argv[1] if len(sys.argv)>1 else ROOT/'monitoring-config.example.yml').read_text())
+DASHBOARD_ONLY='--dashboard-only' in sys.argv[2:]
 ENV=C['env']; E='env='+json.dumps(ENV)
 PROM={'type':'prometheus','uid':'cicd-prometheus'}
 TC={'type':'yesoreyeram-infinity-datasource','uid':'teamcity-api'}
@@ -56,7 +57,7 @@ infinity('oc_duration',OC,OPATH,OTERM,'('+OGUARD+'TotalResults=0 or $not($exists
 infinity('oc_queue',OC,OPATH,dict(OBASE,states='Queued',take=1),'('+OGUARD+'TotalResults)')
 infinity('oc_api',OC,OPATH,dict(OBASE,take=1),'('+OGUARD+'1)')
 infinity('oc_running',OC,OPATH,dict(OBASE,running='true',take=100),'('+OGUARD+'TotalResults>$count(Items) ? $error("Running deployment page truncated") : TotalResults=0 ? 0 : $max(Items.($millis()-$toMillis(StartTime)))/1000)')
-(OUT/'infinity-queries.json').write_text(json.dumps(queries,ensure_ascii=False,indent=2)+'\n')
+if not DASHBOARD_ONLY:(OUT/'infinity-queries.json').write_text(json.dumps(queries,ensure_ascii=False,indent=2)+'\n')
 
 # Prometheus recordings use real native metrics only. No invented ci_* exporter gauges.
 records=[{'record':'ci:expected_component','expr':'vector(1)','labels':{'env':ENV,'component':c}} for c in ('teamcity','jenkins','octopus')]
@@ -81,8 +82,8 @@ rec('ci:degraded',f'((ci:queue_length{{component="jenkins"}} > bool {C["jenkins_
 rec('ci:infrastructure_state','(1-ci:observed_down) * on (env,component) (3-2*ci:observation_missing-(1-ci:observation_missing) * on (env,component) (ci:degraded or on (env,component) (0*ci:expected_component)))')
 # Node/request scrape freshness is observed; async Jenkins internal collection freshness is NOT inferred.
 groups=[{'name':'cicd-native','interval':'30s','rules':records}]
-(OUT/'prometheus-recording-rules.yml').write_text(yaml.safe_dump({'groups':groups},sort_keys=False))
-(ROOT/'kubernetes/recording-rules.yml').write_text(yaml.safe_dump({'apiVersion':'monitoring.coreos.com/v1','kind':'PrometheusRule','metadata':{'name':'cicd-health','namespace':'monitoring','labels':{'release':'kube-prometheus-stack'}},'spec':{'groups':groups}},sort_keys=False))
+if not DASHBOARD_ONLY:(OUT/'prometheus-recording-rules.yml').write_text(yaml.safe_dump({'groups':groups},sort_keys=False))
+if not DASHBOARD_ONLY:(ROOT/'kubernetes/recording-rules.yml').write_text(yaml.safe_dump({'apiVersion':'monitoring.coreos.com/v1','kind':'PrometheusRule','metadata':{'name':'cicd-health','namespace':'monitoring','labels':{'release':'kube-prometheus-stack'}},'spec':{'groups':groups}},sort_keys=False))
 
 ids=itertools.count(1); panels=[]
 state=[{'type':'value','options':{str(k):{'text':v,'color':c} for k,v,c in [(0,'DOWN','red'),(1,'UNKNOWN','gray'),(2,'DEGRADED','orange'),(3,'HEALTHY','green')]}}]
@@ -170,6 +171,9 @@ for item in pipeline_definitions:
     assert ',' not in item['name'] and ':' not in item['name'],'Pipeline name cannot contain comma or colon'
     for field in ('name','teamcity_build_type','jenkins_job_regex','octopus_space','octopus_project','octopus_environment'):
         assert isinstance(item[field],str) and item[field],'Missing pipeline field: '+field
+# Inline raw interpolation is inside a PromQL string literal.
+for item in pipeline_definitions:
+    item['jenkins_job_regex_promql']=json.dumps(item['jenkins_job_regex'])[1:-1]
 first=pipeline_definitions[0]
 variable('pipeline','Пайплайн','custom',first['id'],
          query=','.join(item['name']+' : '+item['id'] for item in pipeline_definitions),
@@ -178,7 +182,7 @@ variable('pipeline','Пайплайн','custom',first['id'],
          description='Одновременно выбирает TC buildType, Jenkins job scope и Octopus deployment scope из config.')
 # Bound source scopes are derived from one pipeline; independent system overrides
 # would make the pipeline label inaccurate, so these variables stay hidden.
-for name,field in [('tc_build_type','teamcity_build_type'),('pipeline_jenkins_jobs','jenkins_job_regex'),
+for name,field in [('tc_build_type','teamcity_build_type'),('pipeline_jenkins_jobs','jenkins_job_regex_promql'),
                    ('octopus_space','octopus_space'),('octopus_project','octopus_project'),
                    ('octopus_environment','octopus_environment')]:
     model={'refId':'variable','type':'json','source':'inline','parser':'backend','format':'table',
@@ -298,5 +302,5 @@ alert('oss-jenkins-long','Jenkins build too long',pquery(f'max(default_jenkins_b
 alert('oss-http-slow','HTTP response too slow',pquery(f'probe_duration_seconds{{job="cicd-http",{E}}}'),condition='$A > 2',hold='5m')
 alert('oss-rules-missing','Recording rules missing',pquery(' or '.join(f'absent(ci:expected_component{{{E},component="{c}"}})' for c in ('teamcity','jenkins','octopus'))),hold='2m',severity='critical',nodata='OK')
 old=['cicd-server-down','cicd-data-stale','cicd-build-failed','cicd-deploy-failed','cicd-agent-down','cicd-agents-low','cicd-capacity','cicd-queue-size','cicd-queue-age','cicd-long-build','cicd-slow-http','cicd-native-scrape','cicd-rules-missing']
-(OUT/'grafana-alert-rules.yml').write_text(yaml.safe_dump({'apiVersion':1,'deleteRules':[{'orgId':1,'uid':u} for u in old],'groups':[{'orgId':1,'name':'CI-CD Native REST','folder':'CI-CD Operations','interval':'60s','rules':rules}]},sort_keys=False,allow_unicode=True))
+if not DASHBOARD_ONLY:(OUT/'grafana-alert-rules.yml').write_text(yaml.safe_dump({'apiVersion':1,'deleteRules':[{'orgId':1,'uid':u} for u in old],'groups':[{'orgId':1,'name':'CI-CD Native REST','folder':'CI-CD Operations','interval':'60s','rules':rules}]},sort_keys=False,allow_unicode=True))
 print(f'{len(panels)} data panels, {len(layout)} rows, {len(variables)} variables, {len(queries)} live REST queries, {len(rules)} alert rules')

@@ -91,7 +91,7 @@ Dashboard имеет фильтр пайплайна и фильтры дета�
 
 ### Фильтры и строки dashboard
 
-В `monitoring-config.yml` заполнить список `pipelines`: `id`, `name`, `teamcity_build_type`, `jenkins_job_regex`, `octopus_space`, `octopus_project`, `octopus_environment`. На каждый реальный pipeline добавить одну запись. Пример содержит Backend; если список отсутствует, генератор создаёт один основной pipeline из существующих параметров. Для разных deployment environments можно создать отдельные именованные записи. ID уникален и состоит из букв, цифр, `_` и `-`; имя не должно содержать запятую или двоеточие.
+В `monitoring-config.yml` заполнить список `pipelines`: `id`, `name`, `teamcity_build_type`, `jenkins_job_regex`, `octopus_space`, `octopus_project`, `octopus_environment`. Список можно заполнить автоматически через [API discovery](PIPELINE-DISCOVERY-RU.md): задать naming rules один раз, выполнить `scripts/discover_pipelines.py --write --generate` либо включить готовый GitHub Actions workflow. Ручные записи остаются альтернативой. Пример содержит Backend; если список отсутствует, генератор создаёт один основной pipeline из существующих параметров. Для разных deployment environments можно создать отдельные именованные записи. ID уникален и состоит из букв, цифр, `_` и `-`; имя не должно содержать запятую или двоеточие.
 
 - **Пайплайн** одновременно меняет TeamCity buildType, Jenkins job scope и Octopus Space/project/environment. Связанные IDs вычисляются из одной записи и скрыты, чтобы не смешивать разные pipelines.
 - **Jenkins job** — один или несколько jobs внутри выбранного pipeline; All означает все доступные jobs этого pipeline.

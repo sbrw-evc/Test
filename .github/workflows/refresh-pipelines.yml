@@ -1,0 +1,67 @@
+name: Refresh CI/CD pipeline catalog
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
+permissions:
+  contents: write
+  pull-requests: write
+concurrency:
+  group: cicd-pipeline-discovery
+  cancel-in-progress: false
+jobs:
+  refresh:
+    # Configure the runner, naming rules and credentials before enabling.
+    if: vars.PIPELINE_DISCOVERY_ENABLED == 'true'
+    runs-on: [self-hosted, linux, cicd-monitoring]
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      MONITORING_CONFIG_YAML: ${{ secrets.CICD_MONITORING_CONFIG_YAML }}
+      TEAMCITY_TOKEN: ${{ secrets.TEAMCITY_TOKEN }}
+      JENKINS_USER: ${{ secrets.JENKINS_USER }}
+      JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
+      OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }}
+      # Optional PEM file paths on this trusted runner, not certificate contents.
+      TEAMCITY_CA_FILE: ${{ vars.TEAMCITY_CA_FILE }}
+      JENKINS_CA_FILE: ${{ vars.JENKINS_CA_FILE }}
+      OCTOPUS_CA_FILE: ${{ vars.OCTOPUS_CA_FILE }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Discover, validate and propose dashboard update
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v gh >/dev/null
+          pending=$(gh pr list --state open --json headRefName --jq '[.[] | select(.headRefName | startswith("automation/pipelines-"))] | length')
+          if [ "$pending" -gt 0 ]; then
+            echo 'An existing pipeline update awaits review; skipping another proposal.'
+            exit 0
+          fi
+          trap 'rm -f _discovery-monitoring.yml discovery-report.json; rm -rf .venv-discovery' EXIT
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          text=os.environ.get('MONITORING_CONFIG_YAML','')
+          if not text:
+              raise SystemExit('Missing CICD_MONITORING_CONFIG_YAML')
+          Path('_discovery-monitoring.yml').write_text(text)
+          os.chmod('_discovery-monitoring.yml',0o600)
+          PY
+          python3 -m venv .venv-discovery
+          .venv-discovery/bin/pip install -r scripts/requirements.txt
+          .venv-discovery/bin/python -m unittest discover -s tests -p 'test_*.py'
+          .venv-discovery/bin/python scripts/discover_pipelines.py --config _discovery-monitoring.yml --write --generate
+          .venv-discovery/bin/python scripts/validate_dashboard.py
+          if git diff --quiet -- cicd-health/cicd-health-dashboard.json; then
+            echo 'Pipeline catalog unchanged.'
+            exit 0
+          fi
+          branch="automation/pipelines-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git switch -c "$branch"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add cicd-health/cicd-health-dashboard.json
+          git commit -m 'Refresh discovered CI/CD pipeline catalog'
+          git push origin "$branch"
+          gh pr create --base "$GITHUB_REF_NAME" --head "$branch" --title 'Refresh CI/CD pipeline catalog' --body 'Update the dashboard pipeline selector from read-only API discovery. All discovered mappings passed configured naming or explicit ID rules. Alert scopes and recording rules are unchanged. Review the pipeline scope and import the updated dashboard after merging.' --draft

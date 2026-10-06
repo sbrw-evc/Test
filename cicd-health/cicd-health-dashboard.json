@@ -2196,7 +2196,7 @@
             "source": "inline",
             "parser": "backend",
             "format": "table",
-            "data": "[{\"id\": \"backend\", \"name\": \"Backend\", \"teamcity_build_type\": \"Platform_BackendBuild\", \"jenkins_job_regex\": \"platform/.*\", \"octopus_space\": \"Spaces-1\", \"octopus_project\": \"Projects-1\", \"octopus_environment\": \"Environments-1\"}]",
+            "data": "[{\"id\": \"backend\", \"name\": \"Backend\", \"teamcity_build_type\": \"Platform_BackendBuild\", \"jenkins_job_regex\": \"platform/.*\", \"octopus_space\": \"Spaces-1\", \"octopus_project\": \"Projects-1\", \"octopus_environment\": \"Environments-1\", \"jenkins_job_regex_promql\": \"platform/.*\"}]",
             "root_selector": "[$[id=${pipeline:json}].({\"__text\":teamcity_build_type,\"__value\":teamcity_build_type})]",
             "columns": [
               {
@@ -2243,8 +2243,8 @@
             "source": "inline",
             "parser": "backend",
             "format": "table",
-            "data": "[{\"id\": \"backend\", \"name\": \"Backend\", \"teamcity_build_type\": \"Platform_BackendBuild\", \"jenkins_job_regex\": \"platform/.*\", \"octopus_space\": \"Spaces-1\", \"octopus_project\": \"Projects-1\", \"octopus_environment\": \"Environments-1\"}]",
-            "root_selector": "[$[id=${pipeline:json}].({\"__text\":jenkins_job_regex,\"__value\":jenkins_job_regex})]",
+            "data": "[{\"id\": \"backend\", \"name\": \"Backend\", \"teamcity_build_type\": \"Platform_BackendBuild\", \"jenkins_job_regex\": \"platform/.*\", \"octopus_space\": \"Spaces-1\", \"octopus_project\": \"Projects-1\", \"octopus_environment\": \"Environments-1\", \"jenkins_job_regex_promql\": \"platform/.*\"}]",
+            "root_selector": "[$[id=${pipeline:json}].({\"__text\":jenkins_job_regex_promql,\"__value\":jenkins_job_regex_promql})]",
             "columns": [
               {
                 "selector": "__text",
@@ -2290,7 +2290,7 @@
             "source": "inline",
             "parser": "backend",
             "format": "table",
-            "data": "[{\"id\": \"backend\", \"name\": \"Backend\", \"teamcity_build_type\": \"Platform_BackendBuild\", \"jenkins_job_regex\": \"platform/.*\", \"octopus_space\": \"Spaces-1\", \"octopus_project\": \"Projects-1\", \"octopus_environment\": \"Environments-1\"}]",
+            "data": "[{\"id\": \"backend\", \"name\": \"Backend\", \"teamcity_build_type\": \"Platform_BackendBuild\", \"jenkins_job_regex\": \"platform/.*\", \"octopus_space\": \"Spaces-1\", \"octopus_project\": \"Projects-1\", \"octopus_environment\": \"Environments-1\", \"jenkins_job_regex_promql\": \"platform/.*\"}]",
             "root_selector": "[$[id=${pipeline:json}].({\"__text\":octopus_space,\"__value\":octopus_space})]",
             "columns": [
               {
@@ -2337,7 +2337,7 @@
             "source": "inline",
             "parser": "backend",
             "format": "table",
-            "data": "[{\"id\": \"backend\", \"name\": \"Backend\", \"teamcity_build_type\": \"Platform_BackendBuild\", \"jenkins_job_regex\": \"platform/.*\", \"octopus_space\": \"Spaces-1\", \"octopus_project\": \"Projects-1\", \"octopus_environment\": \"Environments-1\"}]",
+            "data": "[{\"id\": \"backend\", \"name\": \"Backend\", \"teamcity_build_type\": \"Platform_BackendBuild\", \"jenkins_job_regex\": \"platform/.*\", \"octopus_space\": \"Spaces-1\", \"octopus_project\": \"Projects-1\", \"octopus_environment\": \"Environments-1\", \"jenkins_job_regex_promql\": \"platform/.*\"}]",
             "root_selector": "[$[id=${pipeline:json}].({\"__text\":octopus_project,\"__value\":octopus_project})]",
             "columns": [
               {
@@ -2384,7 +2384,7 @@
             "source": "inline",
             "parser": "backend",
             "format": "table",
-            "data": "[{\"id\": \"backend\", \"name\": \"Backend\", \"teamcity_build_type\": \"Platform_BackendBuild\", \"jenkins_job_regex\": \"platform/.*\", \"octopus_space\": \"Spaces-1\", \"octopus_project\": \"Projects-1\", \"octopus_environment\": \"Environments-1\"}]",
+            "data": "[{\"id\": \"backend\", \"name\": \"Backend\", \"teamcity_build_type\": \"Platform_BackendBuild\", \"jenkins_job_regex\": \"platform/.*\", \"octopus_space\": \"Spaces-1\", \"octopus_project\": \"Projects-1\", \"octopus_environment\": \"Environments-1\", \"jenkins_job_regex_promql\": \"platform/.*\"}]",
             "root_selector": "[$[id=${pipeline:json}].({\"__text\":octopus_environment,\"__value\":octopus_environment})]",
             "columns": [
               {
