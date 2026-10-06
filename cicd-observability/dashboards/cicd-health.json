@@ -61,7 +61,7 @@
                         ],
                         "format": "timeseries",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point([.[] | select((.status==\"Failed\" or .status==\"TimedOut\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:((.Links.Web // (\"/app#/\" + (.SpaceId // \"${octopus_space}\") + \"/tasks/\" + .Id)) | if test(\"^https?://\") then . else \"http://octopus.admortgage.com\" + (if startswith(\"/\") then . else \"/\" + . end) end)}] | point([.[] | select((.status==\"Failed\" or .status==\"TimedOut\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
                         "source": "url",
                         "type": "json",
                         "url": "http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})",
@@ -93,10 +93,10 @@
               "transformations": []
             }
           },
-          "description": "",
+          "description": "Ошибки с finish в последние 10 минут среди полученных последних 100 результатов. При высокой нагрузке счётчик может быть неполным. Ноль не доказывает отсутствие ошибок вне выборки; это не журнал событий и не alert rule.",
           "id": 10,
           "links": [],
-          "title": "Octopus • Errors in 10 Minutes",
+          "title": "Octopus • Ошибки за 10 мин • выборка ≤100",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -290,7 +290,7 @@
                         ],
                         "format": "timeseries",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | map(select((.status==\"SUCCESS\" or (.status==\"FAILURE\" or .status==\"UNSTABLE\")))) | if length==0 then empty else point((map(select(.status==\"SUCCESS\"))|length)/length*100) end",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .state==\"running\" then \"RUNNING\" elif .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | map(select((.status==\"SUCCESS\" or (.status==\"FAILURE\" or .status==\"UNSTABLE\")))) | if length==0 then empty else point((map(select(.status==\"SUCCESS\"))|length)/length*100) end",
                         "source": "url",
                         "type": "json",
                         "url": "/app/rest/builds",
@@ -299,7 +299,7 @@
                           "params": [
                             {
                               "key": "locator",
-                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})state:finished,branch:default:any,count:100"
+                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})defaultFilter:false,personal:false,state:finished,branch:default:any,count:100"
                             },
                             {
                               "key": "fields",
@@ -318,7 +318,7 @@
               "transformations": []
             }
           },
-          "description": "Последние N завершённых сборок/Deploy tasks. N=100. Canceled исключены из успешности; Jenkins UNSTABLE считается неуспехом. Workers Octopus не равны deployment targets; built-in worker здесь не учитывается.",
+          "description": "SUCCESS / (SUCCESS + FAILURE; Jenkins также UNSTABLE, Octopus также TimedOut), среди последних ≤100 завершённых результатов выбранного scope. Отмены и Jenkins NOT_BUILT исключены. Пустой знаменатель — Нет данных, не 100%. Диапазон Grafana не ограничивает REST-историю.",
           "id": 13,
           "links": [],
           "title": "TeamCity • Успешность последних N",
@@ -449,7 +449,7 @@
               "transformations": []
             }
           },
-          "description": "Последние N завершённых сборок/Deploy tasks. N=100. Canceled исключены из успешности; Jenkins UNSTABLE считается неуспехом. Workers Octopus не равны deployment targets; built-in worker здесь не учитывается.",
+          "description": "Доступные подключённые и разрешённые агенты сервера / healthy включённые внешние workers выбранного Space. Это не число свободных либо совместимых исполнителей для выбранного pipeline/project. Built-in worker Octopus не входит.",
           "id": 14,
           "links": [],
           "title": "TeamCity • Доступные агенты / workers",
@@ -558,7 +558,7 @@
               "transformations": []
             }
           },
-          "description": "Последние N завершённых сборок/Deploy tasks. N=100. Canceled исключены из успешности; Jenkins UNSTABLE считается неуспехом. Workers Octopus не равны deployment targets; built-in worker здесь не учитывается.",
+          "description": "Текущее количество ожидающих задач выбранного scope. Лимит TeamCity/Octopus 1000; неполная выборка даёт ошибку. Jenkins queue фильтруется по task.fullName.",
           "id": 15,
           "links": [],
           "title": "TeamCity • Очередь",
@@ -643,7 +643,7 @@
                         ],
                         "format": "timeseries",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | map(.duration | select(.!=null)) | if length==0 then empty else point(mean) end",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .state==\"running\" then \"RUNNING\" elif .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | map(.duration | select(.!=null)) | if length==0 then empty else point(mean) end",
                         "source": "url",
                         "type": "json",
                         "url": "/app/rest/builds",
@@ -652,7 +652,7 @@
                           "params": [
                             {
                               "key": "locator",
-                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})state:finished,branch:default:any,count:100"
+                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})defaultFilter:false,personal:false,state:finished,branch:default:any,count:100"
                             },
                             {
                               "key": "fields",
@@ -671,7 +671,7 @@
               "transformations": []
             }
           },
-          "description": "",
+          "description": "Средняя длительность последних ≤100 завершённых результатов, включая отменённые при наличии start/finish. Это длительность выполнения, без ожидания в очереди. Результаты без времени исключены.",
           "id": 16,
           "links": [],
           "title": "TeamCity • Средняя длительность • последние N",
@@ -752,7 +752,7 @@
                         ],
                         "format": "timeseries",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .state==\"running\" then \"RUNNING\" elif .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
                         "source": "url",
                         "type": "json",
                         "url": "/app/rest/builds",
@@ -761,7 +761,7 @@
                           "params": [
                             {
                               "key": "locator",
-                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})state:running,branch:default:any,count:1000"
+                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})defaultFilter:false,personal:false,state:running,branch:default:any,count:1000"
                             },
                             {
                               "key": "fields",
@@ -885,7 +885,7 @@
               "transformations": []
             }
           },
-          "description": "Последние N завершённых сборок/Deploy tasks. N=100. Canceled исключены из успешности; Jenkins UNSTABLE считается неуспехом. Workers Octopus не равны deployment targets; built-in worker здесь не учитывается.",
+          "description": "SUCCESS / (SUCCESS + FAILURE; Jenkins также UNSTABLE, Octopus также TimedOut), среди последних ≤100 завершённых результатов выбранного scope. Отмены и Jenkins NOT_BUILT исключены. Пустой знаменатель — Нет данных, не 100%. Диапазон Grafana не ограничивает REST-историю.",
           "id": 18,
           "links": [],
           "title": "Jenkins • Успешность последних N",
@@ -1012,7 +1012,7 @@
               "transformations": []
             }
           },
-          "description": "Последние N завершённых сборок/Deploy tasks. N=100. Canceled исключены из успешности; Jenkins UNSTABLE считается неуспехом. Workers Octopus не равны deployment targets; built-in worker здесь не учитывается.",
+          "description": "Доступные подключённые и разрешённые агенты сервера / healthy включённые внешние workers выбранного Space. Это не число свободных либо совместимых исполнителей для выбранного pipeline/project. Built-in worker Octopus не входит.",
           "id": 19,
           "links": [],
           "title": "Jenkins • Доступные агенты / workers",
@@ -1237,7 +1237,7 @@
                         ],
                         "format": "timeseries",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .state==\"running\" then \"RUNNING\" elif .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
                         "source": "url",
                         "type": "json",
                         "url": "/app/rest/builds",
@@ -1246,7 +1246,7 @@
                           "params": [
                             {
                               "key": "locator",
-                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})state:finished,branch:default:any,count:100"
+                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})defaultFilter:false,personal:false,state:finished,branch:default:any,count:100"
                             },
                             {
                               "key": "fields",
@@ -1285,7 +1285,7 @@
                         ],
                         "format": "timeseries",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .state==\"running\" then \"RUNNING\" elif .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
                         "source": "url",
                         "type": "json",
                         "url": "/app/rest/builds",
@@ -1294,7 +1294,7 @@
                           "params": [
                             {
                               "key": "locator",
-                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})state:running,branch:default:any,count:1000"
+                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})defaultFilter:false,personal:false,state:running,branch:default:any,count:1000"
                             },
                             {
                               "key": "fields",
@@ -1926,7 +1926,7 @@
                         "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | point(1)",
                         "source": "url",
                         "type": "json",
-                        "url": "http://octopus.admortgage.com/api/${octopus_space}/workerspus_space}/workers",
+                        "url": "http://octopus.admortgage.com/api/${octopus_space}/workers",
                         "url_options": {
                           "method": "GET",
                           "params": [
@@ -2022,7 +2022,7 @@
                         "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | point([.[] | select(.HealthStatus==\"Healthy\" and .IsDisabled==false)] | length)",
                         "source": "url",
                         "type": "json",
-                        "url": "http://octopus.admortgage.com/api/${octopus_space}/workerspus_space}/workers",
+                        "url": "http://octopus.admortgage.com/api/${octopus_space}/workers",
                         "url_options": {
                           "method": "GET",
                           "params": [
@@ -2063,7 +2063,7 @@
                         ],
                         "format": "timeseries",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point([.[] | select((.status==\"Failed\" or .status==\"TimedOut\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:((.Links.Web // (\"/app#/\" + (.SpaceId // \"${octopus_space}\") + \"/tasks/\" + .Id)) | if test(\"^https?://\") then . else \"http://octopus.admortgage.com\" + (if startswith(\"/\") then . else \"/\" + . end) end)}] | point([.[] | select((.status==\"Failed\" or .status==\"TimedOut\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
                         "source": "url",
                         "type": "json",
                         "url": "http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})",
@@ -2115,7 +2115,7 @@
                         ],
                         "format": "timeseries",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:((.Links.Web // (\"/app#/\" + (.SpaceId // \"${octopus_space}\") + \"/tasks/\" + .Id)) | if test(\"^https?://\") then . else \"http://octopus.admortgage.com\" + (if startswith(\"/\") then . else \"/\" + . end) end)}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
                         "source": "url",
                         "type": "json",
                         "url": "http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})",
@@ -2170,7 +2170,7 @@
                         "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | point([.[] | select(.HealthStatus!=\"Healthy\" and .IsDisabled==false)] | length)",
                         "source": "url",
                         "type": "json",
-                        "url": "http://octopus.admortgage.com/api/${octopus_space}/workerspus_space}/workers",
+                        "url": "http://octopus.admortgage.com/api/${octopus_space}/workers",
                         "url_options": {
                           "method": "GET",
                           "params": [
@@ -2317,7 +2317,7 @@
                       "group": "__expr__",
                       "kind": "DataQuery",
                       "spec": {
-                        "expression": "2*${2RA} - ${2RA}*((${2RB}>10) || (${2RC}<0) || (${2RD}>0) || (${2RE}>3600) || (${2RF}>0))",
+                        "expression": "2*${2RA} - ${2RA}*((${2RB}>10) || (${2RD}>0) || (${2RE}>3600) || (${2RF}>0))",
                         "type": "math"
                       },
                       "version": "v0"
@@ -2349,10 +2349,10 @@
               "transformations": []
             }
           },
-          "description": "1: деградация по KPI; 2: API ответил и KPI в норме. Ошибка API, доступа или таймаут: Нет данных, причину смотрите в Query Inspector. Это текущий snapshot, не мониторинг pod или HTTP SLA.",
+          "description": "Снимок KPI выбранного scope. Деградация: очередь >10, ошибки за 10 минут среди последних 100 результатов, текущее выполнение >30 мин (TeamCity/Jenkins) или >60 мин (Octopus), неожиданный offline агента/worker; для TeamCity/Jenkins также <1 доступного агента. Агенты глобальные, не свободные/совместимые с pipeline. Для Octopus нулевой внешний worker допустим: может использоваться встроенный. API/права/таймаут/неполный инвентарь дают Нет данных, а не подтверждённый outage. Отсутствие запусков не подтверждает возможность выполнить pipeline. История REST не зависит от выбранного диапазона Grafana. Сводка независимых компонентов и фильтров; не отслеживает один релиз между TeamCity, Jenkins и Octopus.",
           "id": 2,
           "links": [],
-          "title": "Вся CI/CD цепочка",
+          "title": "Сводное состояние CI/CD",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -2375,7 +2375,7 @@
                         },
                         "2": {
                           "color": "green",
-                          "text": "ЗДОРОВ"
+                          "text": "KPI В НОРМЕ"
                         }
                       },
                       "type": "value"
@@ -2481,7 +2481,7 @@
               "transformations": []
             }
           },
-          "description": "Последние N завершённых сборок/Deploy tasks. N=100. Canceled исключены из успешности; Jenkins UNSTABLE считается неуспехом. Workers Octopus не равны deployment targets; built-in worker здесь не учитывается.",
+          "description": "Текущее количество ожидающих задач выбранного scope. Лимит TeamCity/Octopus 1000; неполная выборка даёт ошибку. Jenkins queue фильтруется по task.fullName.",
           "id": 20,
           "links": [],
           "title": "Jenkins • Очередь",
@@ -2590,7 +2590,7 @@
               "transformations": []
             }
           },
-          "description": "",
+          "description": "Средняя длительность последних ≤100 завершённых результатов, включая отменённые при наличии start/finish. Это длительность выполнения, без ожидания в очереди. Результаты без времени исключены.",
           "id": 21,
           "links": [],
           "title": "Jenkins • Средняя длительность • последние N",
@@ -2776,7 +2776,7 @@
                         ],
                         "format": "timeseries",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | map(select((.status==\"Success\" or (.status==\"Failed\" or .status==\"TimedOut\")))) | if length==0 then empty else point((map(select(.status==\"Success\"))|length)/length*100) end",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:((.Links.Web // (\"/app#/\" + (.SpaceId // \"${octopus_space}\") + \"/tasks/\" + .Id)) | if test(\"^https?://\") then . else \"http://octopus.admortgage.com\" + (if startswith(\"/\") then . else \"/\" + . end) end)}] | map(select((.status==\"Success\" or (.status==\"Failed\" or .status==\"TimedOut\")))) | if length==0 then empty else point((map(select(.status==\"Success\"))|length)/length*100) end",
                         "source": "url",
                         "type": "json",
                         "url": "http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})",
@@ -2808,7 +2808,7 @@
               "transformations": []
             }
           },
-          "description": "The last N completed builds/deploy tasks (N=100). Canceled tasks are excluded from the success rate; Jenkins \"UNSTABLE\" status counts as a failure. Octopus workers are not equivalent to deployment targets; the built-in worker is not included here.",
+          "description": "SUCCESS / (SUCCESS + FAILURE; Jenkins также UNSTABLE, Octopus также TimedOut), среди последних ≤100 завершённых результатов выбранного scope. Отмены и Jenkins NOT_BUILT исключены. Пустой знаменатель — Нет данных, не 100%. Диапазон Grafana не ограничивает REST-историю.",
           "id": 23,
           "links": [],
           "title": "Octopus • Success of the last N",
@@ -2938,7 +2938,7 @@
               "transformations": []
             }
           },
-          "description": "The last N completed builds/deploy tasks (N=100). Canceled tasks are excluded from the success rate; Jenkins \"UNSTABLE\" status counts as a failure. Octopus workers are not equivalent to deployment targets; the built-in worker is not included here.",
+          "description": "Доступные подключённые и разрешённые агенты сервера / healthy включённые внешние workers выбранного Space. Это не число свободных либо совместимых исполнителей для выбранного pipeline/project. Built-in worker Octopus не входит.",
           "id": 24,
           "links": [],
           "title": "Octopus • Available agents / workers",
@@ -3051,7 +3051,7 @@
               "transformations": []
             }
           },
-          "description": "The last N completed builds/deploy tasks (N=100). Canceled tasks are excluded from the success rate; Jenkins \"UNSTABLE\" status counts as a failure. Octopus workers are not equivalent to deployment targets; the built-in worker is not included here.",
+          "description": "Текущее количество ожидающих задач выбранного scope. Лимит TeamCity/Octopus 1000; неполная выборка даёт ошибку. Jenkins queue фильтруется по task.fullName.",
           "id": 25,
           "links": [],
           "title": "Octopus • Queue",
@@ -3136,7 +3136,7 @@
                         ],
                         "format": "timeseries",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | map(.duration | select(.!=null)) | if length==0 then empty else point(mean) end",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:((.Links.Web // (\"/app#/\" + (.SpaceId // \"${octopus_space}\") + \"/tasks/\" + .Id)) | if test(\"^https?://\") then . else \"http://octopus.admortgage.com\" + (if startswith(\"/\") then . else \"/\" + . end) end)}] | map(.duration | select(.!=null)) | if length==0 then empty else point(mean) end",
                         "source": "url",
                         "type": "json",
                         "url": "http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})",
@@ -3168,7 +3168,7 @@
               "transformations": []
             }
           },
-          "description": "",
+          "description": "Средняя длительность последних ≤100 завершённых результатов, включая отменённые при наличии start/finish. Это длительность выполнения, без ожидания в очереди. Результаты без времени исключены.",
           "id": 26,
           "links": [],
           "title": "Octopus • Average duration • last N",
@@ -3249,7 +3249,7 @@
                         ],
                         "format": "timeseries",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:((.Links.Web // (\"/app#/\" + (.SpaceId // \"${octopus_space}\") + \"/tasks/\" + .Id)) | if test(\"^https?://\") then . else \"http://octopus.admortgage.com\" + (if startswith(\"/\") then . else \"/\" + . end) end)}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
                         "source": "url",
                         "type": "json",
                         "url": "http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})",
@@ -3506,7 +3506,7 @@
                         ],
                         "format": "timeseries",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .state==\"running\" then \"RUNNING\" elif .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
                         "source": "url",
                         "type": "json",
                         "url": "/app/rest/builds",
@@ -3515,7 +3515,7 @@
                           "params": [
                             {
                               "key": "locator",
-                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})state:finished,branch:default:any,count:100"
+                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})defaultFilter:false,personal:false,state:finished,branch:default:any,count:100"
                             },
                             {
                               "key": "fields",
@@ -3554,7 +3554,7 @@
                         ],
                         "format": "timeseries",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .state==\"running\" then \"RUNNING\" elif .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
                         "source": "url",
                         "type": "json",
                         "url": "/app/rest/builds",
@@ -3563,7 +3563,7 @@
                           "params": [
                             {
                               "key": "locator",
-                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})state:running,branch:default:any,count:1000"
+                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})defaultFilter:false,personal:false,state:running,branch:default:any,count:1000"
                             },
                             {
                               "key": "fields",
@@ -3769,13 +3769,13 @@
               "transformations": []
             }
           },
-          "description": "1: деградация по KPI; 2: API ответил и KPI в норме. Ошибка API, доступа или таймаут: Нет данных, причину смотрите в Query Inspector. Это текущий snapshot, не мониторинг pod или HTTP SLA.",
+          "description": "Снимок KPI выбранного scope. Деградация: очередь >10, ошибки за 10 минут среди последних 100 результатов, текущее выполнение >30 мин (TeamCity/Jenkins) или >60 мин (Octopus), неожиданный offline агента/worker; для TeamCity/Jenkins также <1 доступного агента. Агенты глобальные, не свободные/совместимые с pipeline. Для Octopus нулевой внешний worker допустим: может использоваться встроенный. API/права/таймаут/неполный инвентарь дают Нет данных, а не подтверждённый outage. Отсутствие запусков не подтверждает возможность выполнить pipeline. История REST не зависит от выбранного диапазона Grafana.",
           "id": 3,
           "links": [
             {
               "targetBlank": false,
               "title": "Детали TeamCity на этом dashboard",
-              "url": "/d/cicd-operational-health?viewPanel=36"
+              "url": "/d/${__dashboard.uid}?viewPanel=36&${__all_variables}&${__url_time_range}"
             }
           ],
           "title": "TeamCity",
@@ -3801,7 +3801,7 @@
                         },
                         "2": {
                           "color": "green",
-                          "text": "ЗДОРОВ"
+                          "text": "KPI В НОРМЕ"
                         }
                       },
                       "type": "value"
@@ -3883,7 +3883,7 @@
                         ],
                         "format": "timeseries",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | map(select((.status==\"SUCCESS\" or (.status==\"FAILURE\" or .status==\"UNSTABLE\")))) | if length==0 then empty else point((map(select(.status==\"SUCCESS\"))|length)/length*100) end",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .state==\"running\" then \"RUNNING\" elif .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | map(select((.status==\"SUCCESS\" or (.status==\"FAILURE\" or .status==\"UNSTABLE\")))) | if length==0 then empty else point((map(select(.status==\"SUCCESS\"))|length)/length*100) end",
                         "source": "url",
                         "type": "json",
                         "url": "/app/rest/builds",
@@ -3892,7 +3892,7 @@
                           "params": [
                             {
                               "key": "locator",
-                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})state:finished,branch:default:any,count:100"
+                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})defaultFilter:false,personal:false,state:finished,branch:default:any,count:100"
                             },
                             {
                               "key": "fields",
@@ -3911,7 +3911,7 @@
               "transformations": []
             }
           },
-          "description": "",
+          "description": "SUCCESS / (SUCCESS + FAILURE; Jenkins также UNSTABLE, Octopus также TimedOut), среди последних ≤100 завершённых результатов выбранного scope. Отмены и Jenkins NOT_BUILT исключены. Пустой знаменатель — Нет данных, не 100%. Диапазон Grafana не ограничивает REST-историю.",
           "id": 30,
           "links": [],
           "title": "Успешность • последние N",
@@ -3994,7 +3994,7 @@
                         ],
                         "format": "timeseries",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point(map(select((.status==\"SUCCESS\" or (.status==\"FAILURE\" or .status==\"UNSTABLE\"))))|length)",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .state==\"running\" then \"RUNNING\" elif .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point(map(select((.status==\"SUCCESS\" or (.status==\"FAILURE\" or .status==\"UNSTABLE\"))))|length)",
                         "source": "url",
                         "type": "json",
                         "url": "/app/rest/builds",
@@ -4003,7 +4003,7 @@
                           "params": [
                             {
                               "key": "locator",
-                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})state:finished,branch:default:any,count:100"
+                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})defaultFilter:false,personal:false,state:finished,branch:default:any,count:100"
                             },
                             {
                               "key": "fields",
@@ -4131,7 +4131,7 @@
               "transformations": []
             }
           },
-          "description": "",
+          "description": "Доступные подключённые и разрешённые агенты сервера / healthy включённые внешние workers выбранного Space. Это не число свободных либо совместимых исполнителей для выбранного pipeline/project. Built-in worker Octopus не входит.",
           "id": 32,
           "links": [],
           "title": "Доступные агенты / workers",
@@ -4349,7 +4349,7 @@
               "transformations": []
             }
           },
-          "description": "",
+          "description": "Текущее количество ожидающих задач выбранного scope. Лимит TeamCity/Octopus 1000; неполная выборка даёт ошибку. Jenkins queue фильтруется по task.fullName.",
           "id": 34,
           "links": [],
           "title": "Очередь",
@@ -4430,7 +4430,7 @@
                         ],
                         "format": "timeseries",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .state==\"running\" then \"RUNNING\" elif .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
                         "source": "url",
                         "type": "json",
                         "url": "/app/rest/builds",
@@ -4439,7 +4439,7 @@
                           "params": [
                             {
                               "key": "locator",
-                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})state:running,branch:default:any,count:1000"
+                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})defaultFilter:false,personal:false,state:running,branch:default:any,count:1000"
                             },
                             {
                               "key": "fields",
@@ -4564,7 +4564,7 @@
                         ],
                         "format": "table",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | .[]",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .state==\"running\" then \"RUNNING\" elif .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | .[]",
                         "source": "url",
                         "type": "json",
                         "url": "/app/rest/builds",
@@ -4573,7 +4573,7 @@
                           "params": [
                             {
                               "key": "locator",
-                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})state:finished,branch:default:any,count:100"
+                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})defaultFilter:false,personal:false,state:finished,branch:default:any,count:100"
                             },
                             {
                               "key": "fields",
@@ -4592,7 +4592,7 @@
               "transformations": []
             }
           },
-          "description": "Часовой пояс времени: ${__timezone}. Для переключения выберите Москва/Майами и нажмите «Применить часовой пояс».",
+          "description": "Последние ≤100 завершённых результатов выбранного scope, All — общая выборка. Часовой пояс: ${__timezone}; переключение через «Применить пояс». История REST не ограничивается диапазоном Grafana.",
           "id": 36,
           "links": [],
           "title": "TeamCity • последние 100 завершённых результатов",
@@ -4749,6 +4749,18 @@
                         "value": "time:YYYY-MM-DD HH:mm:ss Z"
                       }
                     ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "ID"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "string"
+                      }
+                    ]
                   }
                 ]
               },
@@ -4803,7 +4815,7 @@
                         ],
                         "format": "table",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | .[] | {workflow,status,age:(if .start==null then null else now-.start end),url}",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .state==\"running\" then \"RUNNING\" elif .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | .[] | {workflow,status,age:(if .start==null then null else now-.start end),url}",
                         "source": "url",
                         "type": "json",
                         "url": "/app/rest/builds",
@@ -4812,7 +4824,7 @@
                           "params": [
                             {
                               "key": "locator",
-                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})state:running,branch:default:any,count:1000"
+                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})defaultFilter:false,personal:false,state:running,branch:default:any,count:1000"
                             },
                             {
                               "key": "fields",
@@ -5408,13 +5420,13 @@
               "transformations": []
             }
           },
-          "description": "1: деградация по KPI; 2: API ответил и KPI в норме. Ошибка API, доступа или таймаут: Нет данных, причину смотрите в Query Inspector. Это текущий snapshot, не мониторинг pod или HTTP SLA.",
+          "description": "Снимок KPI выбранного scope. Деградация: очередь >10, ошибки за 10 минут среди последних 100 результатов, текущее выполнение >30 мин (TeamCity/Jenkins) или >60 мин (Octopus), неожиданный offline агента/worker; для TeamCity/Jenkins также <1 доступного агента. Агенты глобальные, не свободные/совместимые с pipeline. Для Octopus нулевой внешний worker допустим: может использоваться встроенный. API/права/таймаут/неполный инвентарь дают Нет данных, а не подтверждённый outage. Отсутствие запусков не подтверждает возможность выполнить pipeline. История REST не зависит от выбранного диапазона Grafana.",
           "id": 4,
           "links": [
             {
               "targetBlank": false,
               "title": "Детали Jenkins на этом dashboard",
-              "url": "/d/cicd-operational-health?viewPanel=46"
+              "url": "/d/${__dashboard.uid}?viewPanel=46&${__all_variables}&${__url_time_range}"
             }
           ],
           "title": "Jenkins",
@@ -5440,7 +5452,7 @@
                         },
                         "2": {
                           "color": "green",
-                          "text": "ЗДОРОВ"
+                          "text": "KPI В НОРМЕ"
                         }
                       },
                       "type": "value"
@@ -5546,7 +5558,7 @@
               "transformations": []
             }
           },
-          "description": "",
+          "description": "SUCCESS / (SUCCESS + FAILURE; Jenkins также UNSTABLE, Octopus также TimedOut), среди последних ≤100 завершённых результатов выбранного scope. Отмены и Jenkins NOT_BUILT исключены. Пустой знаменатель — Нет данных, не 100%. Диапазон Grafana не ограничивает REST-историю.",
           "id": 40,
           "links": [],
           "title": "Успешность • последние N",
@@ -5758,7 +5770,7 @@
               "transformations": []
             }
           },
-          "description": "",
+          "description": "Доступные подключённые и разрешённые агенты сервера / healthy включённые внешние workers выбранного Space. Это не число свободных либо совместимых исполнителей для выбранного pipeline/project. Built-in worker Octopus не входит.",
           "id": 42,
           "links": [],
           "title": "Доступные агенты / workers",
@@ -5968,7 +5980,7 @@
               "transformations": []
             }
           },
-          "description": "",
+          "description": "Текущее количество ожидающих задач выбранного scope. Лимит TeamCity/Octopus 1000; неполная выборка даёт ошибку. Jenkins queue фильтруется по task.fullName.",
           "id": 44,
           "links": [],
           "title": "Очередь",
@@ -6203,7 +6215,7 @@
               "transformations": []
             }
           },
-          "description": "Часовой пояс времени: ${__timezone}. Для переключения выберите Москва/Майами и нажмите «Применить часовой пояс».",
+          "description": "Последние ≤100 завершённых результатов выбранного scope, All — общая выборка. Часовой пояс: ${__timezone}; переключение через «Применить пояс». История REST не ограничивается диапазоном Grafana.",
           "id": 46,
           "links": [],
           "title": "Jenkins • последние 100 завершённых результатов",
@@ -6358,6 +6370,18 @@
                       {
                         "id": "unit",
                         "value": "time:YYYY-MM-DD HH:mm:ss Z"
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "ID"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "string"
                       }
                     ]
                   }
@@ -6784,7 +6808,7 @@
                         "format": "timeseries",
                         "global_query_id": "",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point([.[] | select((.status==\"Failed\" or .status==\"TimedOut\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:((.Links.Web // (\"/app#/\" + (.SpaceId // \"${octopus_space}\") + \"/tasks/\" + .Id)) | if test(\"^https?://\") then . else \"http://octopus.admortgage.com\" + (if startswith(\"/\") then . else \"/\" + . end) end)}] | point([.[] | select((.status==\"Failed\" or .status==\"TimedOut\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
                         "source": "url",
                         "type": "json",
                         "url": "http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})",
@@ -6839,7 +6863,7 @@
                         "format": "timeseries",
                         "global_query_id": "",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:((.Links.Web // (\"/app#/\" + (.SpaceId // \"${octopus_space}\") + \"/tasks/\" + .Id)) | if test(\"^https?://\") then . else \"http://octopus.admortgage.com\" + (if startswith(\"/\") then . else \"/\" + . end) end)}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
                         "source": "url",
                         "type": "json",
                         "url": "http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})",
@@ -7045,7 +7069,7 @@
                       "group": "__expr__",
                       "kind": "DataQuery",
                       "spec": {
-                        "expression": "2*$RA - $RA*(($RB>10) || ($RC<0) || ($RD>0) || ($RE>3600) || ($RF>0))",
+                        "expression": "2*$RA - $RA*(($RB>10) || ($RD>0) || ($RE>3600) || ($RF>0))",
                         "type": "math"
                       },
                       "version": "v0"
@@ -7058,13 +7082,13 @@
               "transformations": []
             }
           },
-          "description": "1: KPI degradation; 2: API responded and KPI is within normal limits. API error, access issue, or timeout: No data; check the Query Inspector for the cause. This is a current snapshot, not pod monitoring or an HTTP SLA.",
+          "description": "Снимок KPI выбранного scope. Деградация: очередь >10, ошибки за 10 минут среди последних 100 результатов, текущее выполнение >30 мин (TeamCity/Jenkins) или >60 мин (Octopus), неожиданный offline агента/worker; для TeamCity/Jenkins также <1 доступного агента. Агенты глобальные, не свободные/совместимые с pipeline. Для Octopus нулевой внешний worker допустим: может использоваться встроенный. API/права/таймаут/неполный инвентарь дают Нет данных, а не подтверждённый outage. Отсутствие запусков не подтверждает возможность выполнить pipeline. История REST не зависит от выбранного диапазона Grafana.",
           "id": 5,
           "links": [
             {
               "targetBlank": false,
               "title": "Детали Octopus на этом dashboard",
-              "url": "/d/cicd-operational-health?viewPanel=56"
+              "url": "/d/${__dashboard.uid}?viewPanel=65&${__all_variables}&${__url_time_range}"
             }
           ],
           "title": "Octopus",
@@ -7093,7 +7117,7 @@
                         "2": {
                           "color": "green",
                           "index": 2,
-                          "text": "HEALTH"
+                          "text": "KPI В НОРМЕ"
                         }
                       },
                       "type": "value"
@@ -7175,7 +7199,7 @@
                         ],
                         "format": "timeseries",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | map(select((.status==\"Success\" or (.status==\"Failed\" or .status==\"TimedOut\")))) | if length==0 then empty else point((map(select(.status==\"Success\"))|length)/length*100) end",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:((.Links.Web // (\"/app#/\" + (.SpaceId // \"${octopus_space}\") + \"/tasks/\" + .Id)) | if test(\"^https?://\") then . else \"http://octopus.admortgage.com\" + (if startswith(\"/\") then . else \"/\" + . end) end)}] | map(select((.status==\"Success\" or (.status==\"Failed\" or .status==\"TimedOut\")))) | if length==0 then empty else point((map(select(.status==\"Success\"))|length)/length*100) end",
                         "source": "url",
                         "type": "json",
                         "url": "http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})",
@@ -7207,7 +7231,7 @@
               "transformations": []
             }
           },
-          "description": "",
+          "description": "SUCCESS / (SUCCESS + FAILURE; Jenkins также UNSTABLE, Octopus также TimedOut), среди последних ≤100 завершённых результатов выбранного scope. Отмены и Jenkins NOT_BUILT исключены. Пустой знаменатель — Нет данных, не 100%. Диапазон Grafana не ограничивает REST-историю.",
           "id": 50,
           "links": [],
           "title": "Successful • last N",
@@ -7290,7 +7314,7 @@
                         ],
                         "format": "timeseries",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point(map(select((.status==\"Success\" or (.status==\"Failed\" or .status==\"TimedOut\"))))|length)",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:((.Links.Web // (\"/app#/\" + (.SpaceId // \"${octopus_space}\") + \"/tasks/\" + .Id)) | if test(\"^https?://\") then . else \"http://octopus.admortgage.com\" + (if startswith(\"/\") then . else \"/\" + . end) end)}] | point(map(select((.status==\"Success\" or (.status==\"Failed\" or .status==\"TimedOut\"))))|length)",
                         "source": "url",
                         "type": "json",
                         "url": "http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})",
@@ -7430,7 +7454,7 @@
               "transformations": []
             }
           },
-          "description": "",
+          "description": "Доступные подключённые и разрешённые агенты сервера / healthy включённые внешние workers выбранного Space. Это не число свободных либо совместимых исполнителей для выбранного pipeline/project. Built-in worker Octopus не входит.",
           "id": 52,
           "links": [],
           "title": "Available agents / workers",
@@ -7651,7 +7675,7 @@
               "transformations": []
             }
           },
-          "description": "",
+          "description": "Текущее количество ожидающих задач выбранного scope. Лимит TeamCity/Octopus 1000; неполная выборка даёт ошибку. Jenkins queue фильтруется по task.fullName.",
           "id": 54,
           "links": [],
           "title": "Queue",
@@ -7732,7 +7756,7 @@
                         ],
                         "format": "timeseries",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:((.Links.Web // (\"/app#/\" + (.SpaceId // \"${octopus_space}\") + \"/tasks/\" + .Id)) | if test(\"^https?://\") then . else \"http://octopus.admortgage.com\" + (if startswith(\"/\") then . else \"/\" + . end) end)}] | point(([.[] | .start | select(.!=null) | now-.] | max // 0))",
                         "source": "url",
                         "type": "json",
                         "url": "http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})",
@@ -7855,7 +7879,7 @@
                         ],
                         "format": "table",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | .[] | {workflow,status,age:(if .start==null then null else now-.start end),url}",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:((.Links.Web // (\"/app#/\" + (.SpaceId // \"${octopus_space}\") + \"/tasks/\" + .Id)) | if test(\"^https?://\") then . else \"http://octopus.admortgage.com\" + (if startswith(\"/\") then . else \"/\" + . end) end)}] | .[] | {workflow,status,age:(if .start==null then null else now-.start end),url}",
                         "source": "url",
                         "type": "json",
                         "url": "http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})",
@@ -8090,7 +8114,7 @@
                         "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\ncomplete_inventory(\"Items\")[] | {name:.Name,health:.HealthStatus,disabled:.IsDisabled}",
                         "source": "url",
                         "type": "json",
-                        "url": "http://octopus.admortgage.com/api/machines",
+                        "url": "http://octopus.admortgage.com/api/${octopus_space}/machines",
                         "url_options": {
                           "data": "",
                           "method": "GET",
@@ -8112,7 +8136,7 @@
               "transformations": []
             }
           },
-          "description": "",
+          "description": "Deployment targets только выбранного Octopus Space. Project не ограничивает эту таблицу: допустимые цели зависят от environments/roles/tenants, которые здесь не выбираются. Disabled targets не означают аварийное состояние.",
           "id": 59,
           "links": [],
           "title": "Deployment targets • separate from workers",
@@ -8190,7 +8214,7 @@
                         ],
                         "format": "timeseries",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if .state==\"running\" then \"RUNNING\" elif .canceledInfo != null then \"CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch) else null end),url:.webUrl}] | point([.[] | select((.status==\"FAILURE\" or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600) and .finish<=now)]|length)",
                         "source": "url",
                         "type": "json",
                         "url": "/app/rest/builds",
@@ -8199,7 +8223,7 @@
                           "params": [
                             {
                               "key": "locator",
-                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})state:finished,branch:default:any,count:100"
+                              "value": "$__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})defaultFilter:false,personal:false,state:finished,branch:default:any,count:100"
                             },
                             {
                               "key": "fields",
@@ -8218,10 +8242,10 @@
               "transformations": []
             }
           },
-          "description": "",
+          "description": "Ошибки с finish в последние 10 минут среди полученных последних 100 результатов. При высокой нагрузке счётчик может быть неполным. Ноль не доказывает отсутствие ошибок вне выборки; это не журнал событий и не alert rule.",
           "id": 6,
           "links": [],
-          "title": "TeamCity • Ошибки за 10 минут",
+          "title": "TeamCity • Ошибки за 10 мин • выборка ≤100",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -8648,10 +8672,10 @@
               "transformations": []
             }
           },
-          "description": "",
+          "description": "Каждая точка — increase счётчика за окно длиной выбранного диапазона, заканчивающееся в этой точке. Это скользящий график, не количество рестартов отдельно за каждый шаг.",
           "id": 64,
           "links": [],
-          "title": "Restarts for the selected period",
+          "title": "Рестарты • скользящее окно $__range",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -8790,7 +8814,7 @@
                         "format": "table",
                         "global_query_id": "",
                         "parser": "jq-backend",
-                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:(.Links.Web // \"\")}] | .[]",
+                        "root_selector": "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n  capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\":\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600 + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\ndef complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\") else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n[arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch) else null end),url:((.Links.Web // (\"/app#/\" + (.SpaceId // \"${octopus_space}\") + \"/tasks/\" + .Id)) | if test(\"^https?://\") then . else \"http://octopus.admortgage.com\" + (if startswith(\"/\") then . else \"/\" + . end) end)}] | .[]",
                         "source": "url",
                         "type": "json",
                         "url": "http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})",
@@ -8823,7 +8847,7 @@
               "transformations": []
             }
           },
-          "description": "Часовой пояс времени: ${__timezone}. Для переключения выберите Москва/Майами и нажмите «Применить часовой пояс».",
+          "description": "Последние ≤100 завершённых результатов выбранного scope, All — общая выборка. Часовой пояс: ${__timezone}; переключение через «Применить пояс». История REST не ограничивается диапазоном Grafana.",
           "id": 65,
           "links": [],
           "title": "Octopus • last 100 completed results in project",
@@ -8978,6 +9002,18 @@
                       {
                         "id": "unit",
                         "value": "time:YYYY-MM-DD HH:mm:ss Z"
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "ID"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "string"
                       }
                     ]
                   }
@@ -9161,10 +9197,10 @@
               "transformations": []
             }
           },
-          "description": "",
+          "description": "Ошибки с finish в последние 10 минут среди полученных последних 100 результатов. При высокой нагрузке счётчик может быть неполным. Ноль не доказывает отсутствие ошибок вне выборки; это не журнал событий и не alert rule.",
           "id": 8,
           "links": [],
-          "title": "Jenkins • Ошибки за 10 минут",
+          "title": "Jenkins • Ошибки за 10 мин • выборка ≤100",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -10169,38 +10205,38 @@
       {
         "asDropdown": false,
         "icon": "",
-        "includeVars": false,
-        "keepTime": false,
+        "includeVars": true,
+        "keepTime": true,
         "tags": [],
         "targetBlank": false,
         "title": "TeamCity • детали",
         "tooltip": "",
         "type": "link",
-        "url": "/d/cicd-operational-health?viewPanel=36"
+        "url": "/d/${__dashboard.uid}?viewPanel=36"
       },
       {
         "asDropdown": false,
         "icon": "",
-        "includeVars": false,
-        "keepTime": false,
+        "includeVars": true,
+        "keepTime": true,
         "tags": [],
         "targetBlank": false,
         "title": "Jenkins • детали",
         "tooltip": "",
         "type": "link",
-        "url": "/d/cicd-operational-health?viewPanel=46"
+        "url": "/d/${__dashboard.uid}?viewPanel=46"
       },
       {
         "asDropdown": false,
         "icon": "",
-        "includeVars": false,
-        "keepTime": false,
+        "includeVars": true,
+        "keepTime": true,
         "tags": [],
         "targetBlank": false,
         "title": "Octopus • детали",
         "tooltip": "",
         "type": "link",
-        "url": "/d/cicd-operational-health?viewPanel=56"
+        "url": "/d/${__dashboard.uid}?viewPanel=65"
       }
     ],
     "liveNow": false,
@@ -10263,7 +10299,7 @@
       {
         "kind": "QueryVariable",
         "spec": {
-          "allowCustomValue": true,
+          "allowCustomValue": false,
           "current": {
             "text": "Default",
             "value": "Spaces-1"
@@ -10297,7 +10333,7 @@
                 ],
                 "datasource": {
                   "type": "yesoreyeram-infinity-datasource",
-                  "uid": "Octopus"
+                  "uid": "dg0eoy5rozsowc"
                 },
                 "filters": [],
                 "format": "table",
@@ -10332,7 +10368,7 @@
       {
         "kind": "QueryVariable",
         "spec": {
-          "allowCustomValue": true,
+          "allowCustomValue": false,
           "current": {
             "text": "All",
             "value": "$__all"
@@ -10366,7 +10402,7 @@
                 ],
                 "datasource": {
                   "type": "yesoreyeram-infinity-datasource",
-                  "uid": "${DS_TEAMCITY}"
+                  "uid": "bg0eecplputxce"
                 },
                 "filters": [],
                 "format": "table",
@@ -10411,7 +10447,7 @@
       {
         "kind": "QueryVariable",
         "spec": {
-          "allowCustomValue": true,
+          "allowCustomValue": false,
           "current": {
             "text": "All",
             "value": "$__all"
@@ -10445,7 +10481,7 @@
                 ],
                 "datasource": {
                   "type": "yesoreyeram-infinity-datasource",
-                  "uid": "${DS_JENKINS}"
+                  "uid": "cg0exosaa0c8wd"
                 },
                 "filters": [],
                 "format": "table",
@@ -10563,7 +10599,7 @@
         "kind": "QueryVariable",
         "spec": {
           "allValue": "*",
-          "allowCustomValue": true,
+          "allowCustomValue": false,
           "current": {
             "text": "All",
             "value": "$__all"
@@ -10597,7 +10633,7 @@
                 ],
                 "datasource": {
                   "type": "yesoreyeram-infinity-datasource",
-                  "uid": "Octopus"
+                  "uid": "dg0eoy5rozsowc"
                 },
                 "filters": [],
                 "format": "table",

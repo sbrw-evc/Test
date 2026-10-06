@@ -17,15 +17,20 @@ TeamCity/Jenkins/Octopus, а служебная учётная запись — 
 Формат запроса: JSON; Source: URL; Method: GET; Body: отсутствует.
 Query parameters, Root selector, Columns и JQ-расчёты уже находятся в JSON.
 Ничего из JQ вручную переносить не нужно. Default dashboard refresh: 1 minute.
-Ориентир совместимости: Grafana 11.6+ и Infinity 4.1.1. Если ваша установленная
-версия отличается, проверьте наличие jq-backend и server-side expressions.
+Это экспорт dashboard schema v2 (apiVersion dashboard.grafana.app/v2),
+с версиями панелей 13.2.3 в адаптированном JSON. Ваша Grafana должна поддерживать
+импорт schema v2; минимальная версия Infinity не означает совместимость этого JSON
+с любой версией Grafana. Нужны Backend JQ и server-side expressions.
 Для запросов нужен Accept: application/json. TLS certificate validation включена.
 Timeout: 15 seconds. Allowed hosts: реальный HTTPS origin сервера, например
 https://octopus.example.invalid (здесь и далее адреса вымышленные).
 Не помещайте токены в URL, dashboard JSON или query headers.
 Секреты задаются только в защищённых настройках datasource.
 
-Важно: URL в запросах относительные. Base URL datasource — корень приложения,
+Важно: TeamCity/Jenkins используют относительные URL. Octopus в адаптированном
+JSON использует абсолютный http://octopus.admortgage.com. Если ваш сервер/протокол
+другой, замените этот origin во всех Octopus queries, variable queries и JQ web links.
+Существующие авторизацию и настройки HTTPS вашего datasource сохраните. Base URL datasource — корень приложения,
 БЕЗ /api или /app/rest и БЕЗ завершающего /. Например https://host.
 Jenkins может иметь context path: https://host/jenkins, тогда GET /api/json
 должен обращаться к https://host/jenkins/api/json.
@@ -54,43 +59,38 @@ GET-запросы Octopus, используемые dashboard и dropdown varia
        name = Deploy
        states = Success,Failed,Canceled,TimedOut
        take = 100
-     Используется: Octopus • Errors in 10 Minutes; Вся CI/CD цепочка; Octopus • Success of the last N; Octopus • Average duration • last N; Octopus; Successful • last N; Completed (SUCCESS/FAILURE) in the sample; Octopus • last 100 completed results in project
+     Используется: Octopus • Ошибки за 10 мин • выборка ≤100; Сводное состояние CI/CD; Octopus • Success of the last N; Octopus • Average duration • last N; Octopus; Successful • last N; Completed (SUCCESS/FAILURE) in the sample; Octopus • last 100 completed results in project
 
   2) GET http://octopus.admortgage.com/api/${octopus_space}/workers
      Query parameters (Infinity URL options → Params):
        take = 1000
-     Используется: Octopus • Unavailable agents / workers; Octopus • Available agents / workers; Octopus; Available agents / workers; Unexpectedly unavailable agents/workers; Agents / workers • inventory
+     Используется: Octopus • Unavailable agents / workers; Сводное состояние CI/CD; Octopus • Available agents / workers; Octopus; Available agents / workers; Unexpectedly unavailable agents/workers; Agents / workers • inventory
 
-  3) GET http://octopus.admortgage.com/api/${octopus_space}/workerspus_space}/workers
-     Query parameters (Infinity URL options → Params):
-       take = 1000
-     Используется: Вся CI/CD цепочка
-
-  4) GET http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})
+  3) GET http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})
      Query parameters (Infinity URL options → Params):
        name = Deploy
        states = New,Queued
        take = 1000
-     Используется: Вся CI/CD цепочка; Octopus • Queue; Octopus; Queue
+     Используется: Сводное состояние CI/CD; Octopus • Queue; Octopus; Queue
 
-  5) GET http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})
+  4) GET http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})
      Query parameters (Infinity URL options → Params):
        name = Deploy
        states = Executing,Cancelling
        take = 1000
-     Используется: Вся CI/CD цепочка; Octopus • Longest-running build/deployment; Octopus; Longest current execution; Current executions
+     Используется: Сводное состояние CI/CD; Octopus • Longest-running build/deployment; Octopus; Longest current execution; Current executions
 
-  6) GET http://octopus.admortgage.com/api/machines
+  5) GET http://octopus.admortgage.com/api/${octopus_space}/machines
      Query parameters (Infinity URL options → Params):
        take = 1000
      Используется: Deployment targets • separate from workers
 
-  7) GET http://octopus.admortgage.com/api/spaces/all
+  6) GET http://octopus.admortgage.com/api/spaces/all
      Query parameters (Infinity URL options → Params):
        отсутствуют
      Используется: Dropdown: Octopus Space
 
-  8) GET http://octopus.admortgage.com/api/${octopus_space}/projects
+  7) GET http://octopus.admortgage.com/api/${octopus_space}/projects
      Query parameters (Infinity URL options → Params):
        take = 1000
      Используется: Dropdown: Octopus project
@@ -99,9 +99,10 @@ Octopus KPI используют tasks типа Deploy, а не все ServerTas
 State Success — успех, Failed/TimedOut — failure, Canceled исключается
 из процента успешности. Workers — исполнители, machines — deployment targets;
 это разные сущности. Встроенный worker может отсутствовать в /workers.
-Поэтому минимум внешних workers в общем health по умолчанию равен 0.
-Если вы используете dedicated workers, отредактируйте threshold в health
-expression Octopus (проверка $RC<0) на ваш минимум.
+Поэтому отсутствие внешних workers не считается деградацией само по себе.
+Бессмысленная проверка $RC<0 удалена из обеих health expressions Octopus.
+При использовании dedicated workers добавьте проверку $RC<ваш минимум
+в Octopus health и ${2RC}<ваш минимум в сводную карточку одинаково.
 Для machines/targets health вынесен в отдельную таблицу.
 
 3. TEAMCITY
@@ -117,27 +118,27 @@ Permissions: чтение build configurations, builds, build queue и agents в
 GET-запросы TeamCity, используемые dashboard и dropdown variables:
   1) GET /app/rest/builds
      Query parameters (Infinity URL options → Params):
-       locator = $__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})state:finished,branch:default:any,count:100
+       locator = $__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})defaultFilter:false,personal:false,state:finished,branch:default:any,count:100
        fields = nextHref,build(id,buildTypeId,number,status,state,startDate,finishDate,webUrl,canceledInfo,agent(id))
-     Используется: TeamCity • Успешность последних N; TeamCity • Средняя длительность • последние N; Вся CI/CD цепочка; TeamCity; Успешность • последние N; Завершённые SUCCESS/FAILURE в выборке; TeamCity • последние 100 завершённых результатов; TeamCity • Ошибки за 10 минут
+     Используется: TeamCity • Успешность последних N; TeamCity • Средняя длительность • последние N; Сводное состояние CI/CD; TeamCity; Успешность • последние N; Завершённые SUCCESS/FAILURE в выборке; TeamCity • последние 100 завершённых результатов; TeamCity • Ошибки за 10 мин • выборка ≤100
 
   2) GET /app/rest/agents
      Query parameters (Infinity URL options → Params):
        locator = defaultFilter:false,count:1000
        fields = nextHref,agent(id,name,connected,enabled,authorized)
-     Используется: TeamCity • Доступные агенты / workers; Вся CI/CD цепочка; TeamCity; Доступные агенты / workers; Неожиданно недоступные агенты / workers; Агенты / workers • инвентарь; TeamCity • Недоступные агенты / workers
+     Используется: TeamCity • Доступные агенты / workers; Сводное состояние CI/CD; TeamCity; Доступные агенты / workers; Неожиданно недоступные агенты / workers; Агенты / workers • инвентарь; TeamCity • Недоступные агенты / workers
 
   3) GET /app/rest/buildQueue
      Query parameters (Infinity URL options → Params):
        locator = $__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})count:1000
        fields = nextHref,build(id,buildTypeId)
-     Используется: TeamCity • Очередь; Вся CI/CD цепочка; TeamCity; Очередь
+     Используется: TeamCity • Очередь; Сводное состояние CI/CD; TeamCity; Очередь
 
   4) GET /app/rest/builds
      Query parameters (Infinity URL options → Params):
-       locator = $__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})state:running,branch:default:any,count:1000
+       locator = $__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})defaultFilter:false,personal:false,state:running,branch:default:any,count:1000
        fields = nextHref,build(id,buildTypeId,number,status,state,startDate,finishDate,webUrl,canceledInfo,agent(id))
-     Используется: TeamCity • Самая долгая текущая сборка / деплой; Вся CI/CD цепочка; TeamCity; Самое долгое текущее выполнение; Текущие выполнения
+     Используется: TeamCity • Самая долгая текущая сборка / деплой; Сводное состояние CI/CD; TeamCity; Самое долгое текущее выполнение; Текущие выполнения
 
   5) GET /app/rest/buildTypes
      Query parameters (Infinity URL options → Params):
@@ -146,7 +147,10 @@ GET-запросы TeamCity, используемые dashboard и dropdown vari
      Используется: Dropdown: TeamCity pipeline
 
 Сборки читаются по всем веткам: branch:default:any.
-SUCCESS — успех; FAILURE — failure; canceledInfo/UNKNOWN — canceled.
+SUCCESS — успех; FAILURE — failure; canceledInfo — canceled; UNKNOWN исключён
+из успешности, но не переименовывается в canceled. Текущее state=running → RUNNING.
+В builds locator явно заданы defaultFilter:false,personal:false: учитываются
+отмены и failed-to-start, личные сборки исключены.
 Доступные агенты: connected && enabled && authorized.
 Недоступные агенты: !connected && enabled && authorized.
 Это не число свободных compatible agents для конкретной конфигурации.
@@ -167,17 +171,17 @@ GET-запросы Jenkins, используемые dashboard и dropdown varia
   1) GET /$__combineValues(,/,,${jenkins_pipeline:csv})api/json
      Query parameters (Infinity URL options → Params):
        tree = fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[name,_class]]]]]]
-     Используется: Jenkins • Успешность последних N; Вся CI/CD цепочка; Jenkins • Средняя длительность • последние N; Jenkins • Самая долгая текущая сборка / деплой; Jenkins; Успешность • последние N; Завершённые SUCCESS/FAILURE в выборке; Самое долгое текущее выполнение; Jenkins • последние 100 завершённых результатов; Текущие выполнения; Jenkins • Ошибки за 10 минут
+     Используется: Jenkins • Успешность последних N; Сводное состояние CI/CD; Jenkins • Средняя длительность • последние N; Jenkins • Самая долгая текущая сборка / деплой; Jenkins; Успешность • последние N; Завершённые SUCCESS/FAILURE в выборке; Самое долгое текущее выполнение; Jenkins • последние 100 завершённых результатов; Текущие выполнения; Jenkins • Ошибки за 10 мин • выборка ≤100
 
   2) GET /computer/api/json
      Query parameters (Infinity URL options → Params):
        tree = computer[displayName,offline,temporarilyOffline,numExecutors,idle]
-     Используется: Jenkins • Доступные агенты / workers; Вся CI/CD цепочка; Jenkins; Доступные агенты / workers; Неожиданно недоступные агенты / workers; Агенты / workers • инвентарь; Jenkins • Недоступные агенты / workers
+     Используется: Jenkins • Доступные агенты / workers; Сводное состояние CI/CD; Jenkins; Доступные агенты / workers; Неожиданно недоступные агенты / workers; Агенты / workers • инвентарь; Jenkins • Недоступные агенты / workers
 
   3) GET /queue/api/json
      Query parameters (Infinity URL options → Params):
        tree = items[id,task[fullName]]
-     Используется: Вся CI/CD цепочка; Jenkins • Очередь; Jenkins; Очередь
+     Используется: Сводное состояние CI/CD; Jenkins • Очередь; Jenkins; Очередь
 
   4) GET /api/json
      Query parameters (Infinity URL options → Params):
@@ -201,13 +205,15 @@ Executor slots не равны количеству nodes.
 -------------------------
 1) В Grafana: Dashboards → New → Import → Upload JSON file.
 2) Выберите dashboards/cicd-health.json.
-3) В четырёх datasource selectors:
-   Octopus → уже существующий Infinity datasource с настроенным токеном;
-   TeamCity → Infinity datasource TeamCity;
-   Jenkins → Infinity datasource Jenkins.
-   Prometheus → уже подключённый источник, который собирает данные по подам.
-   Для Prometheus ничего заново создавать или подключать не требуется.
-   Названия и UIDs источников произвольные: импорт сопоставит их автоматически.
+3) Это адаптированный schema v2 JSON с текущими datasource UIDs:
+   TeamCity: bg0eecplputxce; Jenkins: cg0exosaa0c8wd;
+   Octopus: dg0eoy5rozsowc; Prometheus: betj2t0d1n280a.
+   Если импортируете в ту же Grafana, сохраните соответствующие источники.
+   Если UIDs отличаются, сопоставьте источники в import UI, если он предлагает
+   такое сопоставление; иначе замените UIDs в query.datasource.name панелей
+   и переменных, а также infinityQuery.datasource.uid переменных.
+   JSON не содержит classic __inputs; автоматическое сопоставление не гарантируется.
+   Вложенные datasource references переменных теперь совпадают с внешними.
 4) Выберите пространство в dropdown Octopus Space (список из /api/spaces/all).
 5) Выберите TeamCity pipeline, Jenkins pipeline и Octopus project или All.
    Namespace и Pod — dropdown из существующего Prometheus с multiselect/All.
@@ -224,13 +230,12 @@ cicd-operational-health с подтверждением overwrite. Предыд�
 Этот пакет теперь состоит только из dashboard и данной инструкции.
 Если прежняя версия была provisioned администратором, право её overwrite
 в UI зависит от настроек Grafana. При запрете выберите новый UID при импорте
-и поправьте внутренние /d/cicd-operational-health ссылки в dashboard settings
-и panel links на новый UID. Изменения Kubernetes для нового импорта не нужны.
+Внутренние ссылки используют ${__dashboard.uid}, поэтому сохраняют новый UID. Изменения Kubernetes для нового импорта не нужны.
 
 6. СМЫСЛ HEALTH И ОГРАНИЧЕНИЯ
 ----------------------------
-ЗДОРОВ: API данные успешно прочитаны, queue <=10, нет неожиданно offline,
-доступных агентов >=1 для TeamCity/Jenkins, нет failure за последние 600 sec,
+KPI В НОРМЕ: API данные успешно прочитаны, queue <=10, нет неожиданно offline,
+доступных агентов >=1 для TeamCity/Jenkins, нет failure за последние 600 sec среди последних 100 результатов,
 текущие builds <=1800 sec, Deploy tasks <=3600 sec.
 ДЕГРАДАЦИЯ: API отвечает, но нарушен один из этих KPI.
 НЕТ ДАННЫХ: запрос не выполнен, 401/403, timeout или неполный ответ.
@@ -444,3 +449,39 @@ URL с/без /grafana, оба пояса, летнее и зимнее смещ
 https://github.com/grafana/grafana/blob/main/public/app/features/panel/panellinks/link_srv.ts
 https://github.com/grafana/scenes/blob/main/packages/scenes/src/variables/macros/timeMacros.ts
 https://github.com/grafana/scenes/blob/main/packages/scenes/src/core/SceneTimeRange.tsx
+
+13. АУДИТ СВЯЗЕЙ И БИЗНЕС-ЛОГИКИ
+---------------------------------
+Сводное состояние агрегирует независимые TeamCity/Jenkins/Octopus scopes.
+Выбор конфигурации TeamCity не связывает её с Jenkins job или проектом Octopus.
+KPI В НОРМЕ — результат проверок текущих KPI, а не end-to-end проверка релиза.
+На сервере без запусков такая проверка не доказывает возможность запуска pipeline.
+TeamCity filter — build configuration ID, Jenkins — leaf job, Octopus — project.
+Кастомный ввод Infinity IDs отключён: выбираются значения существующих каталогов.
+Namespace/Pod влияют только на блок Prometheus; API KPI и worker inventory —
+на сервер/Space, выбор времени Grafana — только на Prometheus и отображение времени.
+Ошибки за 10 минут ограничены выборкой ≤100; число не гарантированно исчерпывающее.
+Порог очереди >10, выполнения >1800/3600 секунд — текущие defaults;
+меняя их, синхронно поправляйте общую и соответствующую компонентную карточку.
+Deployment targets привязаны к выбранному Space, не проекту.
+Детали Octopus ведут к существующей панели 65. Все detail links сохраняют
+dashboard UID, фильтры, диапазон и применённый timezone.
+Relative Octopus Web links превращаются в абсолютные; абсолютные сохраняются.
+При отсутствии Links.Web строится ссылка /app#/<SpaceId>/tasks/<TaskId>.
+Start/Finish остаются epoch timestamps; ID показывается как строка, без short-unit.
+Текущие TeamCity builds обозначены RUNNING, а не предварительным SUCCESS.
+Средняя длительность включает отмены с известными start/finish; успешность — нет.
+Jenkins NOT_BUILT также исключён из успешности. В denominators участвуют
+TeamCity SUCCESS/FAILURE, Jenkins SUCCESS/FAILURE/UNSTABLE,
+Octopus Success/Failed/TimedOut; пустая выборка не превращается в 100%.
+Restarts: range-query показывает increase за скользящее окно $__range;
+заголовок исправлен, чтобы не выдавать каждую точку за отдельный интервал.
+
+Границы внедрения: alert rules/Teams/PagerDuty, HTTP latency/availability SLA,
+вывод старого прототипа из эксплуатации и назначение Grafana основным мониторингом
+не реализуются импортом этих двух файлов. Исходные /app/metrics и Jenkins
+Prometheus Plugin не добавлялись: по принятому scope REST покрывает бизнес-KPI,
+существующий Prometheus — поды. Эти пункты первоначального ТЗ остаются отдельно.
+Проверены offline 221 выполнения JQ и 387 комбинаций health/пороговых значений,
+ссылки на существующие панели, согласованность локальной и сводной health логики.
+Запросы к работающей инсталляции и Kubernetes не выполнялись.
