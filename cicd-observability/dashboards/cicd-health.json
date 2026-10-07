@@ -93,10 +93,10 @@
               "transformations": []
             }
           },
-          "description": "Ошибки с finish в последние 10 минут среди полученных последних 100 результатов. При высокой нагрузке счётчик может быть неполным. Ноль не доказывает отсутствие ошибок вне выборки; это не журнал событий и не alert rule.",
+          "description": "Failures that finished in the last 10 minutes, within the latest 100 results retrieved. This count may be incomplete under high load. Zero does not rule out failures outside the sample. This is neither an event log nor an alert rule.",
           "id": 10,
           "links": [],
-          "title": "Octopus • Ошибки за 10 мин • выборка ≤100",
+          "title": "Octopus • Failures in 10 min • sample ≤100",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -106,7 +106,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -218,7 +218,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -318,10 +318,10 @@
               "transformations": []
             }
           },
-          "description": "SUCCESS / (SUCCESS + FAILURE; Jenkins также UNSTABLE, Octopus также TimedOut), среди последних ≤100 завершённых результатов выбранного scope. Отмены и Jenkins NOT_BUILT исключены. Пустой знаменатель — Нет данных, не 100%. Диапазон Grafana не ограничивает REST-историю.",
+          "description": "SUCCESS / (SUCCESS + FAILURE; also UNSTABLE for Jenkins and TimedOut for Octopus), within the latest 100 or fewer completed results in the selected scope. Cancellations and Jenkins NOT_BUILT are excluded. An empty denominator means No data, not 100%. The Grafana time range does not filter REST history.",
           "id": 13,
           "links": [],
-          "title": "TeamCity • Успешность последних N",
+          "title": "TeamCity • Success rate • last N",
           "vizConfig": {
             "group": "gauge",
             "kind": "VizConfig",
@@ -334,7 +334,7 @@
                   "decimals": 1,
                   "max": 100,
                   "min": 0,
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -449,10 +449,10 @@
               "transformations": []
             }
           },
-          "description": "Доступные подключённые и разрешённые агенты сервера / healthy включённые внешние workers выбранного Space. Это не число свободных либо совместимых исполнителей для выбранного pipeline/project. Built-in worker Octopus не входит.",
+          "description": "Connected, enabled and authorized server agents, or healthy enabled external workers in the selected Space. This is not the number of idle or compatible executors for the selected pipeline/project. The Octopus built-in worker is not included.",
           "id": 14,
           "links": [],
-          "title": "TeamCity • Доступные агенты / workers",
+          "title": "TeamCity • Available agents / workers",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -462,7 +462,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -558,10 +558,10 @@
               "transformations": []
             }
           },
-          "description": "Текущее количество ожидающих задач выбранного scope. Лимит TeamCity/Octopus 1000; неполная выборка даёт ошибку. Jenkins queue фильтруется по task.fullName.",
+          "description": "Current number of queued tasks in the selected scope. TeamCity/Octopus limit: 1000; an incomplete response produces an error. The Jenkins queue is filtered by task.fullName.",
           "id": 15,
           "links": [],
-          "title": "TeamCity • Очередь",
+          "title": "TeamCity • Queue",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -571,7 +571,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -671,10 +671,10 @@
               "transformations": []
             }
           },
-          "description": "Средняя длительность последних ≤100 завершённых результатов, включая отменённые при наличии start/finish. Это длительность выполнения, без ожидания в очереди. Результаты без времени исключены.",
+          "description": "Mean duration of the latest 100 or fewer completed results, including cancellations with known start/finish times. Execution time only; queue wait time is excluded. Results without timestamps are excluded.",
           "id": 16,
           "links": [],
-          "title": "TeamCity • Средняя длительность • последние N",
+          "title": "TeamCity • Mean duration • last N",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -684,7 +684,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -783,7 +783,7 @@
           "description": "",
           "id": 17,
           "links": [],
-          "title": "TeamCity • Самая долгая текущая сборка / деплой",
+          "title": "TeamCity • Longest running build / deployment",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -793,7 +793,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -885,10 +885,10 @@
               "transformations": []
             }
           },
-          "description": "SUCCESS / (SUCCESS + FAILURE; Jenkins также UNSTABLE, Octopus также TimedOut), среди последних ≤100 завершённых результатов выбранного scope. Отмены и Jenkins NOT_BUILT исключены. Пустой знаменатель — Нет данных, не 100%. Диапазон Grafana не ограничивает REST-историю.",
+          "description": "SUCCESS / (SUCCESS + FAILURE; also UNSTABLE for Jenkins and TimedOut for Octopus), within the latest 100 or fewer completed results in the selected scope. Cancellations and Jenkins NOT_BUILT are excluded. An empty denominator means No data, not 100%. The Grafana time range does not filter REST history.",
           "id": 18,
           "links": [],
-          "title": "Jenkins • Успешность последних N",
+          "title": "Jenkins • Success rate • last N",
           "vizConfig": {
             "group": "gauge",
             "kind": "VizConfig",
@@ -901,7 +901,7 @@
                   "decimals": 1,
                   "max": 100,
                   "min": 0,
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -1012,10 +1012,10 @@
               "transformations": []
             }
           },
-          "description": "Доступные подключённые и разрешённые агенты сервера / healthy включённые внешние workers выбранного Space. Это не число свободных либо совместимых исполнителей для выбранного pipeline/project. Built-in worker Octopus не входит.",
+          "description": "Connected, enabled and authorized server agents, or healthy enabled external workers in the selected Space. This is not the number of idle or compatible executors for the selected pipeline/project. The Octopus built-in worker is not included.",
           "id": 19,
           "links": [],
-          "title": "Jenkins • Доступные агенты / workers",
+          "title": "Jenkins • Available agents / workers",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -1025,7 +1025,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -2349,10 +2349,10 @@
               "transformations": []
             }
           },
-          "description": "Снимок KPI выбранного scope. Деградация: очередь >10, ошибки за 10 минут среди последних 100 результатов, текущее выполнение >30 мин (TeamCity/Jenkins) или >60 мин (Octopus), неожиданный offline агента/worker; для TeamCity/Jenkins также <1 доступного агента. Агенты глобальные, не свободные/совместимые с pipeline. Для Octopus нулевой внешний worker допустим: может использоваться встроенный. API/права/таймаут/неполный инвентарь дают Нет данных, а не подтверждённый outage. Отсутствие запусков не подтверждает возможность выполнить pipeline. История REST не зависит от выбранного диапазона Grafana. Сводка независимых компонентов и фильтров; не отслеживает один релиз между TeamCity, Jenkins и Octopus.",
+          "description": "KPI snapshot for the selected scope. Degraded if queue >10, failures within the last 10 minutes among the latest 100 results, a running execution >30 min (TeamCity/Jenkins) or >60 min (Octopus), or an unexpectedly offline agent/worker; TeamCity/Jenkins also require at least one available agent. Agents are server-wide, not necessarily idle or compatible with the pipeline. Zero external Octopus workers is allowed because a built-in worker may be used. API errors, permission errors, timeouts or incomplete inventories mean No data, not a confirmed outage. No runs does not prove that a pipeline can execute. The Grafana time range does not filter REST history. This combines independently filtered components; it does not track a single release across TeamCity, Jenkins and Octopus.",
           "id": 2,
           "links": [],
-          "title": "Сводное состояние CI/CD",
+          "title": "CI/CD health overview",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -2367,21 +2367,21 @@
                       "options": {
                         "0": {
                           "color": "red",
-                          "text": "НЕДОСТУПЕН"
+                          "text": "UNAVAILABLE"
                         },
                         "1": {
                           "color": "orange",
-                          "text": "ДЕГРАДАЦИЯ"
+                          "text": "DEGRADED"
                         },
                         "2": {
                           "color": "green",
-                          "text": "KPI В НОРМЕ"
+                          "text": "KPI NORMAL"
                         }
                       },
                       "type": "value"
                     }
                   ],
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -2481,10 +2481,10 @@
               "transformations": []
             }
           },
-          "description": "Текущее количество ожидающих задач выбранного scope. Лимит TeamCity/Octopus 1000; неполная выборка даёт ошибку. Jenkins queue фильтруется по task.fullName.",
+          "description": "Current number of queued tasks in the selected scope. TeamCity/Octopus limit: 1000; an incomplete response produces an error. The Jenkins queue is filtered by task.fullName.",
           "id": 20,
           "links": [],
-          "title": "Jenkins • Очередь",
+          "title": "Jenkins • Queue",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -2494,7 +2494,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -2590,10 +2590,10 @@
               "transformations": []
             }
           },
-          "description": "Средняя длительность последних ≤100 завершённых результатов, включая отменённые при наличии start/finish. Это длительность выполнения, без ожидания в очереди. Результаты без времени исключены.",
+          "description": "Mean duration of the latest 100 or fewer completed results, including cancellations with known start/finish times. Execution time only; queue wait time is excluded. Results without timestamps are excluded.",
           "id": 21,
           "links": [],
-          "title": "Jenkins • Средняя длительность • последние N",
+          "title": "Jenkins • Mean duration • last N",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -2603,7 +2603,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -2698,7 +2698,7 @@
           "description": "",
           "id": 22,
           "links": [],
-          "title": "Jenkins • Самая долгая текущая сборка / деплой",
+          "title": "Jenkins • Longest running build / deployment",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -2708,7 +2708,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -2808,7 +2808,7 @@
               "transformations": []
             }
           },
-          "description": "SUCCESS / (SUCCESS + FAILURE; Jenkins также UNSTABLE, Octopus также TimedOut), среди последних ≤100 завершённых результатов выбранного scope. Отмены и Jenkins NOT_BUILT исключены. Пустой знаменатель — Нет данных, не 100%. Диапазон Grafana не ограничивает REST-историю.",
+          "description": "SUCCESS / (SUCCESS + FAILURE; also UNSTABLE for Jenkins and TimedOut for Octopus), within the latest 100 or fewer completed results in the selected scope. Cancellations and Jenkins NOT_BUILT are excluded. An empty denominator means No data, not 100%. The Grafana time range does not filter REST history.",
           "id": 23,
           "links": [],
           "title": "Octopus • Success of the last N",
@@ -2824,7 +2824,7 @@
                   "decimals": 1,
                   "max": 100,
                   "min": 0,
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -2938,7 +2938,7 @@
               "transformations": []
             }
           },
-          "description": "Доступные подключённые и разрешённые агенты сервера / healthy включённые внешние workers выбранного Space. Это не число свободных либо совместимых исполнителей для выбранного pipeline/project. Built-in worker Octopus не входит.",
+          "description": "Connected, enabled and authorized server agents, or healthy enabled external workers in the selected Space. This is not the number of idle or compatible executors for the selected pipeline/project. The Octopus built-in worker is not included.",
           "id": 24,
           "links": [],
           "title": "Octopus • Available agents / workers",
@@ -2951,7 +2951,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -3051,7 +3051,7 @@
               "transformations": []
             }
           },
-          "description": "Текущее количество ожидающих задач выбранного scope. Лимит TeamCity/Octopus 1000; неполная выборка даёт ошибку. Jenkins queue фильтруется по task.fullName.",
+          "description": "Current number of queued tasks in the selected scope. TeamCity/Octopus limit: 1000; an incomplete response produces an error. The Jenkins queue is filtered by task.fullName.",
           "id": 25,
           "links": [],
           "title": "Octopus • Queue",
@@ -3064,7 +3064,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -3168,7 +3168,7 @@
               "transformations": []
             }
           },
-          "description": "Средняя длительность последних ≤100 завершённых результатов, включая отменённые при наличии start/finish. Это длительность выполнения, без ожидания в очереди. Результаты без времени исключены.",
+          "description": "Mean duration of the latest 100 or fewer completed results, including cancellations with known start/finish times. Execution time only; queue wait time is excluded. Results without timestamps are excluded.",
           "id": 26,
           "links": [],
           "title": "Octopus • Average duration • last N",
@@ -3181,7 +3181,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -3294,7 +3294,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -3769,12 +3769,12 @@
               "transformations": []
             }
           },
-          "description": "Снимок KPI выбранного scope. Деградация: очередь >10, ошибки за 10 минут среди последних 100 результатов, текущее выполнение >30 мин (TeamCity/Jenkins) или >60 мин (Octopus), неожиданный offline агента/worker; для TeamCity/Jenkins также <1 доступного агента. Агенты глобальные, не свободные/совместимые с pipeline. Для Octopus нулевой внешний worker допустим: может использоваться встроенный. API/права/таймаут/неполный инвентарь дают Нет данных, а не подтверждённый outage. Отсутствие запусков не подтверждает возможность выполнить pipeline. История REST не зависит от выбранного диапазона Grafana.",
+          "description": "KPI snapshot for the selected scope. Degraded if queue >10, failures within the last 10 minutes among the latest 100 results, a running execution >30 min (TeamCity/Jenkins) or >60 min (Octopus), or an unexpectedly offline agent/worker; TeamCity/Jenkins also require at least one available agent. Agents are server-wide, not necessarily idle or compatible with the pipeline. Zero external Octopus workers is allowed because a built-in worker may be used. API errors, permission errors, timeouts or incomplete inventories mean No data, not a confirmed outage. No runs does not prove that a pipeline can execute. The Grafana time range does not filter REST history.",
           "id": 3,
           "links": [
             {
               "targetBlank": false,
-              "title": "Детали TeamCity на этом dashboard",
+              "title": "TeamCity details on this dashboard",
               "url": "/d/${__dashboard.uid}?viewPanel=36&${__all_variables}&${__url_time_range}"
             }
           ],
@@ -3793,21 +3793,21 @@
                       "options": {
                         "0": {
                           "color": "red",
-                          "text": "НЕДОСТУПЕН"
+                          "text": "UNAVAILABLE"
                         },
                         "1": {
                           "color": "orange",
-                          "text": "ДЕГРАДАЦИЯ"
+                          "text": "DEGRADED"
                         },
                         "2": {
                           "color": "green",
-                          "text": "KPI В НОРМЕ"
+                          "text": "KPI NORMAL"
                         }
                       },
                       "type": "value"
                     }
                   ],
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -3911,10 +3911,10 @@
               "transformations": []
             }
           },
-          "description": "SUCCESS / (SUCCESS + FAILURE; Jenkins также UNSTABLE, Octopus также TimedOut), среди последних ≤100 завершённых результатов выбранного scope. Отмены и Jenkins NOT_BUILT исключены. Пустой знаменатель — Нет данных, не 100%. Диапазон Grafana не ограничивает REST-историю.",
+          "description": "SUCCESS / (SUCCESS + FAILURE; also UNSTABLE for Jenkins and TimedOut for Octopus), within the latest 100 or fewer completed results in the selected scope. Cancellations and Jenkins NOT_BUILT are excluded. An empty denominator means No data, not 100%. The Grafana time range does not filter REST history.",
           "id": 30,
           "links": [],
-          "title": "Успешность • последние N",
+          "title": "Success rate • last N",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -3926,7 +3926,7 @@
                   },
                   "max": 100,
                   "min": 0,
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -4025,7 +4025,7 @@
           "description": "",
           "id": 31,
           "links": [],
-          "title": "Завершённые SUCCESS/FAILURE в выборке",
+          "title": "Completed SUCCESS/FAILURE in sample",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -4035,7 +4035,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -4131,10 +4131,10 @@
               "transformations": []
             }
           },
-          "description": "Доступные подключённые и разрешённые агенты сервера / healthy включённые внешние workers выбранного Space. Это не число свободных либо совместимых исполнителей для выбранного pipeline/project. Built-in worker Octopus не входит.",
+          "description": "Connected, enabled and authorized server agents, or healthy enabled external workers in the selected Space. This is not the number of idle or compatible executors for the selected pipeline/project. The Octopus built-in worker is not included.",
           "id": 32,
           "links": [],
-          "title": "Доступные агенты / workers",
+          "title": "Available agents / workers",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -4144,7 +4144,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -4243,7 +4243,7 @@
           "description": "",
           "id": 33,
           "links": [],
-          "title": "Неожиданно недоступные агенты / workers",
+          "title": "Unexpectedly unavailable agents / workers",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -4253,7 +4253,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -4349,10 +4349,10 @@
               "transformations": []
             }
           },
-          "description": "Текущее количество ожидающих задач выбранного scope. Лимит TeamCity/Octopus 1000; неполная выборка даёт ошибку. Jenkins queue фильтруется по task.fullName.",
+          "description": "Current number of queued tasks in the selected scope. TeamCity/Octopus limit: 1000; an incomplete response produces an error. The Jenkins queue is filtered by task.fullName.",
           "id": 34,
           "links": [],
-          "title": "Очередь",
+          "title": "Queue",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -4362,7 +4362,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -4461,7 +4461,7 @@
           "description": "",
           "id": 35,
           "links": [],
-          "title": "Самое долгое текущее выполнение",
+          "title": "Longest current execution",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -4471,7 +4471,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -4592,10 +4592,10 @@
               "transformations": []
             }
           },
-          "description": "Последние ≤100 завершённых результатов выбранного scope, All — общая выборка. Часовой пояс: ${__timezone}; переключение через «Применить пояс». История REST не ограничивается диапазоном Grafana.",
+          "description": "Latest 100 or fewer completed results in the selected scope; All shows the combined sample. Time zone: ${__timezone}; switch using Apply time zone. The Grafana time range does not filter REST history.",
           "id": 36,
           "links": [],
-          "title": "TeamCity • последние 100 завершённых результатов",
+          "title": "TeamCity • Last 100 completed results",
           "vizConfig": {
             "group": "table",
             "kind": "VizConfig",
@@ -4615,7 +4615,7 @@
                     },
                     "inspect": false
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -4699,7 +4699,7 @@
                         "value": [
                           {
                             "targetBlank": true,
-                            "title": "Открыть результат",
+                            "title": "Open result",
                             "url": "${__value.raw}"
                           }
                         ]
@@ -4843,10 +4843,10 @@
               "transformations": []
             }
           },
-          "description": "Нет выполняющихся задач — пустая таблица, а не ошибка.",
+          "description": "An empty table means no tasks are running; it is not an error.",
           "id": 37,
           "links": [],
-          "title": "Текущие выполнения",
+          "title": "Current executions",
           "vizConfig": {
             "group": "table",
             "kind": "VizConfig",
@@ -4866,7 +4866,7 @@
                     },
                     "inspect": false
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -4962,7 +4962,7 @@
           "description": "",
           "id": 38,
           "links": [],
-          "title": "Агенты / workers • инвентарь",
+          "title": "Agents / workers • inventory",
           "vizConfig": {
             "group": "table",
             "kind": "VizConfig",
@@ -4982,7 +4982,7 @@
                     },
                     "inspect": false
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -5420,12 +5420,12 @@
               "transformations": []
             }
           },
-          "description": "Снимок KPI выбранного scope. Деградация: очередь >10, ошибки за 10 минут среди последних 100 результатов, текущее выполнение >30 мин (TeamCity/Jenkins) или >60 мин (Octopus), неожиданный offline агента/worker; для TeamCity/Jenkins также <1 доступного агента. Агенты глобальные, не свободные/совместимые с pipeline. Для Octopus нулевой внешний worker допустим: может использоваться встроенный. API/права/таймаут/неполный инвентарь дают Нет данных, а не подтверждённый outage. Отсутствие запусков не подтверждает возможность выполнить pipeline. История REST не зависит от выбранного диапазона Grafana.",
+          "description": "KPI snapshot for the selected scope. Degraded if queue >10, failures within the last 10 minutes among the latest 100 results, a running execution >30 min (TeamCity/Jenkins) or >60 min (Octopus), or an unexpectedly offline agent/worker; TeamCity/Jenkins also require at least one available agent. Agents are server-wide, not necessarily idle or compatible with the pipeline. Zero external Octopus workers is allowed because a built-in worker may be used. API errors, permission errors, timeouts or incomplete inventories mean No data, not a confirmed outage. No runs does not prove that a pipeline can execute. The Grafana time range does not filter REST history.",
           "id": 4,
           "links": [
             {
               "targetBlank": false,
-              "title": "Детали Jenkins на этом dashboard",
+              "title": "Jenkins details on this dashboard",
               "url": "/d/${__dashboard.uid}?viewPanel=46&${__all_variables}&${__url_time_range}"
             }
           ],
@@ -5444,21 +5444,21 @@
                       "options": {
                         "0": {
                           "color": "red",
-                          "text": "НЕДОСТУПЕН"
+                          "text": "UNAVAILABLE"
                         },
                         "1": {
                           "color": "orange",
-                          "text": "ДЕГРАДАЦИЯ"
+                          "text": "DEGRADED"
                         },
                         "2": {
                           "color": "green",
-                          "text": "KPI В НОРМЕ"
+                          "text": "KPI NORMAL"
                         }
                       },
                       "type": "value"
                     }
                   ],
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -5558,10 +5558,10 @@
               "transformations": []
             }
           },
-          "description": "SUCCESS / (SUCCESS + FAILURE; Jenkins также UNSTABLE, Octopus также TimedOut), среди последних ≤100 завершённых результатов выбранного scope. Отмены и Jenkins NOT_BUILT исключены. Пустой знаменатель — Нет данных, не 100%. Диапазон Grafana не ограничивает REST-историю.",
+          "description": "SUCCESS / (SUCCESS + FAILURE; also UNSTABLE for Jenkins and TimedOut for Octopus), within the latest 100 or fewer completed results in the selected scope. Cancellations and Jenkins NOT_BUILT are excluded. An empty denominator means No data, not 100%. The Grafana time range does not filter REST history.",
           "id": 40,
           "links": [],
-          "title": "Успешность • последние N",
+          "title": "Success rate • last N",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -5573,7 +5573,7 @@
                   },
                   "max": 100,
                   "min": 0,
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -5668,7 +5668,7 @@
           "description": "",
           "id": 41,
           "links": [],
-          "title": "Завершённые SUCCESS/FAILURE в выборке",
+          "title": "Completed SUCCESS/FAILURE in sample",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -5678,7 +5678,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -5770,10 +5770,10 @@
               "transformations": []
             }
           },
-          "description": "Доступные подключённые и разрешённые агенты сервера / healthy включённые внешние workers выбранного Space. Это не число свободных либо совместимых исполнителей для выбранного pipeline/project. Built-in worker Octopus не входит.",
+          "description": "Connected, enabled and authorized server agents, or healthy enabled external workers in the selected Space. This is not the number of idle or compatible executors for the selected pipeline/project. The Octopus built-in worker is not included.",
           "id": 42,
           "links": [],
-          "title": "Доступные агенты / workers",
+          "title": "Available agents / workers",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -5783,7 +5783,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -5878,7 +5878,7 @@
           "description": "",
           "id": 43,
           "links": [],
-          "title": "Неожиданно недоступные агенты / workers",
+          "title": "Unexpectedly unavailable agents / workers",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -5888,7 +5888,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -5980,10 +5980,10 @@
               "transformations": []
             }
           },
-          "description": "Текущее количество ожидающих задач выбранного scope. Лимит TeamCity/Octopus 1000; неполная выборка даёт ошибку. Jenkins queue фильтруется по task.fullName.",
+          "description": "Current number of queued tasks in the selected scope. TeamCity/Octopus limit: 1000; an incomplete response produces an error. The Jenkins queue is filtered by task.fullName.",
           "id": 44,
           "links": [],
-          "title": "Очередь",
+          "title": "Queue",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -5993,7 +5993,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -6088,7 +6088,7 @@
           "description": "",
           "id": 45,
           "links": [],
-          "title": "Самое долгое текущее выполнение",
+          "title": "Longest current execution",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -6098,7 +6098,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -6215,10 +6215,10 @@
               "transformations": []
             }
           },
-          "description": "Последние ≤100 завершённых результатов выбранного scope, All — общая выборка. Часовой пояс: ${__timezone}; переключение через «Применить пояс». История REST не ограничивается диапазоном Grafana.",
+          "description": "Latest 100 or fewer completed results in the selected scope; All shows the combined sample. Time zone: ${__timezone}; switch using Apply time zone. The Grafana time range does not filter REST history.",
           "id": 46,
           "links": [],
-          "title": "Jenkins • последние 100 завершённых результатов",
+          "title": "Jenkins • Last 100 completed results",
           "vizConfig": {
             "group": "table",
             "kind": "VizConfig",
@@ -6238,7 +6238,7 @@
                     },
                     "inspect": false
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -6322,7 +6322,7 @@
                         "value": [
                           {
                             "targetBlank": true,
-                            "title": "Открыть результат",
+                            "title": "Open result",
                             "url": "${__value.raw}"
                           }
                         ]
@@ -6462,10 +6462,10 @@
               "transformations": []
             }
           },
-          "description": "Нет выполняющихся задач — пустая таблица, а не ошибка.",
+          "description": "An empty table means no tasks are running; it is not an error.",
           "id": 47,
           "links": [],
-          "title": "Текущие выполнения",
+          "title": "Current executions",
           "vizConfig": {
             "group": "table",
             "kind": "VizConfig",
@@ -6485,7 +6485,7 @@
                     },
                     "inspect": false
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -6582,7 +6582,7 @@
           "description": "",
           "id": 48,
           "links": [],
-          "title": "Агенты / workers • инвентарь",
+          "title": "Agents / workers • inventory",
           "vizConfig": {
             "group": "table",
             "kind": "VizConfig",
@@ -6602,7 +6602,7 @@
                     },
                     "inspect": false
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -7082,12 +7082,12 @@
               "transformations": []
             }
           },
-          "description": "Снимок KPI выбранного scope. Деградация: очередь >10, ошибки за 10 минут среди последних 100 результатов, текущее выполнение >30 мин (TeamCity/Jenkins) или >60 мин (Octopus), неожиданный offline агента/worker; для TeamCity/Jenkins также <1 доступного агента. Агенты глобальные, не свободные/совместимые с pipeline. Для Octopus нулевой внешний worker допустим: может использоваться встроенный. API/права/таймаут/неполный инвентарь дают Нет данных, а не подтверждённый outage. Отсутствие запусков не подтверждает возможность выполнить pipeline. История REST не зависит от выбранного диапазона Grafana.",
+          "description": "KPI snapshot for the selected scope. Degraded if queue >10, failures within the last 10 minutes among the latest 100 results, a running execution >30 min (TeamCity/Jenkins) or >60 min (Octopus), or an unexpectedly offline agent/worker; TeamCity/Jenkins also require at least one available agent. Agents are server-wide, not necessarily idle or compatible with the pipeline. Zero external Octopus workers is allowed because a built-in worker may be used. API errors, permission errors, timeouts or incomplete inventories mean No data, not a confirmed outage. No runs does not prove that a pipeline can execute. The Grafana time range does not filter REST history.",
           "id": 5,
           "links": [
             {
               "targetBlank": false,
-              "title": "Детали Octopus на этом dashboard",
+              "title": "Octopus details on this dashboard",
               "url": "/d/${__dashboard.uid}?viewPanel=65&${__all_variables}&${__url_time_range}"
             }
           ],
@@ -7117,13 +7117,13 @@
                         "2": {
                           "color": "green",
                           "index": 2,
-                          "text": "KPI В НОРМЕ"
+                          "text": "KPI NORMAL"
                         }
                       },
                       "type": "value"
                     }
                   ],
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -7231,7 +7231,7 @@
               "transformations": []
             }
           },
-          "description": "SUCCESS / (SUCCESS + FAILURE; Jenkins также UNSTABLE, Octopus также TimedOut), среди последних ≤100 завершённых результатов выбранного scope. Отмены и Jenkins NOT_BUILT исключены. Пустой знаменатель — Нет данных, не 100%. Диапазон Grafana не ограничивает REST-историю.",
+          "description": "SUCCESS / (SUCCESS + FAILURE; also UNSTABLE for Jenkins and TimedOut for Octopus), within the latest 100 or fewer completed results in the selected scope. Cancellations and Jenkins NOT_BUILT are excluded. An empty denominator means No data, not 100%. The Grafana time range does not filter REST history.",
           "id": 50,
           "links": [],
           "title": "Successful • last N",
@@ -7246,7 +7246,7 @@
                   },
                   "max": 100,
                   "min": 0,
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -7359,7 +7359,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -7454,7 +7454,7 @@
               "transformations": []
             }
           },
-          "description": "Доступные подключённые и разрешённые агенты сервера / healthy включённые внешние workers выбранного Space. Это не число свободных либо совместимых исполнителей для выбранного pipeline/project. Built-in worker Octopus не входит.",
+          "description": "Connected, enabled and authorized server agents, or healthy enabled external workers in the selected Space. This is not the number of idle or compatible executors for the selected pipeline/project. The Octopus built-in worker is not included.",
           "id": 52,
           "links": [],
           "title": "Available agents / workers",
@@ -7467,7 +7467,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -7575,7 +7575,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -7675,7 +7675,7 @@
               "transformations": []
             }
           },
-          "description": "Текущее количество ожидающих задач выбранного scope. Лимит TeamCity/Octopus 1000; неполная выборка даёт ошибку. Jenkins queue фильтруется по task.fullName.",
+          "description": "Current number of queued tasks in the selected scope. TeamCity/Octopus limit: 1000; an incomplete response produces an error. The Jenkins queue is filtered by task.fullName.",
           "id": 54,
           "links": [],
           "title": "Queue",
@@ -7688,7 +7688,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -7801,7 +7801,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -7934,7 +7934,7 @@
                     },
                     "inspect": false
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -8049,7 +8049,7 @@
                     },
                     "inspect": false
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -8136,7 +8136,7 @@
               "transformations": []
             }
           },
-          "description": "Deployment targets только выбранного Octopus Space. Project не ограничивает эту таблицу: допустимые цели зависят от environments/roles/tenants, которые здесь не выбираются. Disabled targets не означают аварийное состояние.",
+          "description": "Deployment targets in the selected Octopus Space only. The project filter does not restrict this table: eligible targets depend on environments, roles and tenants, which are not selected here. Disabled targets do not indicate an incident.",
           "id": 59,
           "links": [],
           "title": "Deployment targets • separate from workers",
@@ -8159,7 +8159,7 @@
                     },
                     "inspect": false
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -8242,10 +8242,10 @@
               "transformations": []
             }
           },
-          "description": "Ошибки с finish в последние 10 минут среди полученных последних 100 результатов. При высокой нагрузке счётчик может быть неполным. Ноль не доказывает отсутствие ошибок вне выборки; это не журнал событий и не alert rule.",
+          "description": "Failures that finished in the last 10 minutes, within the latest 100 results retrieved. This count may be incomplete under high load. Zero does not rule out failures outside the sample. This is neither an event log nor an alert rule.",
           "id": 6,
           "links": [],
-          "title": "TeamCity • Ошибки за 10 мин • выборка ≤100",
+          "title": "TeamCity • Failures in 10 min • sample ≤100",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -8255,7 +8255,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -8368,7 +8368,7 @@
                       "type": "value"
                     }
                   ],
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -8487,7 +8487,7 @@
                       "mode": "off"
                     }
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -8603,7 +8603,7 @@
                       "mode": "off"
                     }
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -8672,10 +8672,10 @@
               "transformations": []
             }
           },
-          "description": "Каждая точка — increase счётчика за окно длиной выбранного диапазона, заканчивающееся в этой точке. Это скользящий график, не количество рестартов отдельно за каждый шаг.",
+          "description": "Each point shows the counter increase over a window equal to the selected time range, ending at that point. This is a rolling window, not a restart count for each individual step.",
           "id": 64,
           "links": [],
-          "title": "Рестарты • скользящее окно $__range",
+          "title": "Restarts • rolling window $__range",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -8719,7 +8719,7 @@
                       "mode": "off"
                     }
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -8847,7 +8847,7 @@
               "transformations": []
             }
           },
-          "description": "Последние ≤100 завершённых результатов выбранного scope, All — общая выборка. Часовой пояс: ${__timezone}; переключение через «Применить пояс». История REST не ограничивается диапазоном Grafana.",
+          "description": "Latest 100 or fewer completed results in the selected scope; All shows the combined sample. Time zone: ${__timezone}; switch using Apply time zone. The Grafana time range does not filter REST history.",
           "id": 65,
           "links": [],
           "title": "Octopus • last 100 completed results in project",
@@ -8870,7 +8870,7 @@
                     },
                     "inspect": false
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -8954,7 +8954,7 @@
                         "value": [
                           {
                             "targetBlank": true,
-                            "title": "Открыть результат",
+                            "title": "Open result",
                             "url": "${__value.raw}"
                           }
                         ]
@@ -9091,7 +9091,7 @@
           "description": "",
           "id": 7,
           "links": [],
-          "title": "TeamCity • Недоступные агенты / workers",
+          "title": "TeamCity • Unavailable agents / workers",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -9101,7 +9101,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -9197,10 +9197,10 @@
               "transformations": []
             }
           },
-          "description": "Ошибки с finish в последние 10 минут среди полученных последних 100 результатов. При высокой нагрузке счётчик может быть неполным. Ноль не доказывает отсутствие ошибок вне выборки; это не журнал событий и не alert rule.",
+          "description": "Failures that finished in the last 10 minutes, within the latest 100 results retrieved. This count may be incomplete under high load. Zero does not rule out failures outside the sample. This is neither an event log nor an alert rule.",
           "id": 8,
           "links": [],
-          "title": "Jenkins • Ошибки за 10 мин • выборка ≤100",
+          "title": "Jenkins • Failures in 10 min • sample ≤100",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -9210,7 +9210,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -9309,7 +9309,7 @@
           "description": "",
           "id": 9,
           "links": [],
-          "title": "Jenkins • Недоступные агенты / workers",
+          "title": "Jenkins • Unavailable agents / workers",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -9319,7 +9319,7 @@
                   "color": {
                     "mode": "thresholds"
                   },
-                  "noValue": "Нет данных",
+                  "noValue": "No data",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -9714,7 +9714,7 @@
                   ]
                 }
               },
-              "title": "KPI • последние результаты и текущая загрузка"
+              "title": "KPI • latest results and current workload"
             }
           },
           {
@@ -9780,7 +9780,7 @@
                   ]
                 }
               },
-              "title": "Поды • существующий Prometheus"
+              "title": "Pods • existing Prometheus"
             }
           },
           {
@@ -9911,7 +9911,7 @@
                   ]
                 }
               },
-              "title": "TeamCity • детали"
+              "title": "TeamCity • details"
             }
           },
           {
@@ -10042,7 +10042,7 @@
                   ]
                 }
               },
-              "title": "Jenkins • детали"
+              "title": "Jenkins • details"
             }
           },
           {
@@ -10186,7 +10186,7 @@
                   ]
                 }
               },
-              "title": "Octopus • детали"
+              "title": "Octopus • details"
             }
           }
         ]
@@ -10194,13 +10194,13 @@
     },
     "links": [
       {
-        "title": "Применить пояс: ${display_timezone:text}",
+        "title": "Apply time zone: ${display_timezone:text}",
         "type": "link",
         "url": "/d/${__dashboard.uid}?from=${__from}&to=${__to}&timezone=${display_timezone:percentencode}",
         "targetBlank": true,
         "includeVars": true,
         "keepTime": false,
-        "tooltip": "Открыть дашборд в новой вкладке с выбранным часовым поясом. Фильтры и диапазон времени сохраняются."
+        "tooltip": "Open this dashboard in a new tab with the selected time zone. Filters and the time range are preserved."
       },
       {
         "asDropdown": false,
@@ -10209,7 +10209,7 @@
         "keepTime": true,
         "tags": [],
         "targetBlank": false,
-        "title": "TeamCity • детали",
+        "title": "TeamCity • details",
         "tooltip": "",
         "type": "link",
         "url": "/d/${__dashboard.uid}?viewPanel=36"
@@ -10221,7 +10221,7 @@
         "keepTime": true,
         "tags": [],
         "targetBlank": false,
-        "title": "Jenkins • детали",
+        "title": "Jenkins • details",
         "tooltip": "",
         "type": "link",
         "url": "/d/${__dashboard.uid}?viewPanel=46"
@@ -10233,7 +10233,7 @@
         "keepTime": true,
         "tags": [],
         "targetBlank": false,
-        "title": "Octopus • детали",
+        "title": "Octopus • details",
         "tooltip": "",
         "type": "link",
         "url": "/d/${__dashboard.uid}?viewPanel=65"
@@ -10271,25 +10271,25 @@
         "kind": "CustomVariable",
         "spec": {
           "name": "display_timezone",
-          "label": "Часовой пояс",
+          "label": "Time zone",
           "hide": "dontHide",
           "skipUrlSync": false,
           "multi": false,
           "includeAll": false,
           "allowCustomValue": false,
-          "query": "Москва : Europe/Moscow, Майами : America/New_York",
+          "query": "Moscow : Europe/Moscow, Miami : America/New_York",
           "current": {
-            "text": "Москва",
+            "text": "Moscow",
             "value": "Europe/Moscow"
           },
           "options": [
             {
-              "text": "Москва",
+              "text": "Moscow",
               "value": "Europe/Moscow",
               "selected": true
             },
             {
-              "text": "Майами",
+              "text": "Miami",
               "value": "America/New_York",
               "selected": false
             }

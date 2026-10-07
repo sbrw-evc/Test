@@ -1,6 +1,11 @@
 CI/CD HEALTH — НАСТРОЙКА INFINITY БЕЗ ДОСТУПА К KUBERNETES
 =========================================================
 
+Интерфейс dashboard переведён на английский: названия панелей, секций,
+статусы, подсказки и dropdown Time zone (Moscow / Miami).
+Названия проектов/jobs/build configurations отображаются как получены из API.
+Инструкция ниже сохранена на русском; запросы и бизнес-логика не изменены.
+
 В комплекте ровно два файла:
   dashboards/cicd-health.json — один большой dashboard;
   infinity-sources.txt — эта инструкция и точный список запросов.
@@ -59,26 +64,26 @@ GET-запросы Octopus, используемые dashboard и dropdown varia
        name = Deploy
        states = Success,Failed,Canceled,TimedOut
        take = 100
-     Используется: Octopus • Ошибки за 10 мин • выборка ≤100; Сводное состояние CI/CD; Octopus • Success of the last N; Octopus • Average duration • last N; Octopus; Successful • last N; Completed (SUCCESS/FAILURE) in the sample; Octopus • last 100 completed results in project
+     Используется: Octopus • Failures in 10 min • sample ≤100; CI/CD health overview; Octopus • Success of the last N; Octopus • Average duration • last N; Octopus; Successful • last N; Completed (SUCCESS/FAILURE) in the sample; Octopus • last 100 completed results in project
 
   2) GET http://octopus.admortgage.com/api/${octopus_space}/workers
      Query parameters (Infinity URL options → Params):
        take = 1000
-     Используется: Octopus • Unavailable agents / workers; Сводное состояние CI/CD; Octopus • Available agents / workers; Octopus; Available agents / workers; Unexpectedly unavailable agents/workers; Agents / workers • inventory
+     Используется: Octopus • Unavailable agents / workers; CI/CD health overview; Octopus • Available agents / workers; Octopus; Available agents / workers; Unexpectedly unavailable agents/workers; Agents / workers • inventory
 
   3) GET http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})
      Query parameters (Infinity URL options → Params):
        name = Deploy
        states = New,Queued
        take = 1000
-     Используется: Сводное состояние CI/CD; Octopus • Queue; Octopus; Queue
+     Используется: CI/CD health overview; Octopus • Queue; Octopus; Queue
 
   4) GET http://octopus.admortgage.com/api/${octopus_space}/tasks$__combineValues(?project=,,__comma,${octopus_project:csv})
      Query parameters (Infinity URL options → Params):
        name = Deploy
        states = Executing,Cancelling
        take = 1000
-     Используется: Сводное состояние CI/CD; Octopus • Longest-running build/deployment; Octopus; Longest current execution; Current executions
+     Используется: CI/CD health overview; Octopus • Longest-running build/deployment; Octopus; Longest current execution; Current executions
 
   5) GET http://octopus.admortgage.com/api/${octopus_space}/machines
      Query parameters (Infinity URL options → Params):
@@ -120,25 +125,25 @@ GET-запросы TeamCity, используемые dashboard и dropdown vari
      Query parameters (Infinity URL options → Params):
        locator = $__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})defaultFilter:false,personal:false,state:finished,branch:default:any,count:100
        fields = nextHref,build(id,buildTypeId,number,status,state,startDate,finishDate,webUrl,canceledInfo,agent(id))
-     Используется: TeamCity • Успешность последних N; TeamCity • Средняя длительность • последние N; Сводное состояние CI/CD; TeamCity; Успешность • последние N; Завершённые SUCCESS/FAILURE в выборке; TeamCity • последние 100 завершённых результатов; TeamCity • Ошибки за 10 мин • выборка ≤100
+     Используется: TeamCity • Success rate • last N; TeamCity • Mean duration • last N; CI/CD health overview; TeamCity; Success rate • last N; Completed SUCCESS/FAILURE in sample; TeamCity • Last 100 completed results; TeamCity • Failures in 10 min • sample ≤100
 
   2) GET /app/rest/agents
      Query parameters (Infinity URL options → Params):
        locator = defaultFilter:false,count:1000
        fields = nextHref,agent(id,name,connected,enabled,authorized)
-     Используется: TeamCity • Доступные агенты / workers; Сводное состояние CI/CD; TeamCity; Доступные агенты / workers; Неожиданно недоступные агенты / workers; Агенты / workers • инвентарь; TeamCity • Недоступные агенты / workers
+     Используется: TeamCity • Available agents / workers; CI/CD health overview; TeamCity; Available agents / workers; Unexpectedly unavailable agents / workers; Agents / workers • inventory; TeamCity • Unavailable agents / workers
 
   3) GET /app/rest/buildQueue
      Query parameters (Infinity URL options → Params):
        locator = $__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})count:1000
        fields = nextHref,build(id,buildTypeId)
-     Используется: TeamCity • Очередь; Сводное состояние CI/CD; TeamCity; Очередь
+     Используется: TeamCity • Queue; CI/CD health overview; TeamCity; Queue
 
   4) GET /app/rest/builds
      Query parameters (Infinity URL options → Params):
        locator = $__combineValues(buildType:__openid:,__close__comma,__comma,${teamcity_pipeline:csv})defaultFilter:false,personal:false,state:running,branch:default:any,count:1000
        fields = nextHref,build(id,buildTypeId,number,status,state,startDate,finishDate,webUrl,canceledInfo,agent(id))
-     Используется: TeamCity • Самая долгая текущая сборка / деплой; Сводное состояние CI/CD; TeamCity; Самое долгое текущее выполнение; Текущие выполнения
+     Используется: TeamCity • Longest running build / deployment; CI/CD health overview; TeamCity; Longest current execution; Current executions
 
   5) GET /app/rest/buildTypes
      Query parameters (Infinity URL options → Params):
@@ -171,17 +176,17 @@ GET-запросы Jenkins, используемые dashboard и dropdown varia
   1) GET /$__combineValues(,/,,${jenkins_pipeline:csv})api/json
      Query parameters (Infinity URL options → Params):
        tree = fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[name,_class]]]]]]
-     Используется: Jenkins • Успешность последних N; Сводное состояние CI/CD; Jenkins • Средняя длительность • последние N; Jenkins • Самая долгая текущая сборка / деплой; Jenkins; Успешность • последние N; Завершённые SUCCESS/FAILURE в выборке; Самое долгое текущее выполнение; Jenkins • последние 100 завершённых результатов; Текущие выполнения; Jenkins • Ошибки за 10 мин • выборка ≤100
+     Используется: Jenkins • Success rate • last N; CI/CD health overview; Jenkins • Mean duration • last N; Jenkins • Longest running build / deployment; Jenkins; Success rate • last N; Completed SUCCESS/FAILURE in sample; Longest current execution; Jenkins • Last 100 completed results; Current executions; Jenkins • Failures in 10 min • sample ≤100
 
   2) GET /computer/api/json
      Query parameters (Infinity URL options → Params):
        tree = computer[displayName,offline,temporarilyOffline,numExecutors,idle]
-     Используется: Jenkins • Доступные агенты / workers; Сводное состояние CI/CD; Jenkins; Доступные агенты / workers; Неожиданно недоступные агенты / workers; Агенты / workers • инвентарь; Jenkins • Недоступные агенты / workers
+     Используется: Jenkins • Available agents / workers; CI/CD health overview; Jenkins; Available agents / workers; Unexpectedly unavailable agents / workers; Agents / workers • inventory; Jenkins • Unavailable agents / workers
 
   3) GET /queue/api/json
      Query parameters (Infinity URL options → Params):
        tree = items[id,task[fullName]]
-     Используется: Сводное состояние CI/CD; Jenkins • Очередь; Jenkins; Очередь
+     Используется: CI/CD health overview; Jenkins • Queue; Jenkins; Queue
 
   4) GET /api/json
      Query parameters (Infinity URL options → Params):
@@ -234,7 +239,7 @@ cicd-operational-health с подтверждением overwrite. Предыд�
 
 6. СМЫСЛ HEALTH И ОГРАНИЧЕНИЯ
 ----------------------------
-KPI В НОРМЕ: API данные успешно прочитаны, queue <=10, нет неожиданно offline,
+KPI NORMAL: API данные успешно прочитаны, queue <=10, нет неожиданно offline,
 доступных агентов >=1 для TeamCity/Jenkins, нет failure за последние 600 sec среди последних 100 результатов,
 текущие builds <=1800 sec, Deploy tasks <=3600 sec.
 ДЕГРАДАЦИЯ: API отвечает, но нарушен один из этих KPI.
@@ -397,7 +402,7 @@ Query URL:
   /$__combineValues(,/,,${jenkins_pipeline:csv})api/json
 Выбор job: /job/team/job/frontend/api/json; All: /api/json.
 Parser нормализует ответ job или controller к одному формату; старый JQ-фильтр
-истории удалён. Очередь /queue/api/json читается целиком и фильтруется по job;
+истории удалён. Queue /queue/api/json читается целиком и фильтруется по job;
 неизвестные task без fullName не включаются в выбранный job, но входят в All.
 Агенты и executors сохраняют общий охват. Чтение folders для All — 4 уровня.
 Проверены 81 выполнение JQ: выбранный job/All/пустая история, вложенные folders,
@@ -406,8 +411,8 @@ Parser нормализует ответ job или controller к одному �
 
 12. ВЫБОР ЧАСОВОГО ПОЯСА
 ------------------------
-Variable display_timezone: Москва = Europe/Moscow, Майами = America/New_York.
-Выберите значение и нажмите «Применить пояс: <выбранный город>».
+Variable display_timezone: Moscow = Europe/Moscow, Miami = America/New_York.
+Выберите значение и нажмите «Apply time zone: <выбранный город>».
 Дашборд открывается в новой вкладке; проверяйте таблицы именно в новой вкладке.
 Ссылка содержит полный путь /d/${__dashboard.uid} и native параметр timezone,
 закодированный через percentencode. Grafana добавляет свой префикс /grafana.
@@ -429,7 +434,7 @@ UTC-смещение рядом с временем позволяет пров�
 длительность и KPI не меняются от выбора timezone.
 
 Проверка после overwrite импорта JSON:
-1. Выберите Майами; надпись кнопки должна быть «Применить пояс: Майами».
+1. Выберите Майами; надпись кнопки должна быть «Apply time zone: Miami».
 2. Нажмите её и перейдите в новую вкладку.
 3. В URL должен быть единственный timezone=America%2FNew_York
    (декодированное значение America/New_York).
@@ -454,7 +459,7 @@ https://github.com/grafana/scenes/blob/main/packages/scenes/src/core/SceneTimeRa
 ---------------------------------
 Сводное состояние агрегирует независимые TeamCity/Jenkins/Octopus scopes.
 Выбор конфигурации TeamCity не связывает её с Jenkins job или проектом Octopus.
-KPI В НОРМЕ — результат проверок текущих KPI, а не end-to-end проверка релиза.
+KPI NORMAL — результат проверок текущих KPI, а не end-to-end проверка релиза.
 На сервере без запусков такая проверка не доказывает возможность запуска pipeline.
 TeamCity filter — build configuration ID, Jenkins — leaf job, Octopus — project.
 Кастомный ввод Infinity IDs отключён: выбираются значения существующих каталогов.
