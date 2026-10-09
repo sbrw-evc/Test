@@ -1,0 +1,10 @@
+# /etc/cron.d/akvorado-dns-enricher
+# Обогащение DstAddr в Akvorado именами сервисов каждые 30 минут.
+# Параллельные запуски исключены блокировкой внутри скрипта.
+SHELL=/bin/sh
+CH_URL=http://127.0.0.1:8123
+CH_USER=default
+CH_PASSWORD=
+# DNS_SERVERS=77.88.8.8,1.1.1.1
+
+*/30 * * * * root /opt/akvorado/dns-enricher/venv/bin/python /opt/akvorado/dns-enricher/akvorado_dns_enricher.py >> /var/log/akvorado-dns-enricher.log 2>&1

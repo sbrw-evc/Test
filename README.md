@@ -23,6 +23,7 @@ TeamCity native `/app/metrics` + Jenkins Prometheus Plugin + Prometheus Blackbox
 | `kubernetes/` | ServiceMonitor, Probe и PrometheusRule для кластера |
 | `scripts/` | Генерация конфигураций из `monitoring-config.yml` |
 | `tests/` | Проверка JSONata-преобразований |
+| `akvorado/` | Скрипт обогащения DstAddr в Akvorado DNS-именами и IP сервисов ([инструкция](akvorado/README.md)) |
 
 `cicd-health/prometheus-recording-rules.yml` и `kubernetes/recording-rules.yml` генерируются из одной модели: первый нужен для проверки через `promtool`, второй — для применения через Prometheus Operator. В кластере применять только Kubernetes PrometheusRule.
 
