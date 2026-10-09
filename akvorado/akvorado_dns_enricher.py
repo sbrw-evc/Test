@@ -28,6 +28,7 @@ import logging
 import os
 import re
 import ssl
+import subprocess
 import sys
 import tempfile
 import time
@@ -43,7 +44,7 @@ from cryptography.x509.oid import NameOID
 
 log = logging.getLogger("dns-enricher")
 
-NAME_COL, IPS_COL = "dnsname", "dnsallips"
+DEFAULT_NAME_COL, DEFAULT_IPS_COL = "dnsname", "dnsallips"
 
 UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/128.0 Safari/537.36")
@@ -382,12 +383,18 @@ class ClickHouse:
         headers = {"X-ClickHouse-User": self.args.ch_user}
         if self.args.ch_password:
             headers["X-ClickHouse-Key"] = self.args.ch_password
-        async with self.s.post(self.args.ch_url, params={"database": self.args.ch_database},
-                               data=sql.encode(), headers=headers) as r:
-            text = await r.text()
-            if r.status != 200:
-                raise RuntimeError(f"ClickHouse HTTP {r.status}: {text[:500]}")
-            return text
+        try:
+            async with self.s.post(self.args.ch_url, params={"database": self.args.ch_database},
+                                   data=sql.encode(), headers=headers) as r:
+                text = await r.text()
+        except aiohttp.ClientConnectorError as e:
+            raise RuntimeError(
+                f"нет соединения с ClickHouse {self.args.ch_url}: {e.os_error}. "
+                f"Если ClickHouse в Docker без опубликованного порта — "
+                f"запустите с --ch-container akvorado-clickhouse-1") from None
+        if r.status != 200:
+            raise RuntimeError(f"ClickHouse HTTP {r.status}: {text[:500]}")
+        return text
 
 
 # ------------------------------------------------------------ state/CSV ----
@@ -403,26 +410,109 @@ def load_state(path: str) -> dict:
         return {}
 
 
-def read_csv(path: str, key_col: str):
-    """Возвращает (header, key_column, rows)."""
-    default = [key_col, NAME_COL, IPS_COL]
+def read_csv(path: str) -> tuple[list[str], list[list[str]]]:
+    """Возвращает (header, rows) существующего CSV."""
     try:
         with open(path, newline="", encoding="utf-8") as f:
             rows = list(csv.reader(f))
     except FileNotFoundError:
-        return default, key_col, []
+        return [], []
     if not rows:
-        return default, key_col, []
-    header = [c.strip() for c in rows[0]]
-    if NAME_COL in header and IPS_COL in header:
-        keys = [c for c in header if c not in (NAME_COL, IPS_COL)]
-        if keys:
-            return header, keys[0], rows[1:]
-        log.warning("в %s нет ключевой колонки (IP) — добавляю '%s'. "
-                    "Она же должна быть в keys словаря в akvorado.yaml", path, key_col)
-        return default, key_col, []
-    log.warning("неожиданный заголовок %s: %s — использую %s", path, header, default)
-    return default, key_col, []
+        return [], []
+    return [c.strip() for c in rows[0]], rows[1:]
+
+
+def _norm(s: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", s.lower())
+
+
+def _is_ips_col(c: str) -> bool:
+    n = _norm(c)
+    return "ips" in n or "allip" in n
+
+
+def _is_name_col(c: str) -> bool:
+    n = _norm(c)
+    return not _is_ips_col(c) and (n.endswith("name") or n in ("dns", "host", "fqdn"))
+
+
+def _pick(cols: list[str], explicit: str, test, what: str) -> str | None:
+    if explicit:
+        if cols and explicit not in cols:
+            raise SystemExit(f"колонки {what} '{explicit}' нет среди {cols}")
+        return explicit
+    return next((c for c in cols if test(c)), None)
+
+
+async def dict_structure(ch: "ClickHouse", args) -> tuple[list[str], list[str]]:
+    """Ключи и атрибуты словаря из system.dictionaries."""
+    sql = (f"SELECT key.names AS k, attribute.names AS a FROM system.dictionaries "
+           f"WHERE database = '{args.ch_database}' AND name = '{args.dict_name}' "
+           f"FORMAT JSONEachRow")
+    try:
+        text = (await ch.query(sql)).strip()
+    except Exception as e:
+        log.warning("не удалось прочитать структуру словаря: %s", e)
+        return [], []
+    if not text:
+        log.warning("словарь %s.%s не найден в system.dictionaries",
+                    args.ch_database, args.dict_name)
+        return [], []
+    row = json.loads(text.splitlines()[0])
+    return list(row.get("k") or []), list(row.get("a") or [])
+
+
+def resolve_layout(keys: list[str], attrs: list[str], csv_header: list[str], args):
+    """Определяет заголовок CSV и колонки (key, name, ips).
+
+    Приоритет: структура словаря в ClickHouse -> заголовок существующего CSV
+    -> значения по умолчанию."""
+    if keys:
+        header = keys + [a for a in attrs if a not in keys]
+        name_col = _pick(attrs, args.name_column, _is_name_col, "имени")
+        ips_col = _pick(attrs, args.ips_column, _is_ips_col, "IP")
+        key_col = keys[0]
+        if len(keys) > 1:
+            log.warning("у словаря составной ключ %s — заполняется только %s", keys, key_col)
+        source = "словарь ClickHouse"
+    else:
+        header = list(csv_header)
+        name_col = _pick(header, args.name_column, _is_name_col, "имени") or DEFAULT_NAME_COL
+        ips_col = _pick(header, args.ips_column, _is_ips_col, "IP") or DEFAULT_IPS_COL
+        others = [c for c in header if c not in (name_col, ips_col)]
+        key_col = others[0] if others else args.key_column
+        if key_col not in header:
+            header.insert(0, key_col)
+            log.warning("в CSV нет ключевой колонки с IP — добавляю '%s'; "
+                        "она должна быть в keys словаря в akvorado.yaml", key_col)
+        for c in (name_col, ips_col):
+            if c not in header:
+                header.append(c)
+        source = "заголовок CSV" if csv_header else "значения по умолчанию"
+    if not name_col or not ips_col:
+        raise SystemExit(
+            f"не нашёл колонки имени/IP среди атрибутов {attrs}; "
+            f"укажите --name-column и --ips-column")
+    log.info("структура (%s): ключ=%s, имя=%s, IP=%s; заголовок CSV: %s",
+             source, key_col, name_col, ips_col, ",".join(header))
+    return header, key_col, name_col, ips_col
+
+
+def container_ch_url(container: str, port: int) -> str:
+    """http://<IP контейнера>:<port> — ClickHouse Akvorado не публикует 8123 на хост."""
+    try:
+        out = subprocess.run(
+            ["docker", "inspect", "-f",
+             "{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}", container],
+            capture_output=True, text=True, timeout=15)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        raise SystemExit(f"docker inspect {container}: {e}")
+    if out.returncode != 0:
+        raise SystemExit(f"docker inspect {container}: {out.stderr.strip()}")
+    ips = out.stdout.split()
+    if not ips:
+        raise SystemExit(f"у контейнера {container} нет IP (не запущен?)")
+    return f"http://{ips[0]}:{port}"
 
 
 # ------------------------------------------------------------------ main ----
@@ -461,22 +551,33 @@ async def amain(args):
         if not SQL_IDENT.match(ident):
             raise SystemExit(f"недопустимый идентификатор: {ident}")
 
-    now = time.time()
-    header, key_col, csv_rows = read_csv(args.csv, args.key_column)
-    state = load_state(args.state)
+    if args.ch_container:
+        args.ch_url = container_ch_url(args.ch_container, args.ch_port)
+    log.info("ClickHouse: %s", args.ch_url)
 
-    if not state and csv_rows:
-        # первый запуск: подхватываем то, что уже лежит в CSV
-        ki, ni, ii = header.index(key_col), header.index(NAME_COL), header.index(IPS_COL)
-        for r in csv_rows:
-            if len(r) > max(ki, ni, ii) and r[ki]:
-                state[r[ki]] = {"name": r[ni],
-                                "ips": [x.strip() for x in r[ii].split(args.ips_sep.strip() or ",") if x.strip()],
-                                "ts": 0, "seen": now}
-        log.info("импортировано из CSV: %d записей", len(state))
+    now = time.time()
+    state = load_state(args.state)
+    csv_header, csv_rows = read_csv(args.csv)
 
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=300)) as s:
         ch = ClickHouse(s, args)
+        keys, attrs = await dict_structure(ch, args)
+        header, key_col, name_col, ips_col = resolve_layout(keys, attrs, csv_header, args)
+
+        if not state and csv_rows:
+            # первый запуск: подхватываем то, что уже лежит в CSV
+            if all(c in csv_header for c in (key_col, name_col, ips_col)):
+                ki, ni, ii = (csv_header.index(c) for c in (key_col, name_col, ips_col))
+                sep = args.ips_sep.strip() or ","
+                for r in csv_rows:
+                    if len(r) > max(ki, ni, ii) and r[ki]:
+                        state[r[ki]] = {"name": r[ni], "ts": 0, "seen": now,
+                                        "ips": [x.strip() for x in r[ii].split(sep) if x.strip()]}
+                log.info("импортировано из CSV: %d записей", len(state))
+            else:
+                log.warning("формат существующего CSV (%s) не совпадает со словарём — "
+                            "файл будет перезаписан", ",".join(csv_header))
+
         sql = f"""
             SELECT toString(DstAddr) AS ip, sum(Bytes) AS bytes
             FROM {args.ch_database}.{args.flows_table}
@@ -528,7 +629,7 @@ async def amain(args):
             w = csv.writer(f, lineterminator="\n")
             w.writerow(header)
             for k, e in rows:
-                vals = {key_col: k, NAME_COL: e["name"], IPS_COL: args.ips_sep.join(e["ips"])}
+                vals = {key_col: k, name_col: e["name"], ips_col: args.ips_sep.join(e["ips"])}
                 w.writerow([vals.get(c, "") for c in header])
 
         atomic_write(args.csv, write_csv, 0o644, inplace=args.inplace)
@@ -546,6 +647,10 @@ def parse_args():
     p = argparse.ArgumentParser(description="Akvorado DstAddr -> DNS-имя сервиса и все его IP")
     g = p.add_argument_group("ClickHouse")
     g.add_argument("--ch-url", default=env("CH_URL", "http://127.0.0.1:8123"))
+    g.add_argument("--ch-container", default=env("CH_CONTAINER", ""),
+                   help="имя контейнера ClickHouse (например akvorado-clickhouse-1): "
+                        "его IP берётся через docker inspect, --ch-url игнорируется")
+    g.add_argument("--ch-port", type=int, default=int(env("CH_PORT", "8123")))
     g.add_argument("--ch-user", default=env("CH_USER", "default"))
     g.add_argument("--ch-password", default=env("CH_PASSWORD", ""))
     g.add_argument("--ch-database", default=env("CH_DATABASE", "default"))
@@ -559,7 +664,12 @@ def parse_args():
     g.add_argument("--state", default="/opt/akvorado/config/.dns_ip_dns.state.json")
     g.add_argument("--lock", default="/tmp/akvorado-dns-enricher.lock")
     g.add_argument("--key-column", default="addr",
-                   help="имя ключевой колонки, если её нет в существующем CSV")
+                   help="имя ключевой колонки, если структуру словаря не удалось прочитать "
+                        "и её нет в существующем CSV")
+    g.add_argument("--name-column", default="",
+                   help="колонка имени (по умолчанию определяется автоматически: dns_name, dnsname…)")
+    g.add_argument("--ips-column", default="",
+                   help="колонка IP (по умолчанию определяется автоматически: dns_all_ips, dnsallips…)")
     g.add_argument("--ips-sep", default=",", help="разделитель IP в dnsallips")
     g.add_argument("--ipv4-mapped", action=argparse.BooleanOptionalAction, default=True,
                    help="писать IPv4-ключи как ::ffff:a.b.c.d (как DstAddr в Akvorado)")
@@ -611,6 +721,9 @@ def main():
         asyncio.run(amain(args))
     except SystemExit:
         raise
+    except RuntimeError as e:
+        log.error("%s", e)
+        sys.exit(1)
     except Exception:
         log.exception("ошибка выполнения")
         sys.exit(1)

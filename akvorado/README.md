@@ -4,9 +4,11 @@
 
 | Колонка словаря | Содержимое |
 |---|---|
-| ключ (`addr`) | `DstAddr`, IPv4 в виде `::ffff:a.b.c.d` — как он хранится в Akvorado |
-| `dnsname` | имя сервиса/сайта, определённое по IP |
-| `dnsallips` | все IP сервиса через запятую, включая хосты, которые подтягивает его страница |
+| ключ (например `addr`) | `DstAddr`, IPv4 в виде `::ffff:a.b.c.d` — как он хранится в Akvorado |
+| имя (`dns_name` / `dnsname`) | имя сервиса/сайта, определённое по IP |
+| IP (`dns_all_ips` / `dnsallips`) | все IP сервиса через запятую, включая хосты, которые подтягивает его страница |
+
+Имена колонок скрипт берёт из самого словаря (`system.dictionaries`), поэтому они могут быть любыми.
 
 Рассчитан на Akvorado 2.4.0 в Docker; на живой инсталляции ещё не запускался. Файл-источник: `/opt/akvorado/config/dns_ip_dns.csv` на хосте, `/etc/akvorado/dns_ip_dns.csv` в контейнере.
 
@@ -53,14 +55,20 @@ python3 -m venv venv
 
 ### Доступ к ClickHouse
 
-В docker-compose Akvorado HTTP-порт ClickHouse (8123) по умолчанию не публикуется на хост. Варианты:
+В docker-compose Akvorado HTTP-порт ClickHouse (8123) не публикуется на хост, поэтому `http://localhost:8123` даёт `Connection refused`. Варианты:
 
-- опубликовать порт в `docker-compose` (`127.0.0.1:8123:8123`) и использовать `--ch-url http://127.0.0.1:8123`;
-- указать IP контейнера: `docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' <clickhouse-контейнер>`.
+- **рекомендуется:** `--ch-container akvorado-clickhouse-1` (или `CH_CONTAINER=…`). Скрипт сам получает IP контейнера через `docker inspect` при каждом запуске, так что смена IP после перезапуска не мешает. Нужен доступ к Docker (запуск от root);
+- опубликовать порт в `docker-compose` (`127.0.0.1:8123:8123`) и оставить `--ch-url http://127.0.0.1:8123`.
+
+Если ClickHouse отвечает ошибкой аутентификации, укажите `CH_USER`/`CH_PASSWORD` пользователя, под которым к нему подключается Akvorado.
 
 ### Формат CSV и словаря
 
-Словарю нужна ключевая колонка с IP, помимо `dnsname` и `dnsallips`. Скрипт читает заголовок существующего CSV и сохраняет его порядок. Если ключевой колонки нет, он пишет заголовок `addr,dnsname,dnsallips` (имя меняется через `--key-column`). Ключ в CSV должен совпадать с `keys` словаря в `akvorado.yaml`.
+Заголовок CSV строится по структуре словаря из `system.dictionaries`: сначала ключи, затем атрибуты. Колонка имени — атрибут, оканчивающийся на `name` (`dns_name`, `dnsname`); колонка IP — атрибут, содержащий `ips` (`dns_all_ips`, `dnsallips`). При неоднозначности их задают `--name-column` и `--ips-column`.
+
+Если словарь прочитать не удалось, используется заголовок существующего CSV; когда в нём нет ключевой колонки, добавляется `addr` (`--key-column`).
+
+Словарю обязательно нужна ключевая колонка с IP: CSV только с `dns_name,dns_all_ips` не к чему привязать. Ключ должен быть в `keys` словаря в `akvorado.yaml`. Если старый CSV не совпадает со словарём, скрипт предупреждает и перезаписывает его.
 
 Ориентировочный пример конфигурации (сверьте имена полей с документацией вашей версии Akvorado):
 
@@ -88,10 +96,10 @@ schema:
 
 ```bash
 cd /opt/akvorado/dns-enricher
-CH_URL=http://127.0.0.1:8123 ./venv/bin/python akvorado_dns_enricher.py --dry-run -v --limit 50
+./venv/bin/python akvorado_dns_enricher.py --ch-container akvorado-clickhouse-1 --dry-run -v --limit 50
 ```
 
-`--dry-run` ничего не записывает и выводит первые 30 найденных строк. Затем выполните обычный запуск и проверьте словарь:
+В начале лога выводится определённая структура: `ключ=…, имя=…, IP=…` и итоговый заголовок CSV. `--dry-run` ничего не записывает и выводит первые 30 найденных строк. Затем выполните обычный запуск и проверьте словарь:
 
 ```sql
 SELECT status, element_count, last_exception
@@ -108,12 +116,14 @@ cp akvorado-dns-enricher.cron /etc/cron.d/akvorado-dns-enricher
 chmod 644 /etc/cron.d/akvorado-dns-enricher
 ```
 
-Пароль ClickHouse указывается в переменной `CH_PASSWORD` в этом файле. Реальный пароль в репозиторий не коммитить. Лог: `/var/log/akvorado-dns-enricher.log`. Если предыдущий запуск ещё работает, новый сразу завершается.
+Контейнер ClickHouse и пароль задаются переменными `CH_CONTAINER` и `CH_PASSWORD` в этом файле. Реальный пароль в репозиторий не коммитить. Лог: `/var/log/akvorado-dns-enricher.log`. Если предыдущий запуск ещё работает, новый сразу завершается.
 
 ## Параметры
 
 | Параметр | По умолчанию | Описание |
 |---|---|---|
+| `--ch-container` / `CH_CONTAINER` | пусто | контейнер ClickHouse; IP берётся через `docker inspect`, `--ch-url` игнорируется |
+| `--ch-port` / `CH_PORT` | `8123` | HTTP-порт ClickHouse в контейнере |
 | `--ch-url` / `CH_URL` | `http://127.0.0.1:8123` | HTTP-интерфейс ClickHouse |
 | `--ch-user` / `CH_USER` | `default` | пользователь |
 | `--ch-password` / `CH_PASSWORD` | пусто | пароль |
@@ -124,7 +134,9 @@ chmod 644 /etc/cron.d/akvorado-dns-enricher
 | `--limit` | `5000` | сколько DstAddr брать (топ по байтам) |
 | `--csv` | `/opt/akvorado/config/dns_ip_dns.csv` | файл-источник словаря |
 | `--state` | `/opt/akvorado/config/.dns_ip_dns.state.json` | состояние между запусками |
-| `--key-column` | `addr` | имя ключа, если его нет в CSV |
+| `--key-column` | `addr` | имя ключа, если словарь не прочитан и ключа нет в CSV |
+| `--name-column` | авто | колонка имени сервиса |
+| `--ips-column` | авто | колонка списка IP |
 | `--ips-sep` | `,` | разделитель в `dnsallips` |
 | `--ipv4-mapped` / `--no-ipv4-mapped` | вкл. | формат IPv4-ключа |
 | `--inplace` | выкл. | писать CSV на месте, без `rename` |
