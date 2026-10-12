@@ -23,7 +23,7 @@
 | Проблемные pipeline | Group by workflow; failures, mean/max duration, sample size, success/failure alternations. «Похоже на flaky» — только эвристика, не доказательство тестовой нестабильности |
 | Очередь | Количество задач, возраст старейшей и уникальные причины. TeamCity waitReason/queuedDate, Jenkins why/inQueueSince, Octopus queue timestamps/preconditions |
 | Загрузка агентов | TC build assigned / enabled online agents; Jenkins idle=false agents / online agents. Busy Octopus workers не выводится из HealthStatus: доступный API не даёт гарантированную worker allocation; на панели явная пометка |
-| Server warnings | TC /app/rest/health с global:true/minSeverity:warn; Jenkins offlineCauseReason; Octopus Tentacle target HealthStatus/StatusSummary |
+| Server warnings | TC /app/rest/health: global:true и project:(affectedProject:_Root), minSeverity:warn; Jenkins offlineCauseReason; Octopus Tentacle target HealthStatus/StatusSummary |
 | Аннотации | Restart events по увеличению counter в 5m windows и Prod deployment completion timestamps. Restart marker — windowed observation, а не точная секунда рестарта |
 
 Для Octopus tasks не гарантированы ProjectId/release/actor. Hidden QueryVariable считывает последние 1000 deployments и связывает metadata по TaskId; отдельный projects lookup добавляет имя к ProjectId. Actor берётся из DeployedBy; LastModifiedBy не считается инициатором. ReleaseVersion берётся при наличии, иначе показывается ReleaseId. Lookup bounded: если TaskId не попал в lookup, поле отмечается как недоступное; неподтверждённые ProjectId исключаются из ranking/матрицы. В зависимости от вашей версии API могут понадобиться project release lookup или увеличение inventory limit для точного Version.

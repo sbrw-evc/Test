@@ -81,7 +81,7 @@ for ref in ('D','E'):
 q=P['sources']['jenkins']['B']['query'];next(x for x in q['spec']['url_options']['params'] if x['key']=='tree')['value']='items[id,inQueueSince,why,task[fullName,url]]'
 # Normalize tables from original canonical queries, with extra columns.
 N=copy.deepcopy(P['normalize'])
-N['teamcity']=N['teamcity'].replace('url:.webUrl}', 'url:.webUrl,branch:.branchName,trigger:(.triggered.user.name//.triggered.type),agent:(.agent.name//(.agent.id|tostring))}')
+N['teamcity']=N['teamcity'].replace('url:.webUrl}', 'url:.webUrl,branch:.branchName,trigger:(.triggered.user.name//.triggered.type),agent:(.agent.name//(if .agent.id==null then null else (.agent.id|tostring) end))}')
 N['jenkins']=N['jenkins'].replace('url:.url}', 'url:.url,branch:([.actions[]?.parameters[]?|select(.name=="BRANCH_NAME" or .name=="GIT_BRANCH" or .name=="BRANCH")|.value][0]),trigger:([.actions[]?.causes[]?|(.userName//.shortDescription)][0]),agent:.builtOn}')
 N['octopus']=N['octopus'].replace('workflow:(.ProjectId // .Name)','workflow:(.ProjectId // .Arguments.ProjectId // (if "${octopus_project:raw}"=="*" then "MISSING_PROJECT" else "${octopus_project:raw}" end))').replace('url:((.Links.Web', 'branch:(.ReleaseVersion//.Arguments.ReleaseVersion//.Description),trigger:(.Arguments.DeployedBy//.Arguments.DeployedById//null),agent:(.ServerNodeId//null),url:((.Links.Web')
 # Task resources do not reliably contain project/release/actor. Reuse one
@@ -202,7 +202,8 @@ for system in ('teamcity','jenkins','octopus'):
     if system=='teamcity':
         root='complete_inventory("agent")[] | {name:.name,online:.connected,enabled:.enabled,authorized:.authorized,busy:(.build!=null),reason:(.disconnectionComment//"")}'
         warn=extra(system,'/app/rest/health','arr("healthItem")[] | {severity:.severity,identity:.identity,message:(.healthCategory.description//.healthCategory.name)}',{'locator':'global:true,minSeverity:warn','fields':'healthItem(identity,severity,healthCategory(name,description))'},[col('severity','Severity'),col('identity','ID'),col('message','Предупреждение')])
-        members.append((panel('TeamCity — server health warnings',[('A',warn,False)],desc='Требуются права Server Health. Отдельный API error не превращается в отсутствие предупреждений.'),24,7))
+        project_warn=copy.deepcopy(warn);param(project_warn,'locator','project:(affectedProject:_Root),minSeverity:warn')
+        members.append((panel('TeamCity — server health warnings',[('A',warn,False),('B',project_warn,False)],desc='Global и project warnings, включая VCS. Нужны права Server Health; API error не означает отсутствие проблем.',transforms=[{'kind':'merge','spec':{'id':'merge','options':{}}}]),24,7))
     elif system=='jenkins':root='arr("computer") | map(select(.numExecutors>0))[] | {name:.displayName,online:(.offline|not),enabled:(.temporarilyOffline|not),reason:(.offlineCauseReason//""),idle:.idle,executors:.numExecutors}'
     else:root='complete_inventory("Items")[] | {name:.Name,health:.HealthStatus,enabled:(.IsDisabled|not),pools:(.WorkerPoolIds|join(","))}'
     members.append((panel(LABEL[system]+' — агенты'+(' / workers' if system=='octopus' else ''),[('A',source(system,'C',root,True,[]),False)],desc='Инвентарь, состояние и причины из API.'),24,8))
