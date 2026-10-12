@@ -7634,12 +7634,12 @@
                           "method": "GET",
                           "params": [
                             {
-                              "key": "locator",
-                              "value": "project:(affectedProject:_Root),minSeverity:warn"
-                            },
-                            {
                               "key": "fields",
                               "value": "healthItem(identity,severity,healthCategory(name,description))"
+                            },
+                            {
+                              "key": "locator",
+                              "value": "project:(affectedProject:_Root),minSeverity:warn"
                             }
                           ]
                         },
