@@ -1,68 +1,120 @@
 apiVersion: 1
 deleteRules:
 - orgId: 1
-  uid: cicd-server-down
+  uid: oss-service-down
 - orgId: 1
-  uid: cicd-data-stale
+  uid: oss-observation-missing
 - orgId: 1
-  uid: cicd-build-failed
+  uid: oss-tc-failed
 - orgId: 1
-  uid: cicd-deploy-failed
+  uid: oss-jenkins-failed
 - orgId: 1
-  uid: cicd-agent-down
+  uid: oss-deploy-failed
 - orgId: 1
-  uid: cicd-agents-low
+  uid: oss-octopus-api
 - orgId: 1
-  uid: cicd-capacity
+  uid: oss-tc-agent
 - orgId: 1
-  uid: cicd-queue-size
+  uid: oss-jenkins-agent
 - orgId: 1
-  uid: cicd-queue-age
+  uid: oss-jenkins-node-missing
 - orgId: 1
-  uid: cicd-long-build
+  uid: oss-teamcity-agents-low
 - orgId: 1
-  uid: cicd-slow-http
+  uid: oss-jenkins-agents-low
 - orgId: 1
-  uid: cicd-native-scrape
+  uid: oss-teamcity-queue
 - orgId: 1
-  uid: cicd-rules-missing
+  uid: oss-jenkins-queue
+- orgId: 1
+  uid: oss-octopus-queue
+- orgId: 1
+  uid: oss-tc-long
+- orgId: 1
+  uid: oss-jenkins-long
+- orgId: 1
+  uid: oss-http-slow
+- orgId: 1
+  uid: oss-rules-missing
 groups:
 - orgId: 1
-  name: CI-CD Native REST
+  name: CI-CD Reviewed
   folder: CI-CD Operations
   interval: 60s
   rules:
-  - uid: oss-service-down
-    title: CI/CD · Server HTTP or scrape unavailable
+  - uid: review-teamcity-failures-sample
+    title: CI/CD · teamcity failures-sample
     condition: B
-    for: 2m
+    for: 0s
+    isPaused: false
     noDataState: Alerting
     execErrState: Alerting
-    isPaused: false
     labels:
       domain: cicd
-      severity: critical
-      env: prod
-      team: platform
+      severity: warning
     annotations:
-      summary: HTTP/readiness or authenticated native scrape failed.
-      __dashboardUid__: cicd-health
-      __panelId__: '5'
+      summary: teamcity failures-sample
+      __dashboardUid__: cicd-operational-health
     data:
     - refId: A
-      datasourceUid: cicd-prometheus
+      datasourceUid: bg0eecplputxce
       relativeTimeRange:
         from: 600
         to: 0
       model:
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+        format: timeseries
+        parser: jq-backend
+        source: url
+        type: json
+        url: /app/rest/builds
+        url_options:
+          method: GET
+          params:
+          - key: locator
+            value: defaultFilter:false,personal:false,state:finished,branch:default:any,count:100
+          - key: fields
+            value: nextHref,build(id,buildTypeId,number,status,state,startDate,finishDate,webUrl,canceledInfo,agent(id))
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  (capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") // error(\"Invalid timestamp\"\
+          )) |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\"\
+          :\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600\
+          \ + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then\
+          \ 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\n\
+          def complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults\
+          \ // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\"\
+          ) else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n\
+          [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if\
+          \ .state==\"running\" then \"RUNNING\" elif .canceledInfo != null then \"\
+          CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if\
+          \ .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch)\
+          \ else null end),url:.webUrl}] | point([.[] | select((.status==\"FAILURE\"\
+          \ or .status==\"UNSTABLE\")) | select(.finish!=null and .finish>=(now-600)\
+          \ and .finish<=now)]|length)"
         refId: A
-        expr: ci:observed_down{env="prod"}
-        instant: true
-        range: false
-        format: time_series
         datasource:
-          type: prometheus
-          uid: cicd-prometheus
+          uid: bg0eecplputxce
+          type: yesoreyeram-infinity-datasource
+    - refId: R
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: R
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -71,343 +123,1252 @@ groups:
       model:
         refId: B
         type: math
-        expression: $A > 0
+        expression: $R>0
+  - uid: review-teamcity-queue
+    title: CI/CD · teamcity queue
+    condition: B
+    for: 10m
+    isPaused: false
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      domain: cicd
+      severity: warning
+    annotations:
+      summary: teamcity queue
+      __dashboardUid__: cicd-operational-health
+    data:
+    - refId: A
+      datasourceUid: bg0eecplputxce
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+        format: timeseries
+        parser: jq-backend
+        source: url
+        type: json
+        url: /app/rest/buildQueue
+        url_options:
+          method: GET
+          params:
+          - key: locator
+            value: count:1000
+          - key: fields
+            value: nextHref,build(id,buildTypeId)
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  (capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") // error(\"Invalid timestamp\"\
+          )) |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\"\
+          :\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600\
+          \ + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then\
+          \ 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\n\
+          def complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults\
+          \ // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\"\
+          ) else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n\
+          complete_inventory(\"build\") | point(length)"
+        refId: A
         datasource:
-          type: __expr__
-          uid: __expr__
-        hide: false
-  - uid: oss-observation-missing
-    title: CI/CD · Missing observations
+          uid: bg0eecplputxce
+          type: yesoreyeram-infinity-datasource
+    - refId: R
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: R
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $R>10
+  - uid: review-teamcity-offline
+    title: CI/CD · teamcity offline
+    condition: B
+    for: 5m
+    isPaused: false
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      domain: cicd
+      severity: warning
+    annotations:
+      summary: teamcity offline
+      __dashboardUid__: cicd-operational-health
+    data:
+    - refId: A
+      datasourceUid: bg0eecplputxce
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+        format: timeseries
+        parser: jq-backend
+        source: url
+        type: json
+        url: /app/rest/agents
+        url_options:
+          method: GET
+          params:
+          - key: locator
+            value: defaultFilter:false,count:1000
+          - key: fields
+            value: nextHref,agent(id,name,connected,enabled,authorized)
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  (capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") // error(\"Invalid timestamp\"\
+          )) |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\"\
+          :\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600\
+          \ + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then\
+          \ 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\n\
+          def complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults\
+          \ // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\"\
+          ) else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n\
+          complete_inventory(\"agent\") | point([.[] | select(.connected==false and\
+          \ .enabled==true and .authorized==true)] | length)"
+        refId: A
+        datasource:
+          uid: bg0eecplputxce
+          type: yesoreyeram-infinity-datasource
+    - refId: R
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: R
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $R>0
+  - uid: review-teamcity-long
+    title: CI/CD · teamcity long
+    condition: B
+    for: 5m
+    isPaused: false
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      domain: cicd
+      severity: warning
+    annotations:
+      summary: teamcity long
+      __dashboardUid__: cicd-operational-health
+    data:
+    - refId: A
+      datasourceUid: bg0eecplputxce
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+        format: timeseries
+        parser: jq-backend
+        source: url
+        type: json
+        url: /app/rest/builds
+        url_options:
+          method: GET
+          params:
+          - key: locator
+            value: defaultFilter:false,personal:false,state:running,branch:default:any,count:1000
+          - key: fields
+            value: nextHref,build(id,buildTypeId,number,status,state,startDate,finishDate,webUrl,canceledInfo,agent(id))
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  (capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") // error(\"Invalid timestamp\"\
+          )) |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\"\
+          :\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600\
+          \ + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then\
+          \ 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\n\
+          def complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults\
+          \ // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\"\
+          ) else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n\
+          complete_inventory(\"build\") | {build:.} | [arr(\"build\")[] | {id:(.id|tostring),workflow:.buildTypeId,status:(if\
+          \ .state==\"running\" then \"RUNNING\" elif .canceledInfo != null then \"\
+          CANCELED\" else .status end),start:(.startDate|epoch),finish:(.finishDate|epoch),duration:(if\
+          \ .startDate!=null and .finishDate!=null then (.finishDate|epoch)-(.startDate|epoch)\
+          \ else null end),url:.webUrl}] | point(([.[] | .start | select(.!=null)\
+          \ | now-.] | max // 0))"
+        refId: A
+        datasource:
+          uid: bg0eecplputxce
+          type: yesoreyeram-infinity-datasource
+    - refId: R
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: R
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $R>1800
+  - uid: review-teamcity-capacity
+    title: CI/CD · teamcity available agents below minimum
+    condition: B
+    for: 5m
+    isPaused: false
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      domain: cicd
+      severity: warning
+    annotations:
+      summary: teamcity available agents below minimum
+      __dashboardUid__: cicd-operational-health
+    data:
+    - refId: A
+      datasourceUid: bg0eecplputxce
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+        format: timeseries
+        parser: jq-backend
+        source: url
+        type: json
+        url: /app/rest/agents
+        url_options:
+          method: GET
+          params:
+          - key: locator
+            value: defaultFilter:false,count:1000
+          - key: fields
+            value: nextHref,agent(id,name,connected,enabled,authorized)
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  (capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") // error(\"Invalid timestamp\"\
+          )) |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\"\
+          :\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600\
+          \ + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then\
+          \ 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\n\
+          def complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults\
+          \ // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\"\
+          ) else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n\
+          complete_inventory(\"agent\") | point([.[] | select(.connected==true and\
+          \ .enabled==true and .authorized==true)] | length)"
+        refId: A
+        datasource:
+          uid: bg0eecplputxce
+          type: yesoreyeram-infinity-datasource
+    - refId: R
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: R
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $R<1
+  - uid: review-jenkins-failures-sample
+    title: CI/CD · jenkins failures-sample
+    condition: B
+    for: 0s
+    isPaused: false
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      domain: cicd
+      severity: warning
+    annotations:
+      summary: jenkins failures-sample
+      __dashboardUid__: cicd-operational-health
+    data:
+    - refId: A
+      datasourceUid: cg0exosaa0c8wd
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+        filters: []
+        format: timeseries
+        global_query_id: ''
+        parser: jq-backend
+        source: url
+        type: json
+        url: http://jenkins.admortgage.com/api/json
+        url_options:
+          data: ''
+          method: GET
+          params:
+          - key: tree
+            value: fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[name,_class]]]]]]
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  (capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") // error(\"Invalid timestamp\"\
+          )) |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\"\
+          :\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600\
+          \ + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then\
+          \ 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\n\
+          def complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults\
+          \ // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\"\
+          ) else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n\
+          (if has(\"jobs\") then . elif has(\"fullName\") and has(\"builds\") then\
+          \ {jobs:[.]} else error(\"Expected Jenkins controller or leaf job response\"\
+          ) end) | arr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"\
+          fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"\
+          builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth\
+          \ exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if\
+          \ .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}]\
+          \ | map(select(.status != \"RUNNING\")) | sort_by(.finish) | reverse | .[:100]\
+          \ | point([.[] | select((.status==\"FAILURE\")) | select(.finish!=null and\
+          \ .finish>=(now-600) and .finish<=now)]|length)"
+        refId: A
+        datasource:
+          uid: cg0exosaa0c8wd
+          type: yesoreyeram-infinity-datasource
+    - refId: R
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: R
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $R>0
+  - uid: review-jenkins-queue
+    title: CI/CD · jenkins queue
+    condition: B
+    for: 10m
+    isPaused: false
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      domain: cicd
+      severity: warning
+    annotations:
+      summary: jenkins queue
+      __dashboardUid__: cicd-operational-health
+    data:
+    - refId: A
+      datasourceUid: cg0exosaa0c8wd
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+        filters: []
+        format: timeseries
+        global_query_id: ''
+        parser: jq-backend
+        source: url
+        type: json
+        url: http://jenkins.admortgage.com/queue/api/json
+        url_options:
+          data: ''
+          method: GET
+          params:
+          - key: tree
+            value: items[id,task[fullName]]
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  (capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") // error(\"Invalid timestamp\"\
+          )) |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\"\
+          :\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600\
+          \ + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then\
+          \ 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\n\
+          def complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults\
+          \ // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\"\
+          ) else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n\
+          arr(\"items\") | \"*\" as $jobPath | if $jobPath==\"*\" then . else map(select(.task.fullName\
+          \ != null) | select((\"job/\" + (.task.fullName | split(\"/\") | map(@uri)\
+          \ | join(\"/job/\"))) == $jobPath)) end | point(length)"
+        refId: A
+        datasource:
+          uid: cg0exosaa0c8wd
+          type: yesoreyeram-infinity-datasource
+    - refId: R
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: R
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $R>10
+  - uid: review-jenkins-offline
+    title: CI/CD · jenkins offline
+    condition: B
+    for: 5m
+    isPaused: false
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      domain: cicd
+      severity: warning
+    annotations:
+      summary: jenkins offline
+      __dashboardUid__: cicd-operational-health
+    data:
+    - refId: A
+      datasourceUid: cg0exosaa0c8wd
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+        filters: []
+        format: timeseries
+        global_query_id: ''
+        parser: jq-backend
+        source: url
+        type: json
+        url: http://jenkins.admortgage.com/computer/api/json
+        url_options:
+          data: ''
+          method: GET
+          params:
+          - key: tree
+            value: computer[displayName,offline,temporarilyOffline,numExecutors,idle]
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  (capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") // error(\"Invalid timestamp\"\
+          )) |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\"\
+          :\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600\
+          \ + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then\
+          \ 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\n\
+          def complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults\
+          \ // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\"\
+          ) else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n\
+          arr(\"computer\") | map(select(.numExecutors>0)) | point([.[] | select(.offline==true\
+          \ and .temporarilyOffline==false)] | length)"
+        refId: A
+        datasource:
+          uid: cg0exosaa0c8wd
+          type: yesoreyeram-infinity-datasource
+    - refId: R
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: R
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $R>0
+  - uid: review-jenkins-long
+    title: CI/CD · jenkins long
+    condition: B
+    for: 5m
+    isPaused: false
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      domain: cicd
+      severity: warning
+    annotations:
+      summary: jenkins long
+      __dashboardUid__: cicd-operational-health
+    data:
+    - refId: A
+      datasourceUid: cg0exosaa0c8wd
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+        filters: []
+        format: timeseries
+        global_query_id: ''
+        parser: jq-backend
+        source: url
+        type: json
+        url: http://jenkins.admortgage.com/api/json
+        url_options:
+          data: ''
+          method: GET
+          params:
+          - key: tree
+            value: fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[fullName,url,builds[number,result,building,timestamp,duration,url]{0,100},jobs[name,_class]]]]]]
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  (capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") // error(\"Invalid timestamp\"\
+          )) |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\"\
+          :\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600\
+          \ + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then\
+          \ 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\n\
+          def complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults\
+          \ // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\"\
+          ) else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n\
+          (if has(\"jobs\") then . elif has(\"fullName\") and has(\"builds\") then\
+          \ {jobs:[.]} else error(\"Expected Jenkins controller or leaf job response\"\
+          ) end) | arr(\"jobs\") | {jobs:.} | [. | recurse(.jobs[]?) | select(has(\"\
+          fullName\") or has(\"_class\")) | select(has(\"jobs\")|not) | if (has(\"\
+          builds\")|not) then error(\"Jenkins leaf data incomplete or folder depth\
+          \ exceeded\") else . end | . as $j | .builds[] | {id:(.number|tostring),workflow:$j.fullName,status:(if\
+          \ .building then \"RUNNING\" else .result end),start:(.timestamp/1000),finish:((.timestamp+.duration)/1000),duration:(.duration/1000),url:.url}]\
+          \ | map(select(.status == \"RUNNING\")) | point(([.[] | .start | select(.!=null)\
+          \ | now-.] | max // 0))"
+        refId: A
+        datasource:
+          uid: cg0exosaa0c8wd
+          type: yesoreyeram-infinity-datasource
+    - refId: R
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: R
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $R>1800
+  - uid: review-jenkins-capacity
+    title: CI/CD · jenkins available agents below minimum
+    condition: B
+    for: 5m
+    isPaused: false
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      domain: cicd
+      severity: warning
+    annotations:
+      summary: jenkins available agents below minimum
+      __dashboardUid__: cicd-operational-health
+    data:
+    - refId: A
+      datasourceUid: cg0exosaa0c8wd
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+        filters: []
+        format: timeseries
+        global_query_id: ''
+        parser: jq-backend
+        source: url
+        type: json
+        url: http://jenkins.admortgage.com/computer/api/json
+        url_options:
+          data: ''
+          method: GET
+          params:
+          - key: tree
+            value: computer[displayName,offline,temporarilyOffline,numExecutors,idle]
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  (capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") // error(\"Invalid timestamp\"\
+          )) |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\"\
+          :\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600\
+          \ + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then\
+          \ 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\n\
+          def complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults\
+          \ // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\"\
+          ) else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n\
+          arr(\"computer\") | map(select(.numExecutors>0)) | point([.[] | select(.offline==false\
+          \ and .temporarilyOffline==false)] | length)"
+        refId: A
+        datasource:
+          uid: cg0exosaa0c8wd
+          type: yesoreyeram-infinity-datasource
+    - refId: R
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: R
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $R<1
+  - uid: review-octopus-failures-sample
+    title: CI/CD · octopus failures-sample · Prod
+    condition: B
+    for: 0s
+    isPaused: true
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      domain: cicd
+      severity: critical
+    annotations:
+      summary: octopus failures-sample · Prod
+      __dashboardUid__: cicd-operational-health
+    data:
+    - refId: A
+      datasourceUid: dg0eoy5rozsowc
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+        filters: []
+        format: timeseries
+        global_query_id: ''
+        parser: jq-backend
+        source: url
+        type: json
+        url: http://octopus.admortgage.com/api/Spaces-1/tasks
+        url_options:
+          data: ''
+          method: GET
+          params:
+          - key: name
+            value: Deploy
+          - key: states
+            value: Success,Failed,Canceled,TimedOut
+          - key: take
+            value: '100'
+          - key: environment
+            value: __configure_prod__
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  (capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") // error(\"Invalid timestamp\"\
+          )) |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\"\
+          :\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600\
+          \ + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then\
+          \ 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\n\
+          def complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults\
+          \ // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\"\
+          ) else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n\
+          [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if\
+          \ .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch)\
+          \ else null end),url:((.Links.Web // (\"/app#/\" + (.SpaceId // \"Spaces-1\"\
+          ) + \"/tasks/\" + .Id)) | if test(\"^https?://\") then . else \"http://octopus.admortgage.com\"\
+          \ + (if startswith(\"/\") then . else \"/\" + . end) end)}] | point([.[]\
+          \ | select((.status==\"Failed\" or .status==\"TimedOut\")) | select(.finish!=null\
+          \ and .finish>=(now-600) and .finish<=now)]|length)"
+        refId: A
+        datasource:
+          uid: dg0eoy5rozsowc
+          type: yesoreyeram-infinity-datasource
+    - refId: R
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: R
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $R>0
+  - uid: review-octopus-queue
+    title: CI/CD · octopus queue · Prod
+    condition: B
+    for: 10m
+    isPaused: true
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      domain: cicd
+      severity: warning
+    annotations:
+      summary: octopus queue · Prod
+      __dashboardUid__: cicd-operational-health
+    data:
+    - refId: A
+      datasourceUid: dg0eoy5rozsowc
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+        filters: []
+        format: timeseries
+        global_query_id: ''
+        parser: jq-backend
+        source: url
+        type: json
+        url: http://octopus.admortgage.com/api/Spaces-1/tasks
+        url_options:
+          data: ''
+          method: GET
+          params:
+          - key: name
+            value: Deploy
+          - key: states
+            value: New,Queued
+          - key: take
+            value: '1000'
+          - key: environment
+            value: __configure_prod__
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  (capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") // error(\"Invalid timestamp\"\
+          )) |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\"\
+          :\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600\
+          \ + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then\
+          \ 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\n\
+          def complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults\
+          \ // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\"\
+          ) else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n\
+          complete_inventory(\"Items\") | point(length)"
+        refId: A
+        datasource:
+          uid: dg0eoy5rozsowc
+          type: yesoreyeram-infinity-datasource
+    - refId: R
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: R
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $R>10
+  - uid: review-octopus-offline
+    title: CI/CD · octopus offline · Space
+    condition: B
+    for: 5m
+    isPaused: true
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      domain: cicd
+      severity: warning
+    annotations:
+      summary: octopus offline · Space
+      __dashboardUid__: cicd-operational-health
+    data:
+    - refId: A
+      datasourceUid: dg0eoy5rozsowc
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+        filters: []
+        format: timeseries
+        global_query_id: ''
+        parser: jq-backend
+        source: url
+        type: json
+        url: http://octopus.admortgage.com/api/Spaces-1/workers
+        url_options:
+          data: ''
+          method: GET
+          params:
+          - key: take
+            value: '1000'
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  (capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") // error(\"Invalid timestamp\"\
+          )) |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\"\
+          :\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600\
+          \ + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then\
+          \ 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\n\
+          def complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults\
+          \ // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\"\
+          ) else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n\
+          complete_inventory(\"Items\") | point([.[] | select(.HealthStatus!=\"Healthy\"\
+          \ and .IsDisabled==false)] | length)"
+        refId: A
+        datasource:
+          uid: dg0eoy5rozsowc
+          type: yesoreyeram-infinity-datasource
+    - refId: R
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: R
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $R>0
+  - uid: review-octopus-long
+    title: CI/CD · octopus long · Prod
+    condition: B
+    for: 5m
+    isPaused: true
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      domain: cicd
+      severity: warning
+    annotations:
+      summary: octopus long · Prod
+      __dashboardUid__: cicd-operational-health
+    data:
+    - refId: A
+      datasourceUid: dg0eoy5rozsowc
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        columns:
+        - selector: time
+          text: Time
+          type: timestamp_epoch
+        - selector: value
+          text: Value
+          type: number
+        filters: []
+        format: timeseries
+        global_query_id: ''
+        parser: jq-backend
+        source: url
+        type: json
+        url: http://octopus.admortgage.com/api/Spaces-1/tasks
+        url_options:
+          data: ''
+          method: GET
+          params:
+          - key: name
+            value: Deploy
+          - key: states
+            value: Executing,Cancelling
+          - key: take
+            value: '1000'
+          - key: environment
+            value: __configure_prod__
+        root_selector: "\ndef arr(k): if (.[k]|type)==\"array\" then .[k] else error(\"\
+          Expected array: \" + k) end;\ndef epoch:\n  if . == null then null else\n\
+          \  (capture(\"^(?<y>[0-9]{4})-?(?<m>[0-9]{2})-?(?<d>[0-9]{2})T(?<h>[0-9]{2}):?(?<mi>[0-9]{2}):?(?<s>[0-9]{2})(?:\\\
+          \\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$\") // error(\"Invalid timestamp\"\
+          )) |\n  . as $t | (($t.y+\"-\"+$t.m+\"-\"+$t.d+\"T\"+$t.h+\":\"+$t.mi+\"\
+          :\"+$t.s+\"Z\") | fromdateiso8601) -\n  (if $t.z==\"Z\" then 0 else (($t.z[1:3]|tonumber)*3600\
+          \ + ($t.z|gsub(\":\";\"\")|.[3:5]|tonumber)*60) * (if $t.z[0:1]==\"+\" then\
+          \ 1 else -1 end) end)\n  end;\ndef point(v): {time:(now*1000|floor),value:v};\n\
+          def complete_inventory(k): if (.nextHref // \"\") != \"\" or ((.TotalResults\
+          \ // 0) > (.[k]|length)) then error(\"Inventory truncated: increase inventory_limit\"\
+          ) else arr(k) end;\ndef mean: if length==0 then null else add/length end;\n\
+          complete_inventory(\"Items\") | {Items:.} | [arr(\"Items\")[] | {id:.Id,workflow:(.ProjectId\
+          \ // .Name),status:.State,start:(.StartTime|epoch),finish:(.CompletedTime|epoch),duration:(if\
+          \ .StartTime!=null and .CompletedTime!=null then (.CompletedTime|epoch)-(.StartTime|epoch)\
+          \ else null end),url:((.Links.Web // (\"/app#/\" + (.SpaceId // \"Spaces-1\"\
+          ) + \"/tasks/\" + .Id)) | if test(\"^https?://\") then . else \"http://octopus.admortgage.com\"\
+          \ + (if startswith(\"/\") then . else \"/\" + . end) end)}] | point(([.[]\
+          \ | .start | select(.!=null) | now-.] | max // 0))"
+        refId: A
+        datasource:
+          uid: dg0eoy5rozsowc
+          type: yesoreyeram-infinity-datasource
+    - refId: R
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: R
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $R>3600
+  - uid: review-pvc-warning
+    title: CI/CD · PVC usage > 80%
+    condition: B
+    for: 10m
+    isPaused: false
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      domain: cicd
+      severity: warning
+    annotations:
+      summary: PVC usage > 80%
+      __dashboardUid__: cicd-operational-health
+    data:
+    - refId: A
+      datasourceUid: betj2t0d1n280a
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        expr: 100*max by(namespace,persistentvolumeclaim)(kubelet_volume_stats_used_bytes{namespace=~"cicd-mia-899|octopus-worker-mia-899"})/(max
+          by(namespace,persistentvolumeclaim)(kubelet_volume_stats_capacity_bytes{namespace=~"cicd-mia-899|octopus-worker-mia-899"})>0)
+        instant: true
+        range: false
+        format: time_series
+        refId: A
+        datasource:
+          uid: betj2t0d1n280a
+          type: prometheus
+    - refId: R
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: R
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $R>80
+  - uid: review-pvc-critical
+    title: CI/CD · PVC usage > 90%
+    condition: B
+    for: 10m
+    isPaused: false
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      domain: cicd
+      severity: critical
+    annotations:
+      summary: PVC usage > 90%
+      __dashboardUid__: cicd-operational-health
+    data:
+    - refId: A
+      datasourceUid: betj2t0d1n280a
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        expr: 100*max by(namespace,persistentvolumeclaim)(kubelet_volume_stats_used_bytes{namespace=~"cicd-mia-899|octopus-worker-mia-899"})/(max
+          by(namespace,persistentvolumeclaim)(kubelet_volume_stats_capacity_bytes{namespace=~"cicd-mia-899|octopus-worker-mia-899"})>0)
+        instant: true
+        range: false
+        format: time_series
+        refId: A
+        datasource:
+          uid: betj2t0d1n280a
+          type: prometheus
+    - refId: R
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: R
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $R>90
+  - uid: review-pvc-prediction
+    title: CI/CD · PVC full within 7d, linear 6h estimate
+    condition: B
+    for: 30m
+    isPaused: false
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      domain: cicd
+      severity: warning
+    annotations:
+      summary: PVC full within 7d, linear 6h estimate
+      __dashboardUid__: cicd-operational-health
+    data:
+    - refId: A
+      datasourceUid: betj2t0d1n280a
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        expr: min by(namespace,persistentvolumeclaim)(predict_linear(kubelet_volume_stats_available_bytes{namespace=~"cicd-mia-899|octopus-worker-mia-899"}[6h],604800))
+        instant: true
+        range: false
+        format: time_series
+        refId: A
+        datasource:
+          uid: betj2t0d1n280a
+          type: prometheus
+    - refId: R
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: R
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $R<0
+  - uid: review-nexus-ready
+    title: CI/CD · Nexus pod not Ready
     condition: B
     for: 3m
+    isPaused: false
     noDataState: Alerting
     execErrState: Alerting
-    isPaused: false
-    labels:
-      domain: cicd
-      severity: warning
-      env: prod
-      team: platform
-    annotations:
-      summary: Expected probe/native KPI missing; do not treat missing as success.
-      __dashboardUid__: cicd-health
-      __panelId__: '5'
-    data:
-    - refId: A
-      datasourceUid: cicd-prometheus
-      relativeTimeRange:
-        from: 600
-        to: 0
-      model:
-        refId: A
-        expr: ci:observation_missing{env="prod"}
-        instant: true
-        range: false
-        format: time_series
-        datasource:
-          type: prometheus
-          uid: cicd-prometheus
-    - refId: B
-      datasourceUid: __expr__
-      relativeTimeRange:
-        from: 0
-        to: 0
-      model:
-        refId: B
-        type: math
-        expression: $A > 0
-        datasource:
-          type: __expr__
-          uid: __expr__
-        hide: false
-  - uid: oss-tc-failed
-    title: CI/CD · TeamCity last build failed
-    condition: B
-    for: 0s
-    noDataState: Alerting
-    execErrState: Alerting
-    isPaused: false
-    labels:
-      domain: cicd
-      severity: warning
-      env: prod
-      team: platform
-    annotations:
-      summary: Latest selected terminal build is failure. Polling may miss fail→success
-        between polls.
-      __dashboardUid__: cicd-health
-      __panelId__: '5'
-    data:
-    - refId: A
-      datasourceUid: teamcity-api
-      relativeTimeRange:
-        from: 600
-        to: 0
-      model:
-        refId: A
-        type: json
-        source: url
-        parser: backend
-        format: table
-        url: https://teamcity.example.internal/app/rest/builds?locator=buildType%3A%28id%3APlatform_BackendBuild%29%2Cstate%3Afinished%2CdefaultFilter%3Afalse%2Ccount%3A1&fields=count%2Cbuild%28id%2Cstatus%2CcanceledInfo%2CstartDate%2CfinishDate%2CwebUrl%29
-        url_options:
-          method: GET
-        root_selector: '($exists(count) ? true : $error("Invalid TeamCity response");count>0
-          and build[0].status="FAILURE" and ($not($exists(build[0].canceledInfo))
-          or build[0].canceledInfo=null) ? 1 : 0)'
-        columns: []
-        datasource:
-          type: yesoreyeram-infinity-datasource
-          uid: teamcity-api
-        pagination_mode: none
-    - refId: B
-      datasourceUid: __expr__
-      relativeTimeRange:
-        from: 0
-        to: 0
-      model:
-        refId: B
-        type: math
-        expression: $A > 0
-        datasource:
-          type: __expr__
-          uid: __expr__
-        hide: false
-  - uid: oss-jenkins-failed
-    title: CI/CD · Jenkins last build failed
-    condition: B
-    for: 0s
-    noDataState: Alerting
-    execErrState: Alerting
-    isPaused: false
-    labels:
-      domain: cicd
-      severity: warning
-      env: prod
-      team: platform
-    annotations:
-      summary: Latest observed job result FAILURE; unstable/aborted distinct.
-      __dashboardUid__: cicd-health
-      __panelId__: '5'
-    data:
-    - refId: A
-      datasourceUid: cicd-prometheus
-      relativeTimeRange:
-        from: 600
-        to: 0
-      model:
-        refId: A
-        expr: default_jenkins_builds_last_build_result_ordinal{job="jenkins",env="prod",jenkins_job=~"platform/.*"}
-          == bool 2
-        instant: true
-        range: false
-        format: time_series
-        datasource:
-          type: prometheus
-          uid: cicd-prometheus
-    - refId: B
-      datasourceUid: __expr__
-      relativeTimeRange:
-        from: 0
-        to: 0
-      model:
-        refId: B
-        type: math
-        expression: $A > 0
-        datasource:
-          type: __expr__
-          uid: __expr__
-        hide: false
-  - uid: oss-deploy-failed
-    title: CI/CD · Octopus last deploy failed
-    condition: B
-    for: 0s
-    noDataState: Alerting
-    execErrState: Alerting
-    isPaused: false
     labels:
       domain: cicd
       severity: critical
-      env: prod
-      team: platform
     annotations:
-      summary: Latest-created terminal Deploy task failed/timed out in configured
-        project/environment.
-      __dashboardUid__: cicd-health
-      __panelId__: '5'
+      summary: Nexus pod not Ready
+      __dashboardUid__: cicd-operational-health
     data:
     - refId: A
-      datasourceUid: octopus-api
+      datasourceUid: betj2t0d1n280a
       relativeTimeRange:
         from: 600
         to: 0
       model:
-        refId: A
-        type: json
-        source: url
-        parser: backend
-        format: table
-        url: https://octopus.example.internal/api/Spaces-1/tasks?name=Deploy&project=Projects-1&environment=Environments-1&active=false&take=1
-        url_options:
-          method: GET
-        root_selector: '($exists(TotalResults) and $exists(Items) ? true : $error("Invalid
-          Octopus response");TotalResults>0 and Items[0].State in ["Failed","TimedOut"]
-          ? 1 : 0)'
-        columns: []
-        datasource:
-          type: yesoreyeram-infinity-datasource
-          uid: octopus-api
-        pagination_mode: none
-    - refId: B
-      datasourceUid: __expr__
-      relativeTimeRange:
-        from: 0
-        to: 0
-      model:
-        refId: B
-        type: math
-        expression: $A > 0
-        datasource:
-          type: __expr__
-          uid: __expr__
-        hide: false
-  - uid: oss-octopus-api
-    title: CI/CD · Octopus API unavailable
-    condition: B
-    for: 2m
-    noDataState: Alerting
-    execErrState: Alerting
-    isPaused: false
-    labels:
-      domain: cicd
-      severity: critical
-      env: prod
-      team: platform
-    annotations:
-      summary: Live REST query must return a valid tasks response. HTTP/auth/schema/query
-        errors alert, even with dashboard closed.
-      __dashboardUid__: cicd-health
-      __panelId__: '5'
-    data:
-    - refId: A
-      datasourceUid: octopus-api
-      relativeTimeRange:
-        from: 600
-        to: 0
-      model:
-        refId: A
-        type: json
-        source: url
-        parser: backend
-        format: table
-        url: https://octopus.example.internal/api/Spaces-1/tasks?name=Deploy&project=Projects-1&environment=Environments-1&take=1
-        url_options:
-          method: GET
-        root_selector: '($exists(TotalResults) and $exists(Items) ? true : $error("Invalid
-          Octopus response");1)'
-        columns: []
-        datasource:
-          type: yesoreyeram-infinity-datasource
-          uid: octopus-api
-        pagination_mode: none
-    - refId: B
-      datasourceUid: __expr__
-      relativeTimeRange:
-        from: 0
-        to: 0
-      model:
-        refId: B
-        type: math
-        expression: $A < 1
-        datasource:
-          type: __expr__
-          uid: __expr__
-        hide: false
-  - uid: oss-tc-agent
-    title: CI/CD · TeamCity expected agent unavailable
-    condition: B
-    for: 5m
-    noDataState: Alerting
-    execErrState: Alerting
-    isPaused: false
-    labels:
-      domain: cicd
-      severity: warning
-      env: prod
-      team: platform
-    annotations:
-      summary: Expected stable ID missing, disconnected, unauthorized or disabled.
-      __dashboardUid__: cicd-health
-      __panelId__: '5'
-    data:
-    - refId: A
-      datasourceUid: teamcity-api
-      relativeTimeRange:
-        from: 600
-        to: 0
-      model:
-        refId: A
-        type: json
-        source: url
-        parser: backend
-        format: table
-        url: https://teamcity.example.internal/app/rest/agents?locator=id%3A101%2CdefaultFilter%3Afalse&fields=count%2Cagent%28id%2Cconnected%2Cauthorized%2Cenabled%29
-        url_options:
-          method: GET
-        root_selector: '($exists(count) ? true : $error("Invalid TeamCity response");count>0
-          and agent[0].connected and agent[0].authorized and agent[0].enabled ? 1
-          : 0)'
-        columns: []
-        datasource:
-          type: yesoreyeram-infinity-datasource
-          uid: teamcity-api
-        pagination_mode: none
-    - refId: B
-      datasourceUid: __expr__
-      relativeTimeRange:
-        from: 0
-        to: 0
-      model:
-        refId: B
-        type: math
-        expression: $A < 1
-        datasource:
-          type: __expr__
-          uid: __expr__
-        hide: false
-  - uid: oss-jenkins-agent
-    title: CI/CD · Jenkins expected node unavailable
-    condition: B
-    for: 5m
-    noDataState: Alerting
-    execErrState: Alerting
-    isPaused: false
-    labels:
-      domain: cicd
-      severity: warning
-      env: prod
-      team: platform
-    annotations:
-      summary: Expected stable node offline. Missing node is separately detected by
-        inventory alert.
-      __dashboardUid__: cicd-health
-      __panelId__: '5'
-    data:
-    - refId: A
-      datasourceUid: cicd-prometheus
-      relativeTimeRange:
-        from: 600
-        to: 0
-      model:
-        refId: A
-        expr: (default_jenkins_nodes_online{job="jenkins",env="prod",node="linux-01"}
-          == bool 0) or vector(0)
+        expr: min(max by(namespace,pod)(kube_pod_status_ready{namespace="cicd-mia-899",pod=~".*nexus.*",condition="true"}))
         instant: true
         range: false
         format: time_series
+        refId: A
         datasource:
+          uid: betj2t0d1n280a
           type: prometheus
-          uid: cicd-prometheus
+    - refId: R
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: R
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -416,42 +1377,97 @@ groups:
       model:
         refId: B
         type: math
-        expression: $A > 0
-        datasource:
-          type: __expr__
-          uid: __expr__
-        hide: false
-  - uid: oss-jenkins-node-missing
-    title: CI/CD · Jenkins expected node metric missing
+        expression: $R<1
+  - uid: review-pod-restarts
+    title: CI/CD · CI pod restarts >3 in 15m
     condition: B
     for: 5m
+    isPaused: false
+    noDataState: Alerting
+    execErrState: Alerting
+    labels:
+      domain: cicd
+      severity: warning
+    annotations:
+      summary: CI pod restarts >3 in 15m
+      __dashboardUid__: cicd-operational-health
+    data:
+    - refId: A
+      datasourceUid: betj2t0d1n280a
+      relativeTimeRange:
+        from: 600
+        to: 0
+      model:
+        expr: sum by(namespace,pod)(increase(kube_pod_container_status_restarts_total{namespace=~"cicd-mia-899|octopus-worker-mia-899"}[15m]))
+        instant: true
+        range: false
+        format: time_series
+        refId: A
+        datasource:
+          uid: betj2t0d1n280a
+          type: prometheus
+    - refId: R
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: R
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
+    - refId: B
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: B
+        type: math
+        expression: $R>3
+  - uid: review-pods-ready
+    title: CI/CD · CI running pod not Ready
+    condition: B
+    for: 5m
+    isPaused: false
     noDataState: OK
     execErrState: Alerting
-    isPaused: false
     labels:
       domain: cicd
       severity: warning
-      env: prod
-      team: platform
     annotations:
-      summary: Expected stable node disappeared from plugin metrics.
-      __dashboardUid__: cicd-health
-      __panelId__: '5'
+      summary: CI running pod not Ready
+      __dashboardUid__: cicd-operational-health
     data:
     - refId: A
-      datasourceUid: cicd-prometheus
+      datasourceUid: betj2t0d1n280a
       relativeTimeRange:
         from: 600
         to: 0
       model:
-        refId: A
-        expr: absent(default_jenkins_nodes_online{job="jenkins",env="prod",node="linux-01"})
+        expr: max by(namespace,pod)(kube_pod_status_ready{namespace=~"cicd-mia-899|octopus-worker-mia-899",condition="true"})
+          unless on(namespace,pod) max by(namespace,pod)(kube_pod_status_phase{namespace=~"cicd-mia-899|octopus-worker-mia-899",phase=~"Succeeded|Failed"}==1)
         instant: true
         range: false
         format: time_series
+        refId: A
         datasource:
+          uid: betj2t0d1n280a
           type: prometheus
-          uid: cicd-prometheus
+    - refId: R
+      datasourceUid: __expr__
+      relativeTimeRange:
+        from: 0
+        to: 0
+      model:
+        refId: R
+        type: reduce
+        expression: A
+        reducer: last
+        settings:
+          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -460,423 +1476,4 @@ groups:
       model:
         refId: B
         type: math
-        expression: $A > 0
-        datasource:
-          type: __expr__
-          uid: __expr__
-        hide: false
-  - uid: oss-teamcity-agents-low
-    title: CI/CD · teamcity insufficient agents
-    condition: B
-    for: 5m
-    noDataState: Alerting
-    execErrState: Alerting
-    isPaused: false
-    labels:
-      domain: cicd
-      severity: warning
-      env: prod
-      team: platform
-    annotations:
-      summary: Online/connected agent count below configured minimum; not a compatibility
-        guarantee.
-      __dashboardUid__: cicd-health
-      __panelId__: '5'
-    data:
-    - refId: A
-      datasourceUid: cicd-prometheus
-      relativeTimeRange:
-        from: 600
-        to: 0
-      model:
-        refId: A
-        expr: ci:agents_online{env="prod",component="teamcity"}
-        instant: true
-        range: false
-        format: time_series
-        datasource:
-          type: prometheus
-          uid: cicd-prometheus
-    - refId: B
-      datasourceUid: __expr__
-      relativeTimeRange:
-        from: 0
-        to: 0
-      model:
-        refId: B
-        type: math
-        expression: $A < 2
-        datasource:
-          type: __expr__
-          uid: __expr__
-        hide: false
-  - uid: oss-teamcity-queue
-    title: CI/CD · teamcity queue over limit
-    condition: B
-    for: 10m
-    noDataState: Alerting
-    execErrState: Alerting
-    isPaused: false
-    labels:
-      domain: cicd
-      severity: warning
-      env: prod
-      team: platform
-    annotations:
-      summary: ''
-      __dashboardUid__: cicd-health
-      __panelId__: '5'
-    data:
-    - refId: A
-      datasourceUid: cicd-prometheus
-      relativeTimeRange:
-        from: 600
-        to: 0
-      model:
-        refId: A
-        expr: ci:queue_length{env="prod",component="teamcity"}
-        instant: true
-        range: false
-        format: time_series
-        datasource:
-          type: prometheus
-          uid: cicd-prometheus
-    - refId: B
-      datasourceUid: __expr__
-      relativeTimeRange:
-        from: 0
-        to: 0
-      model:
-        refId: B
-        type: math
-        expression: $A > 10
-        datasource:
-          type: __expr__
-          uid: __expr__
-        hide: false
-  - uid: oss-jenkins-agents-low
-    title: CI/CD · jenkins insufficient agents
-    condition: B
-    for: 5m
-    noDataState: Alerting
-    execErrState: Alerting
-    isPaused: false
-    labels:
-      domain: cicd
-      severity: warning
-      env: prod
-      team: platform
-    annotations:
-      summary: Online/connected agent count below configured minimum; not a compatibility
-        guarantee.
-      __dashboardUid__: cicd-health
-      __panelId__: '5'
-    data:
-    - refId: A
-      datasourceUid: cicd-prometheus
-      relativeTimeRange:
-        from: 600
-        to: 0
-      model:
-        refId: A
-        expr: ci:agents_online{env="prod",component="jenkins"}
-        instant: true
-        range: false
-        format: time_series
-        datasource:
-          type: prometheus
-          uid: cicd-prometheus
-    - refId: B
-      datasourceUid: __expr__
-      relativeTimeRange:
-        from: 0
-        to: 0
-      model:
-        refId: B
-        type: math
-        expression: $A < 2
-        datasource:
-          type: __expr__
-          uid: __expr__
-        hide: false
-  - uid: oss-jenkins-queue
-    title: CI/CD · jenkins queue over limit
-    condition: B
-    for: 10m
-    noDataState: Alerting
-    execErrState: Alerting
-    isPaused: false
-    labels:
-      domain: cicd
-      severity: warning
-      env: prod
-      team: platform
-    annotations:
-      summary: ''
-      __dashboardUid__: cicd-health
-      __panelId__: '5'
-    data:
-    - refId: A
-      datasourceUid: cicd-prometheus
-      relativeTimeRange:
-        from: 600
-        to: 0
-      model:
-        refId: A
-        expr: ci:queue_length{env="prod",component="jenkins"}
-        instant: true
-        range: false
-        format: time_series
-        datasource:
-          type: prometheus
-          uid: cicd-prometheus
-    - refId: B
-      datasourceUid: __expr__
-      relativeTimeRange:
-        from: 0
-        to: 0
-      model:
-        refId: B
-        type: math
-        expression: $A > 10
-        datasource:
-          type: __expr__
-          uid: __expr__
-        hide: false
-  - uid: oss-octopus-queue
-    title: CI/CD · Octopus queue over limit
-    condition: B
-    for: 10m
-    noDataState: Alerting
-    execErrState: Alerting
-    isPaused: false
-    labels:
-      domain: cicd
-      severity: warning
-      env: prod
-      team: platform
-    annotations:
-      summary: ''
-      __dashboardUid__: cicd-health
-      __panelId__: '5'
-    data:
-    - refId: A
-      datasourceUid: octopus-api
-      relativeTimeRange:
-        from: 600
-        to: 0
-      model:
-        refId: A
-        type: json
-        source: url
-        parser: backend
-        format: table
-        url: https://octopus.example.internal/api/Spaces-1/tasks?name=Deploy&project=Projects-1&environment=Environments-1&states=Queued&take=1
-        url_options:
-          method: GET
-        root_selector: '($exists(TotalResults) and $exists(Items) ? true : $error("Invalid
-          Octopus response");TotalResults)'
-        columns: []
-        datasource:
-          type: yesoreyeram-infinity-datasource
-          uid: octopus-api
-        pagination_mode: none
-    - refId: B
-      datasourceUid: __expr__
-      relativeTimeRange:
-        from: 0
-        to: 0
-      model:
-        refId: B
-        type: math
-        expression: $A > 5
-        datasource:
-          type: __expr__
-          uid: __expr__
-        hide: false
-  - uid: oss-tc-long
-    title: CI/CD · TeamCity build too long
-    condition: B
-    for: 5m
-    noDataState: Alerting
-    execErrState: Alerting
-    isPaused: false
-    labels:
-      domain: cicd
-      severity: warning
-      env: prod
-      team: platform
-    annotations:
-      summary: ''
-      __dashboardUid__: cicd-health
-      __panelId__: '5'
-    data:
-    - refId: A
-      datasourceUid: teamcity-api
-      relativeTimeRange:
-        from: 600
-        to: 0
-      model:
-        refId: A
-        type: json
-        source: url
-        parser: backend
-        format: table
-        url: https://teamcity.example.internal/app/rest/builds?locator=buildType%3A%28id%3APlatform_BackendBuild%29%2Cstate%3Arunning%2CdefaultFilter%3Afalse%2Ccount%3A100&fields=count%2CnextHref%2Cbuild%28id%2CstartDate%29
-        url_options:
-          method: GET
-        root_selector: '($exists(count) ? true : $error("Invalid TeamCity response");$date
-          := function($s){$toMillis($substring($s,0,4)&"-"&$substring($s,4,2)&"-"&$substring($s,6,2)&"T"&$substring($s,9,2)&":"&$substring($s,11,2)&":"&$substring($s,13,2)&$substring($s,15,3)&":"&$substring($s,18,2))};$exists(nextHref)
-          ? $error("Running build page truncated") : count=0 ? 0 : $max(build.($millis()-$date(startDate)))/1000)'
-        columns: []
-        datasource:
-          type: yesoreyeram-infinity-datasource
-          uid: teamcity-api
-        pagination_mode: none
-    - refId: B
-      datasourceUid: __expr__
-      relativeTimeRange:
-        from: 0
-        to: 0
-      model:
-        refId: B
-        type: math
-        expression: $A > 3600
-        datasource:
-          type: __expr__
-          uid: __expr__
-        hide: false
-  - uid: oss-jenkins-long
-    title: CI/CD · Jenkins build too long
-    condition: B
-    for: 5m
-    noDataState: OK
-    execErrState: Alerting
-    isPaused: false
-    labels:
-      domain: cicd
-      severity: warning
-      env: prod
-      team: platform
-    annotations:
-      summary: Plugin may omit runtime when no builds are running; verify metric contract
-        on installed version.
-      __dashboardUid__: cicd-health
-      __panelId__: '5'
-    data:
-    - refId: A
-      datasourceUid: cicd-prometheus
-      relativeTimeRange:
-        from: 600
-        to: 0
-      model:
-        refId: A
-        expr: max(default_jenkins_builds_running_build_duration_milliseconds{job="jenkins",env="prod",jenkins_job=~"platform/.*"})/1000
-        instant: true
-        range: false
-        format: time_series
-        datasource:
-          type: prometheus
-          uid: cicd-prometheus
-    - refId: B
-      datasourceUid: __expr__
-      relativeTimeRange:
-        from: 0
-        to: 0
-      model:
-        refId: B
-        type: math
-        expression: $A > 3600
-        datasource:
-          type: __expr__
-          uid: __expr__
-        hide: false
-  - uid: oss-http-slow
-    title: CI/CD · HTTP response too slow
-    condition: B
-    for: 5m
-    noDataState: Alerting
-    execErrState: Alerting
-    isPaused: false
-    labels:
-      domain: cicd
-      severity: warning
-      env: prod
-      team: platform
-    annotations:
-      summary: ''
-      __dashboardUid__: cicd-health
-      __panelId__: '5'
-    data:
-    - refId: A
-      datasourceUid: cicd-prometheus
-      relativeTimeRange:
-        from: 600
-        to: 0
-      model:
-        refId: A
-        expr: probe_duration_seconds{job="cicd-http",env="prod"}
-        instant: true
-        range: false
-        format: time_series
-        datasource:
-          type: prometheus
-          uid: cicd-prometheus
-    - refId: B
-      datasourceUid: __expr__
-      relativeTimeRange:
-        from: 0
-        to: 0
-      model:
-        refId: B
-        type: math
-        expression: $A > 2
-        datasource:
-          type: __expr__
-          uid: __expr__
-        hide: false
-  - uid: oss-rules-missing
-    title: CI/CD · Recording rules missing
-    condition: B
-    for: 2m
-    noDataState: OK
-    execErrState: Alerting
-    isPaused: false
-    labels:
-      domain: cicd
-      severity: critical
-      env: prod
-      team: platform
-    annotations:
-      summary: ''
-      __dashboardUid__: cicd-health
-      __panelId__: '5'
-    data:
-    - refId: A
-      datasourceUid: cicd-prometheus
-      relativeTimeRange:
-        from: 600
-        to: 0
-      model:
-        refId: A
-        expr: absent(ci:expected_component{env="prod",component="teamcity"}) or absent(ci:expected_component{env="prod",component="jenkins"})
-          or absent(ci:expected_component{env="prod",component="octopus"})
-        instant: true
-        range: false
-        format: time_series
-        datasource:
-          type: prometheus
-          uid: cicd-prometheus
-    - refId: B
-      datasourceUid: __expr__
-      relativeTimeRange:
-        from: 0
-        to: 0
-      model:
-        refId: B
-        type: math
-        expression: $A > 0
-        datasource:
-          type: __expr__
-          uid: __expr__
-        hide: false
+        expression: $R<1

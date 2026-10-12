@@ -1,50 +1,11 @@
-env: prod
-teamcity_url: https://teamcity.example.internal
-teamcity_build_type: Platform_BackendBuild
-teamcity_expected_agent: '101'
-teamcity_min_agents: 2
-teamcity_queue_limit: 10
-teamcity_timeout_seconds: 3600
-jenkins_url: https://jenkins.example.internal
-jenkins_job_regex: 'platform/.*'
-jenkins_node_regex: 'linux-.*' # Exclude controller; stable agent fleet only.
-jenkins_capacity_label: linux # ONE label pool; never sum overlapping labels.
-jenkins_min_agents: 2
-jenkins_queue_limit: 10
-jenkins_timeout_seconds: 3600
-jenkins_expected_node: linux-01
-octopus_url: https://octopus.example.internal
+# Alert scopes only. Dashboard dropdowns discover live API entities automatically.
+teamcity_pipeline: '*'
+jenkins_pipeline: '*'
 octopus_space: Spaces-1
-octopus_project: Projects-1
-octopus_environment: Environments-1
-octopus_queue_limit: 5
-
-# Dashboard pipeline mapping. Add an entry for each real pipeline.
-# Alert scopes above remain fixed and must be extended separately when needed.
-pipelines:
-  - id: backend
-    name: Backend
-    teamcity_build_type: Platform_BackendBuild
-    jenkins_job_regex: 'platform/.*'
-    octopus_space: Spaces-1
-    octopus_project: Projects-1
-    octopus_environment: Environments-1
-
-# Auto-discovery: choose naming rules once, rather than list every pipeline.
-# Every rule uses fullmatch; named group pipeline gives the shared matching key.
-discovery:
-  teamcity_locator: 'defaultFilter:false,count:200'
-  teamcity_name_field: project # Or buildType: use the build configuration name.
-  teamcity_name_regex: '(?P<pipeline>.+)'
-  jenkins_name_regex: 'platform/(?P<pipeline>[^/]+)(?:/.*)?'
-  octopus_name_regex: '(?P<pipeline>.+)'
-  octopus_spaces: [Spaces-1]
-  # Missing explicit Space/environment uses the top-level configured IDs.
-  # Optional exceptions, keyed by TeamCity buildType ID; not a pipeline list.
-  overrides: {}
-  # Optional TeamCity build parameters, when names differ across systems:
-  # teamcity_parameters:
-  #   jenkins_job_regex: monitoring.jenkins_job_regex
-  #   octopus_project: monitoring.octopus_project
-  #   octopus_space: monitoring.octopus_space
-  #   octopus_environment: monitoring.octopus_environment
+octopus_project: '*'
+# No guessed Prod ID. Resolve it from environments API and unpause by regenerating.
+prod_environment_id: __configure_prod__
+queue_limit: 10
+minimum_agents: 1
+build_age_limit: 1800
+deployment_age_limit: 3600

@@ -1,30 +1,24 @@
-# CI/CD Health без собственного exporter
+# CI/CD Operational Health
 
-TeamCity native `/app/metrics` + Jenkins Prometheus Plugin + Prometheus Blackbox Exporter + Grafana Infinity REST для Octopus и TeamCity per-build KPI.
+Актуальная версия переработана по экспорту Grafana v2 и DevOps-ревью от 9 октября 2026. Infinity получает бизнес-данные TeamCity/Jenkins/Octopus из API; Prometheus — состояния pod, ресурсы контейнеров и PVC.
 
+- [Dashboard Grafana v2](cicd-health/cicd-health-dashboard.json)
+- [Что изменено и что проверить](docs/REVIEW-RU.md)
 - [Пошаговая инструкция DevOps](docs/SETUP-RU.md)
-- [Автоматическое заполнение пайплайнов](docs/PIPELINE-DISCOVERY-RU.md)
-- [Документ Word](docs/devops-cicd-monitoring-request.docx)
-- [Выбор open-source компонентов и аналогичные dashboards](docs/OSS-SOURCES.md)
-- [Dashboard и alert rules](cicd-health)
-- [Kubernetes ServiceMonitor / Probe / recording rules](kubernetes)
-- [Контракт данных и ограничения](cicd-health/METRICS-CONTRACT.md)
+- [Автоматические фильтры пайплайнов](docs/PIPELINE-DISCOVERY-RU.md)
+- [Контракт данных](cicd-health/METRICS-CONTRACT.md)
+- [Alert provisioning example](cicd-health/grafana-alert-rules.yml)
 
-26 панелей, 18 Grafana-managed alerts, 13 live REST query templates. Свой адаптер удалён. Dashboard разделён на 7 строк и имеет фильтры пайплайна, Jenkins jobs/агентов/пула и компонентов общих графиков. Для своего кластера заполнить monitoring-config.yml, включая правила discovery для автоматического списка pipelines, и сгенерировать конфигурации. UI filters не меняют alert scopes. Реальные секреты и конфиг не коммитить.
+42 панели, пять главных блоков: Статус, Сейчас, Деплои, Проблемы, Details. В Details четыре свёрнутых ряда: TeamCity, Jenkins, Octopus и Kubernetes/PVC. Kubernetes ограничен `cicd-mia-899` и `octopus-worker-mia-899` даже при выборе All.
 
-В кластере ничего не развёрнуто. История REST не хранится в Prometheus; последние результаты не являются процентом за период. Polling не гарантирует уведомление о каждом быстром fail→success. Неподдерживаемые capacity/p95 KPI исключены.
+Сохранены UID dashboard `cicd-operational-health`, datasource UID, API URLs и текущие автоматические фильтры из переданного экспорта. В `review-source-profile.json` только query templates и настройки, без credentials. При переносе в другую Grafana изменить UID/URLs в profile либо назначить существующие datasource через UI. Сам файл credentials не содержит и в кластере ничего не разворачивает.
 
-## Структура комплекта
+Сборка: `python scripts/build_operational_review.py`. Полная подготовка dashboard + фиксированных alert examples: `python scripts/generate_monitoring.py monitoring-config.yml` (PyYAML). Проверки: `python -m unittest discover -s tests -p 'test_*.py'` (нужен jq) и `python scripts/validate_dashboard.py`.
+
+Новый список пайплайнов получается непосредственно QueryVariables из API. Прежние discovery workflow и ручная межсистемная карта больше не требуются. Алерты имеют собственные фиксированные scopes; Octopus rules в примере поставлены на pause до задания реального Prod environment ID.
+
+## Другие проекты репозитория
 
 | Каталог | Назначение |
 |---|---|
-| `docs/` | Пошаговая инструкция, Word-документ и выбор OSS-компонентов |
-| `cicd-health/` | Dashboard, datasources, alerts, REST queries и конфигурация blackbox |
-| `kubernetes/` | ServiceMonitor, Probe и PrometheusRule для кластера |
-| `scripts/` | Генерация конфигураций из `monitoring-config.yml` |
-| `tests/` | Проверка JSONata-преобразований |
 | `akvorado/` | Скрипт обогащения DstAddr в Akvorado DNS-именами и IP сервисов ([инструкция](akvorado/README.md)) |
-
-`cicd-health/prometheus-recording-rules.yml` и `kubernetes/recording-rules.yml` генерируются из одной модели: первый нужен для проверки через `promtool`, второй — для применения через Prometheus Operator. В кластере применять только Kubernetes PrometheusRule.
-
-Архив при необходимости можно скачать средствами GitHub через Code → Download ZIP.

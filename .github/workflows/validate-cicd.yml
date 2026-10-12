@@ -1,0 +1,40 @@
+name: Validate CI/CD dashboard
+on:
+  push:
+    paths:
+      - 'cicd-health/**'
+      - 'scripts/*review*.py'
+      - 'tests/test_review.py'
+      - '.github/workflows/validate-cicd.yml'
+  pull_request:
+    paths:
+      - 'cicd-health/**'
+      - 'scripts/*review*.py'
+      - 'tests/test_review.py'
+      - '.github/workflows/validate-cicd.yml'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Check jq and generation
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v jq >/dev/null || (sudo apt-get update && sudo apt-get install -y jq)
+          cp cicd-health/cicd-health-dashboard.json "$RUNNER_TEMP/dashboard-before.json"
+          python3 scripts/build_operational_review.py
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          before=json.loads((Path(os.environ["RUNNER_TEMP"])/"dashboard-before.json").read_text())
+          after=json.loads(Path("cicd-health/cicd-health-dashboard.json").read_text())
+          assert before==after, "Committed dashboard differs from generator output"
+          PY
+      - name: Validate schema references and query fixtures
+        run: |
+          python3 scripts/validate_dashboard.py
+          python3 -m unittest discover -s tests -p 'test_*.py'
