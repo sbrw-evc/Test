@@ -37,7 +37,7 @@ STATUS={'SUCCESS':{'text':'SUCCESS','color':'green'},'Success':{'text':'SUCCESS'
 def panel(title,qs,typ='table',unit='short',desc='',thresholds=None,overrides=None,options=None,transforms=None,queryOptions=None,id=None):
     global counter
     if id is None:counter+=1;id=counter
-    fc={'defaults':{'unit':unit,'noValue':'Нет данных','color':{'mode':'thresholds'},'thresholds':{'mode':'absolute','steps':thresholds or [{'color':'green','value':None}]},'mappings':[]},'overrides':overrides or []}
+    fc={'defaults':{'unit':unit,'noValue':'No data','color':{'mode':'thresholds'},'thresholds':{'mode':'absolute','steps':thresholds or [{'color':'green','value':None}]},'mappings':[]},'overrides':overrides or []}
     op={'showHeader':True,'cellHeight':'sm'} if typ=='table' else {'reduceOptions':{'calcs':['lastNotNull'],'fields':'','values':False},'colorMode':'value','graphMode':'none','textMode':'auto'}
     if typ=='timeseries':
         op={'legend':{'displayMode':'table','placement':'bottom','calcs':['lastNotNull']},'tooltip':{'mode':'multi'}};fc['defaults'].update(color={'mode':'palette-classic'},custom={'lineWidth':2,'fillOpacity':8,'spanNulls':False,**({'thresholdsStyle':{'mode':'dashed'}} if thresholds else {})})
@@ -54,7 +54,7 @@ def layoutrow(title,members,collapse=False,nested=None):
         items.append({'kind':'GridLayoutItem','spec':{'element':{'kind':'ElementReference','name':key},'x':x,'y':y,'width':w,'height':h}});x+=w;height=max(height,h)
     return {'kind':'RowsLayoutRow','spec':{'title':title,'collapse':collapse,'layout':nested or {'kind':'GridLayout','spec':{'items':items}}}}
 
-def table_links():return [override('Результат',{'mappings':[{'type':'value','options':STATUS}],'custom.cellOptions':{'type':'color-background','applyToRow':True}}),override('Номер',{'links':[{'title':'Открыть запуск','targetBlank':True,'url':'${__data.fields["URL"]}'}]}),override('URL',{'custom.hidden':True}),override('Длительность',{'unit':'s'}),override('Начало',{'unit':'time:YYYY-MM-DD HH:mm:ss Z'}),override('Завершение',{'unit':'time:YYYY-MM-DD HH:mm:ss Z'})]
+def table_links():return [override('Result',{'mappings':[{'type':'value','options':STATUS}],'custom.cellOptions':{'type':'color-background','applyToRow':True}}),override('Run',{'links':[{'title':'Open run','targetBlank':True,'url':'${__data.fields["URL"]}'}]}),override('URL',{'custom.hidden':True}),override('Duration',{'unit':'s'}),override('Started at',{'unit':'time:YYYY-MM-DD HH:mm:ss Z'}),override('Completed at',{'unit':'time:YYYY-MM-DD HH:mm:ss Z'})]
 
 variables=copy.deepcopy(P['variables'])
 # Source API defaults are retained, including All -> optional API filter macros.
@@ -111,9 +111,9 @@ def history(system,table=True,ref='D',tail='',columns=None):return source(system
 def results(system,failures=False):
     tail=' | map(select(.status|failed))' if failures else ''
     tail+=' | sort_by((if (.status|failed) then 0 else 1 end),-(.finish//0)) | .[]'
-    tail+=' | {workflow,id,status,duration,start,finish,url,branch:(.branch//"Не передано API"),trigger:(.trigger//"Не передано API")}'
-    cs=[col('workflow','Пайплайн'),col('id','Номер'),col('status','Результат'),col('branch','Ветка / релиз'),col('trigger','Кто запустил'),col('duration','Длительность','number'),col('start','Начало','timestamp_epoch_s'),col('finish','Завершение','timestamp_epoch_s'),col('url','URL')]
-    return panel(LABEL[system]+(' — последние падения' if failures else ' — последние 100 результатов'),[('A',history(system,tail=tail,columns=cs),False)],desc='Текущая выборка последних 100. Падения первыми; отсутствующие metadata отмечены явно.',overrides=table_links())
+    tail+=' | {workflow,id,status,duration,start,finish,url,branch:(.branch//"Not provided by API"),trigger:(.trigger//"Not provided by API")}'
+    cs=[col('workflow','Pipeline'),col('id','Run'),col('status','Result'),col('branch','Branch / release'),col('trigger','Triggered by'),col('duration','Duration','number'),col('start','Started at','timestamp_epoch_s'),col('finish','Completed at','timestamp_epoch_s'),col('url','URL')]
+    return panel(LABEL[system]+(' — recent failures' if failures else ' — latest 100 results'),[('A',history(system,tail=tail,columns=cs),False)],desc='Current sample of the latest 100 results. Failures first; missing metadata is marked explicitly.',overrides=table_links())
 
 status=[];current=[];deploy=[];problems=[];details=[];reasonkeys={}
 for i,system in enumerate(('teamcity','jenkins','octopus')):
@@ -123,22 +123,22 @@ for i,system in enumerate(('teamcity','jenkins','octopus')):
     limit=3600 if system=='octopus' else 1800
     formula='2*$RA-$RA*(($RB>10)||($RD>0)||($RE>'+str(limit)+')||($RF>0)'+('||($RC<1)' if system!='octopus' else '')+')'
     qs.append(('H',expr('math',formula,'H'),False))
-    key=panel(LABEL[system]+(' · Prod' if system=='octopus' else '')+' — текущее состояние',qs,'stat',desc='REST snapshot сейчас; KPI health учитывает очередь, агентов, последние ошибки и running age.',id=3+i,options={'reduceOptions':{'calcs':['lastNotNull'],'fields':'/^H$/','values':False},'colorMode':'background'})
+    key=panel(LABEL[system]+(' · Prod' if system=='octopus' else '')+' — current health',qs,'stat',desc='Current REST snapshot. Health considers queue size, agents, recent failures and running age.',id=3+i,options={'reduceOptions':{'calcs':['lastNotNull'],'fields':'/^H$/','values':False},'colorMode':'background'})
     elements[key]['spec']['vizConfig']=copy.deepcopy(P['cards'][system]['vizConfig'])
     reasons=[]
     for ref in 'ABCDEF':
         zero='empty'
-        text={'A':'"API отвечает"','B':'"queue " + (.value|tostring) + " > 10"','C':'"available agents " + (.value|tostring) + " < 1"','D':'"failures в выборке за 10 мин: " + (.value|tostring)','E':'"running age " + (.value|tostring) + "s > '+str(limit)+'s"','F':'(.value|tostring) + " agents offline"'}[ref]
+        text={'A':'"API is responding"','B':'"queue " + (.value|tostring) + " > 10"','C':'"available agents " + (.value|tostring) + " < 1"','D':'"failures in the sample over 10m: " + (.value|tostring)','E':'"running age " + (.value|tostring) + "s > '+str(limit)+'s"','F':'(.value|tostring) + " agents offline"'}[ref]
         if system=='octopus' and ref=='F':text='(.value|tostring) + " workers health != Healthy"'
-        if system=='jenkins' and ref=='D':text='"failure/unstable в выборке за 10 мин: " + (.value|tostring)'
+        if system=='jenkins' and ref=='D':text='"failed/unstable results in the sample over 10m: " + (.value|tostring)'
         condition={'A':'.value==1','B':'.value>10','C':'.value<1','D':'.value>0','E':'.value>'+str(limit),'F':'.value>0'}[ref]
         if system=='octopus' and ref=='C':continue
         root=P['sources'][system][ref]['root']+' | if '+condition+' then {cause:('+text+')} else empty end'
-        reasons.append((ref,source(system,ref,root,True,[col('cause','Причина')]),False))
-    reason=panel(LABEL[system]+' — причины состояния',reasons,desc='Те же условия и пороги, что у плитки. Error/No data источника не означает отсутствие проблем.',transforms=[{'kind':'merge','spec':{'id':'merge','options':{}}}])
+        reasons.append((ref,source(system,ref,root,True,[col('cause','Reason')]),False))
+    reason=panel(LABEL[system]+' — status reasons',reasons,desc='Uses the same conditions and thresholds as the status card. Source errors or no data do not indicate a healthy service.',transforms=[{'kind':'merge','spec':{'id':'merge','options':{}}}])
     reasonkeys[system]=reason
     link_vars='&'.join('${'+v+':queryparam}' for v in ('teamcity_pipeline','jenkins_pipeline','octopus_space','octopus_project','octopus_environment','namespace','pod'))
-    elements[key]['spec']['links']=[{'title':'Открыть причины','url':P.get('dashboard_path','/grafana/d/cicd-operational-health')+'?viewPanel='+str(elements[reason]['spec']['id'])+'&from=${__from}&to=${__to}&'+link_vars}]
+    elements[key]['spec']['links']=[{'title':'Open status reasons','url':P.get('dashboard_path','/grafana/d/cicd-operational-health')+'?viewPanel='+str(elements[reason]['spec']['id'])+'&from=${__from}&to=${__to}&'+link_vars}]
     status.append((key,8,5))
 for system in reasonkeys:status.append((reasonkeys[system],8,5))
 
@@ -150,16 +150,16 @@ AVAIL='max by(namespace,persistentvolumeclaim)(kubelet_volume_stats_available_by
 CAP='max by(namespace,persistentvolumeclaim)(kubelet_volume_stats_capacity_bytes{'+PVC+'})'
 PCT='100*'+USED+'/('+CAP+'>0)'
 NEXUS='min(max by(namespace,pod)(kube_pod_status_ready{namespace="cicd-mia-899",pod=~".*nexus.*",condition="true"}))'
-nskey=panel('Nexus — Pod Ready',[('A',prom(NEXUS,instant=True),False)],'stat',desc='Nexus в CI namespace; отсутствие метрики = нет данных.',thresholds=[{'color':'red','value':None},{'color':'green','value':1}],options={'colorMode':'background'})
+nskey=panel('Nexus — Pod Ready',[('A',prom(NEXUS,instant=True),False)],'stat',desc='Nexus in the CI namespace. Missing metrics are shown as no data.',thresholds=[{'color':'red','value':None},{'color':'green','value':1}],options={'colorMode':'background'})
 status.append((nskey,6,5))
-status.append((panel('PVC — заполнение сейчас',[('A',prom(PCT,'{{namespace}} · {{persistentvolumeclaim}}',True),False)],'bargauge',unit='percent',options={'orientation':'horizontal','displayMode':'basic'},desc='По каждому PVC CI-контура. Шкала 0–100%; warning 80%, critical 90%.',thresholds=[{'color':'green','value':None},{'color':'orange','value':80},{'color':'red','value':90}]),10,5))
+status.append((panel('PVC — current usage',[('A',prom(PCT,'{{namespace}} · {{persistentvolumeclaim}}',True),False)],'bargauge',unit='percent',options={'orientation':'horizontal','displayMode':'basic'},desc='Each PVC in the CI namespaces. Scale 0–100%; warning at 80%, critical at 90%.',thresholds=[{'color':'green','value':None},{'color':'orange','value':80},{'color':'red','value':90}]),10,5))
 pvc=elements[status[-1][0]]['spec']['vizConfig']['spec']['fieldConfig']['defaults'];pvc.update(min=0,max=100,decimals=1)
 # Sum of linear slopes, after deduplicating kubelet scraping series.
 SLOPE='max by(namespace,persistentvolumeclaim)(deriv(kubelet_volume_stats_available_bytes{'+PVC+'}[6h]))'
-status.append((panel('PVC — до заполнения, линейная оценка',[('A',prom(AVAIL+'/(-('+SLOPE+'<0))','{{persistentvolumeclaim}}',True),False)],'stat','s',desc='available / темп убывания за 6h. При отсутствии убывания прогноз не выводится; это не SLA.',thresholds=[{'color':'red','value':None},{'color':'orange','value':86400},{'color':'green','value':604800}]),8,5))
+status.append((panel('PVC — estimated time to full',[('A',prom(AVAIL+'/(-('+SLOPE+'<0))','{{persistentvolumeclaim}}',True),False)],'stat','s',desc='Available bytes divided by the depletion rate over 6h. No estimate when free space is not decreasing; this is not an SLA.',thresholds=[{'color':'red','value':None},{'color':'orange','value':86400},{'color':'green','value':604800}]),8,5))
 for system,sample in [('teamcity',13),('jenkins',18),('octopus',23)]:
     norm=N[system];root=norm+' | map(select((.status|success) or (.status|degraded))) | if length==0 then empty else point((map(select(.status|success))|length)/length*100) end'
-    status.append((panel(LABEL[system]+(' · Prod' if system=='octopus' else '')+' — успешность последних 100',[('A',source(system,'D',root),False)],'stat','percent',desc='Текущая выборка; только SUCCESS/FAILURE/UNSTABLE/TimedOut, не процент за выбранный период.'),8,4))
+    status.append((panel(LABEL[system]+(' · Prod' if system=='octopus' else '')+' — success rate of the latest 100',[('A',source(system,'D',root),False)],'stat','percent',desc='Current sample of SUCCESS/FAILURE/UNSTABLE/TimedOut results. This percentage does not follow the selected time range.'),8,4))
 
 # Current executions with baseline grouped by pipeline, not global mean.
 for system in ('teamcity','jenkins','octopus'):
@@ -167,49 +167,49 @@ for system in ('teamcity','jenkins','octopus'):
     if system=='teamcity':running='complete_inventory("build") | {build:.} | '+running
     elif system=='octopus':running='complete_inventory("Items") | {Items:.} | '+running
     elif system=='jenkins':running=running.replace('map(select(.status != "RUNNING")) | sort_by(.finish) | reverse | .[:100]', 'map(select(.status=="RUNNING"))')
-    root=running+' | .[] | {workflow,status,age:(if .start==null then null else now-.start end),agent:(.agent//"Не передано API"),url}'
-    a=source(system,'E',root,True,[col('workflow','Пайплайн'),col('status','Результат'),col('agent','Сервер обработки' if system=='octopus' else 'Агент'),col('age','Возраст','number'),col('url','URL')])
-    b=history(system,tail=' | map(select((.status|success) and .duration!=null and .duration>0)) | group_by(.workflow) | .[] | select(length>=3) | {workflow:.[0].workflow,usual:(map(.duration|select(.!=null and .>0))|mean)}',columns=[col('workflow','Пайплайн'),col('usual','Обычно','number')])
-    trs=[{'kind':'joinByField','spec':{'id':'joinByField','options':{'byField':'Пайплайн','mode':'outerTabular'}}},{'kind':'filterByValue','spec':{'id':'filterByValue','options':{'filters':[{'fieldName':'Возраст','config':{'id':'isNotNull','options':{}}}],'match':'all','type':'include'}}},{'kind':'calculateField','spec':{'id':'calculateField','options':{'mode':'binary','binary':{'left':'Возраст','right':'Обычно','operator':'/'},'alias':'Относительно обычного'}}}]
-    ov=[override('Возраст',{'unit':'s'}),override('Обычно',{'unit':'s'}),override('Относительно обычного',{'thresholds':{'mode':'absolute','steps':[{'color':'green','value':None},{'color':'orange','value':2},{'color':'red','value':3}]},'custom.cellOptions':{'type':'color-background'}}),override('URL',{'links':[{'url':'${__value.raw}','title':'Открыть запуск','targetBlank':True}]})]
-    current.append((panel(LABEL[system]+' — текущие выполнения',[('A',a,False),('B',b,False)],desc='Возраст и средняя успешных запусков того же pipeline (≥3). Jenkins timestamp включает queue wait; agent может отсутствовать у Pipeline.',overrides=ov,transforms=trs),24,8))
+    root=running+' | .[] | {workflow,status,age:(if .start==null then null else now-.start end),agent:(.agent//"Not provided by API"),url}'
+    a=source(system,'E',root,True,[col('workflow','Pipeline'),col('status','Result'),col('agent','Processing server' if system=='octopus' else 'Agent'),col('age','Running age','number'),col('url','URL')])
+    b=history(system,tail=' | map(select((.status|success) and .duration!=null and .duration>0)) | group_by(.workflow) | .[] | select(length>=3) | {workflow:.[0].workflow,usual:(map(.duration|select(.!=null and .>0))|mean)}',columns=[col('workflow','Pipeline'),col('usual','Typical duration','number')])
+    trs=[{'kind':'joinByField','spec':{'id':'joinByField','options':{'byField':'Pipeline','mode':'outerTabular'}}},{'kind':'filterByValue','spec':{'id':'filterByValue','options':{'filters':[{'fieldName':'Running age','config':{'id':'isNotNull','options':{}}}],'match':'all','type':'include'}}},{'kind':'calculateField','spec':{'id':'calculateField','options':{'mode':'binary','binary':{'left':'Running age','right':'Typical duration','operator':'/'},'alias':'Age / typical duration'}}}]
+    ov=[override('Running age',{'unit':'s'}),override('Typical duration',{'unit':'s'}),override('Age / typical duration',{'thresholds':{'mode':'absolute','steps':[{'color':'green','value':None},{'color':'orange','value':2},{'color':'red','value':3}]},'custom.cellOptions':{'type':'color-background'}}),override('URL',{'links':[{'url':'${__value.raw}','title':'Open run','targetBlank':True}]})]
+    current.append((panel(LABEL[system]+' — current executions',[('A',a,False),('B',b,False)],desc='Running age compared with the mean of at least 3 successful runs of the same pipeline. Jenkins timestamps include queue wait; agent metadata may be missing.',overrides=ov,transforms=trs),24,8))
     # Queue detail count and oldest age are present in one table; no repeated KPI tiles.
-    if system=='teamcity':root='complete_inventory("build") | .[] | {workflow:.buildTypeId,id:.id,age:(if .queuedDate==null then null else now-(.queuedDate|epoch) end),reason:(.waitReason//"Не передано API"),url:.webUrl}'
-    elif system=='jenkins':root='arr("items") | "${jenkins_pipeline:raw}" as $jobPath | if $jobPath=="*" then . else map(select(.task.fullName!=null)|select(("job/"+(.task.fullName|split("/")|map(@uri)|join("/job/")))==$jobPath)) end | .[] | {workflow:.task.fullName,id:.id,age:(if .inQueueSince==null then null else now-(.inQueueSince/1000) end),reason:(.why//"Не передано API"),url:.task.url}'
-    else:root='complete_inventory("Items") | .[] | {workflow:(.ProjectId//.Arguments.ProjectId//.Description),id:.Id,age:(if .QueueTime==null then null else now-(.QueueTime|epoch) end),reason:(.ErrorMessage//(if .HasPendingPreconditions then "Pending preconditions" elif .HasPendingInterruptions then "Pending interruptions" else "Не передано API" end)),url:((.Links.Web//("/app#/${octopus_space}/tasks/"+.Id))|if startswith("http") then . else "http://octopus.admortgage.com"+. end)}'
-    qr=source(system,'B','['+root+'] | {count:length,oldest:(map(.age|select(.!=null))|max),reason:(map(.reason)|unique|join("; "))}',True,[col('count','Задач','number'),col('oldest','Старейшая задача','number'),col('reason','Причины ожидания')])
-    current.append((panel(LABEL[system]+' — очередь: задачи и причины',[('A',qr,False)],desc='Размер очереди, возраст старейшей задачи и причины. Отсутствующий timestamp не заменяется нулём.',overrides=[override('Старейшая задача',{'unit':'s'})]),12,7))
-    agroot={'teamcity':'complete_inventory("agent") | map(select(.connected and .authorized and .enabled)) | {busy:([.[]|select(.build!=null)]|length),total:length} | {load:((.busy|tostring)+" из "+(.total|tostring))}',
-            'jenkins':'arr("computer") | map(select(.numExecutors>0 and .offline==false and .temporarilyOffline==false)) | {busy:([.[]|select(.idle==false)]|length),total:length} | {load:((.busy|tostring)+" из "+(.total|tostring))}',
-            'octopus':'complete_inventory("Items") | {healthy:([.[]|select(.HealthStatus=="Healthy" and .IsDisabled==false)]|length),total:([.[]|select(.IsDisabled==false)]|length)} | {load:((.healthy|tostring)+" здоровых из "+(.total|tostring)+" (busy неизвестно)")}' }[system]
-    current.append((panel(LABEL[system]+(' — состояние workers' if system=='octopus' else ' — занято агентов'),[('A',source(system,'C',agroot,True,[col('load','Загрузка')]),False)],desc='Jenkins: busy agents по idle, не busy executor slots. Octopus HealthStatus не означает занятость worker.'),12,7))
+    if system=='teamcity':root='complete_inventory("build") | .[] | {workflow:.buildTypeId,id:.id,age:(if .queuedDate==null then null else now-(.queuedDate|epoch) end),reason:(.waitReason//"Not provided by API"),url:.webUrl}'
+    elif system=='jenkins':root='arr("items") | "${jenkins_pipeline:raw}" as $jobPath | if $jobPath=="*" then . else map(select(.task.fullName!=null)|select(("job/"+(.task.fullName|split("/")|map(@uri)|join("/job/")))==$jobPath)) end | .[] | {workflow:.task.fullName,id:.id,age:(if .inQueueSince==null then null else now-(.inQueueSince/1000) end),reason:(.why//"Not provided by API"),url:.task.url}'
+    else:root='complete_inventory("Items") | .[] | {workflow:(.ProjectId//.Arguments.ProjectId//.Description),id:.Id,age:(if .QueueTime==null then null else now-(.QueueTime|epoch) end),reason:(.ErrorMessage//(if .HasPendingPreconditions then "Pending preconditions" elif .HasPendingInterruptions then "Pending interruptions" else "Not provided by API" end)),url:((.Links.Web//("/app#/${octopus_space}/tasks/"+.Id))|if startswith("http") then . else "http://octopus.admortgage.com"+. end)}'
+    qr=source(system,'B','['+root+'] | {count:length,oldest:(map(.age|select(.!=null))|max),reason:(map(.reason)|unique|join("; "))}',True,[col('count','Tasks','number'),col('oldest','Oldest task age','number'),col('reason','Waiting reasons')])
+    current.append((panel(LABEL[system]+' — queue size and waiting reasons',[('A',qr,False)],desc='Queue size, oldest task age and waiting reasons. Missing timestamps remain unknown.',overrides=[override('Oldest task age',{'unit':'s'})]),12,7))
+    agroot={'teamcity':'complete_inventory("agent") | map(select(.connected and .authorized and .enabled)) | {busy:([.[]|select(.build!=null)]|length),total:length} | {load:((.busy|tostring)+" of "+(.total|tostring))}',
+            'jenkins':'arr("computer") | map(select(.numExecutors>0 and .offline==false and .temporarilyOffline==false)) | {busy:([.[]|select(.idle==false)]|length),total:length} | {load:((.busy|tostring)+" of "+(.total|tostring))}',
+            'octopus':'complete_inventory("Items") | {healthy:([.[]|select(.HealthStatus=="Healthy" and .IsDisabled==false)]|length),total:([.[]|select(.IsDisabled==false)]|length)} | {load:((.healthy|tostring)+" healthy of "+(.total|tostring)+" (occupancy unknown)")}' }[system]
+    current.append((panel(LABEL[system]+(' — worker health' if system=='octopus' else ' — busy agents'),[('A',source(system,'C',agroot,True,[col('load','Utilization')]),False)],desc='Jenkins busy agents use the idle flag. Octopus HealthStatus describes worker health; worker occupancy is unknown.'),12,7))
 
 # Prod views: the environment selector only lists exact Prod/Production names.
 OCBASE='http://octopus.admortgage.com/api/${octopus_space}'
-prodroot=N['octopus']+' | map(select(.workflow!="MISSING_PROJECT")) | group_by(.workflow) | .[] | max_by(.start//.finish//0) | {project:.workflow,environment:"Prod",status,url,start,finish,version:(.branch//"Не передано API"),trigger:(.trigger//"Не передано API")}'
-prod=source('octopus','D',prodroot,True,[col('project','Проект'),col('environment','Окружение'),col('status','Результат'),col('version','Релиз / контекст'),col('trigger','Кто запустил'),col('finish','Завершение','timestamp_epoch_s'),col('url','URL')])
-prodkey=panel('Octopus — последний Prod-деплой по проекту (выборка)',[('A',prod,False)],desc='Последний видимый deployment task в Prod/Production; ≤100 tasks не гарантируют присутствие всех проектов.',overrides=table_links());deploy.append((prodkey,24,9))
+prodroot=N['octopus']+' | map(select(.workflow!="MISSING_PROJECT")) | group_by(.workflow) | .[] | max_by(.start//.finish//0) | {project:.workflow,environment:"Prod",status,url,start,finish,version:(.branch//"Not provided by API"),trigger:(.trigger//"Not provided by API")}'
+prod=source('octopus','D',prodroot,True,[col('project','Project'),col('environment','Environment'),col('status','Result'),col('version','Release / context'),col('trigger','Triggered by'),col('finish','Completed at','timestamp_epoch_s'),col('url','URL')])
+prodkey=panel('Octopus — latest Prod deployment per project (sample)',[('A',prod,False)],desc='Latest visible deployment task per project in Prod/Production. The sample of up to 100 tasks may omit projects.',overrides=table_links());deploy.append((prodkey,24,9))
 # Exact 24h/selected-range filter is sent to the server, with full-inventory check.
-daily=source('octopus','D', 'complete_inventory("Items") | {Items:.} | '+N['octopus']+' | map(select(.status|failed) | select(.finish!=null and .finish>=now-86400 and .finish<=now)) | .[] | {workflow,id,status,finish,url,trigger:(.trigger//"Не передано API")}',True,[col('workflow','Проект'),col('id','Номер'),col('status','Результат'),col('finish','Завершение','timestamp_epoch_s'),col('trigger','Кто запустил'),col('url','URL')])
+daily=source('octopus','D', 'complete_inventory("Items") | {Items:.} | '+N['octopus']+' | map(select(.status|failed) | select(.finish!=null and .finish>=now-86400 and .finish<=now)) | .[] | {workflow,id,status,finish,url,trigger:(.trigger//"Not provided by API")}',True,[col('workflow','Project'),col('id','Run'),col('status','Result'),col('finish','Completed at','timestamp_epoch_s'),col('trigger','Triggered by'),col('url','URL')])
 param(daily,'take','1000');param(daily,'fromCompletedDate','${prod_from24h:raw}')
-deploy.append((panel('Octopus — падения Prod за 24h, текущий snapshot',[('A',daily,False)],desc='Скользящие 24h от текущего времени, независимо от timepicker. API ограничивает выборку; jq проверяет окно и truncation.',overrides=table_links()),24,8))
+deploy.append((panel('Octopus — Prod failures in the last 24h; current snapshot',[('A',daily,False)],desc='Rolling 24h from the current time, independent of the time picker. The API limits the sample; jq validates the window and detects truncation.',overrides=table_links()),24,8))
 for system in ('teamcity','jenkins','octopus'):
     problems.append((results(system,True),24,8))
-    top=history(system,tail=' | map(select(.workflow!="MISSING_PROJECT")) | ranked | .[]',columns=[col('workflow','Пайплайн'),col('failures','Падения','number'),col('mean','Средняя длительность','number'),col('max','Максимальная длительность','number'),col('samples','Выборка','number'),col('alternations','Чередования','number'),col('suspected_flaky','Похоже на flaky','boolean')])
-    problems.append((panel(LABEL[system]+(' · Prod' if system=='octopus' else '')+' — проблемные пайплайны',[('A',top,False)],desc='Последние 100. Чередования — эвристика: ≥4 результата и смена success/failure в ≥50% соседних пар; не доказательство flaky.',overrides=[override('Средняя длительность',{'unit':'s'}),override('Максимальная длительность',{'unit':'s'})]),24,8))
+    top=history(system,tail=' | map(select(.workflow!="MISSING_PROJECT")) | ranked | .[]',columns=[col('workflow','Pipeline'),col('failures','Failures','number'),col('mean','Mean duration','number'),col('max','Max duration','number'),col('samples','Sample size','number'),col('alternations','Transitions','number'),col('suspected_flaky','Suspected flaky','boolean')])
+    problems.append((panel(LABEL[system]+(' · Prod' if system=='octopus' else '')+' — pipeline rankings',[('A',top,False)],desc='Latest 100 results. Suspected flaky is a heuristic: at least 4 outcomes and success/failure transitions in at least 50% of adjacent pairs.',overrides=[override('Mean duration',{'unit':'s'}),override('Max duration',{'unit':'s'})]),24,8))
 
 # Detail rows contain tables only for application data; no repeated KPI stats.
 for system in ('teamcity','jenkins','octopus'):
     members=[(results(system),24,10)]
     if system=='teamcity':
         root='complete_inventory("agent")[] | {name:.name,online:.connected,enabled:.enabled,authorized:.authorized,busy:(.build!=null),reason:(.disconnectionComment//"")}'
-        warn=extra(system,'/app/rest/health','arr("healthItem")[] | {severity:.severity,identity:.identity,message:(.healthCategory.description//.healthCategory.name)}',{'locator':'global:true,minSeverity:warn','fields':'healthItem(identity,severity,healthCategory(name,description))'},[col('severity','Severity'),col('identity','ID'),col('message','Предупреждение')])
+        warn=extra(system,'/app/rest/health','arr("healthItem")[] | {severity:.severity,identity:.identity,message:(.healthCategory.description//.healthCategory.name)}',{'locator':'global:true,minSeverity:warn','fields':'healthItem(identity,severity,healthCategory(name,description))'},[col('severity','Severity'),col('identity','ID'),col('message','Warning')])
         project_warn=copy.deepcopy(warn);param(project_warn,'locator','project:(affectedProject:_Root),minSeverity:warn')
-        members.append((panel('TeamCity — server health warnings',[('A',warn,False),('B',project_warn,False)],desc='Global и project warnings, включая VCS. Нужны права Server Health; API error не означает отсутствие проблем.',transforms=[{'kind':'merge','spec':{'id':'merge','options':{}}}]),24,7))
+        members.append((panel('TeamCity — server health warnings',[('A',warn,False),('B',project_warn,False)],desc='Global and project warnings, including VCS. Requires Server Health permissions; API errors do not indicate a healthy server.',transforms=[{'kind':'merge','spec':{'id':'merge','options':{}}}]),24,7))
     elif system=='jenkins':root='arr("computer") | map(select(.numExecutors>0))[] | {name:.displayName,online:(.offline|not),enabled:(.temporarilyOffline|not),reason:(.offlineCauseReason//""),idle:.idle,executors:.numExecutors}'
     else:root='complete_inventory("Items")[] | {name:.Name,health:.HealthStatus,enabled:(.IsDisabled|not),pools:(.WorkerPoolIds|join(","))}'
-    members.append((panel(LABEL[system]+' — агенты'+(' / workers' if system=='octopus' else ''),[('A',source(system,'C',root,True,[]),False)],desc='Инвентарь, состояние и причины из API.'),24,8))
-    if system=='octopus':members.append((panel('Octopus — Tentacle targets и health checks',[('A',extra(system,OCBASE+'/machines','complete_inventory("Items")[] | {name:.Name,health:.HealthStatus,disabled:.IsDisabled,status:(.StatusSummary//"Не передано API")}',{'take':'1000'},[]),False)],desc='Health targets — отдельно от workers; kube namespace Tentacle контролируется ниже.'),24,8))
+    members.append((panel(LABEL[system]+' — agents'+(' / workers' if system=='octopus' else ''),[('A',source(system,'C',root,True,[]),False)],desc='Inventory, status and reasons from the API.'),24,8))
+    if system=='octopus':members.append((panel('Octopus — Tentacle targets and health checks',[('A',extra(system,OCBASE+'/machines','complete_inventory("Items")[] | {name:.Name,health:.HealthStatus,disabled:.IsDisabled,status:(.StatusSummary//"Not provided by API")}',{'take':'1000'},[]),False)],desc='Target health checks, separate from workers. Tentacle Kubernetes resources are shown below.'),24,8))
     details.append(layoutrow(LABEL[system]+' · details',members,True))
 infra=[]
 # Clear legends map known CI server prefixes; unmatched pods retain their raw name.
@@ -217,26 +217,41 @@ def friendly(expr):
     expr='label_replace('+expr+',"component","Octopus","pod","(?i).*octopus.*")'
     return 'label_replace(label_replace(label_replace(label_replace('+expr+',"component","TeamCity","pod","(?i).*teamcity.*"),"component","Jenkins","pod","(?i).*jenkins.*"),"component","Nexus","pod","(?i).*nexus.*"),"component","Tentacle","namespace","octopus-worker-mia-899")'
 ready='max by(namespace,pod)(kube_pod_status_ready{'+PODS+',condition="true"})'
-readykey=panel('CI pods — Ready',[('A',prom(friendly(ready),'{{component}} · {{pod}}'),False)],'state-timeline',desc='Только cicd-mia-899 и octopus-worker-mia-899. Unknown prefix сохраняет pod name.',thresholds=[{'color':'red','value':None},{'color':'green','value':1}])
+readykey=panel('CI pods — Ready',[('A',prom(friendly(ready),'{{component}} · {{pod}}'),False)],'state-timeline',desc='Only cicd-mia-899 and octopus-worker-mia-899. Unrecognized components retain their pod names.',thresholds=[{'color':'red','value':None},{'color':'green','value':1}])
 elements[readykey]['spec']['vizConfig']['spec']['fieldConfig']['defaults']['mappings']=[{'type':'value','options':{'0':{'text':'NOT READY','color':'red'},'1':{'text':'READY','color':'green'}}}]
 elements[readykey]['spec']['vizConfig']['spec']['options']={'showValue':'auto','rowHeight':0.85,'mergeValues':True,'legend':{'displayMode':'list','placement':'bottom'},'tooltip':{'mode':'single'}}
 infra.append((readykey,24,7))
-for resource,metric,unit,ksm in [('CPU','rate(container_cpu_usage_seconds_total','cores','cpu'),('Память','container_memory_working_set_bytes','bytes','memory')]:
+for resource,metric,unit,ksm in [('CPU','rate(container_cpu_usage_seconds_total','cores','cpu'),('Memory','container_memory_working_set_bytes','bytes','memory')]:
     usage=('sum by(namespace,pod)(rate(container_cpu_usage_seconds_total{'+PODS+',container!="",container!="POD"}[$__rate_interval]))' if resource=='CPU' else 'sum by(namespace,pod)(container_memory_working_set_bytes{'+PODS+',container!="",container!="POD"})')
     qs=[('A',prom(friendly(usage),'{{component}} · {{pod}} usage'),False)]
     for ref,kind in [('B','requests'),('C','limits')]:qs.append((ref,prom(friendly('sum by(namespace,pod)(max by(namespace,pod,container)(kube_pod_container_resource_'+kind+'{'+PODS+',resource="'+ksm+'"}))'),'{{component}} · {{pod}} '+kind),False))
-    infra.append((panel(resource+' CI pod — usage / requests / limits',qs,'timeseries',unit,desc='Абсолютные ресурсы. Requests/limits — сумма контейнеров; отсутствующий limit не заменяется нулём.'),24,8))
-infra.append((panel('CI pods — рестарты за rolling 15m',[('A',prom(friendly('sum by(namespace,pod)(increase(kube_pod_container_status_restarts_total{'+PODS+'}[15m]))'),'{{component}} · {{pod}}'),False)],'timeseries',thresholds=[{'color':'green','value':None},{'color':'orange','value':1},{'color':'red','value':3}],desc='Warning 1, critical 3 за 15m; больше нет дефолта 80.'),24,7))
-infra.append((panel('PVC — прогноз свободного места через 7d',[('A',prom('min by(namespace,persistentvolumeclaim)(predict_linear(kubelet_volume_stats_available_bytes{'+PVC+'}[6h],604800))','{{persistentvolumeclaim}}'),False)],'timeseries','bytes',desc='Линейный прогноз по 6h. Значение ≤0 означает риск заполнения в горизонте 7d.'),24,7))
+    infra.append((panel(resource+' CI pod — usage / requests / limits',qs,'timeseries',unit,desc='Absolute usage with requests and limits summed across containers. Missing limits remain unknown.'),24,8))
+infra.append((panel('CI pods — restarts in rolling 15m',[('A',prom(friendly('sum by(namespace,pod)(increase(kube_pod_container_status_restarts_total{'+PODS+'}[15m]))'),'{{component}} · {{pod}}'),False)],'timeseries',thresholds=[{'color':'green','value':None},{'color':'orange','value':1},{'color':'red','value':3}],desc='Warning at 1 restart and critical at 3 restarts within a rolling 15m window.'),24,7))
+infra.append((panel('PVC — free space forecast in 7d',[('A',prom('min by(namespace,persistentvolumeclaim)(predict_linear(kubelet_volume_stats_available_bytes{'+PVC+'}[6h],604800))','{{persistentvolumeclaim}}'),False)],'timeseries','bytes',desc='Linear forecast based on 6h of observations. Values at or below zero indicate a risk of running out of space within 7d.'),24,7))
 details.append(layoutrow('Kubernetes / PVC · details',infra,True))
 for v in variables:
     v['spec'].setdefault('allowCustomValue',False)
     if v['kind']=='QueryVariable':v['spec'].setdefault('regex','')
-rows=[layoutrow('1 Статус — текущий REST snapshot, не выбранный период',status),layoutrow('2 Сейчас — выполнения, очереди, агенты',current),layoutrow('3 Деплои — только Prod',deploy),layoutrow('4 Проблемы — последние результаты и проблемные пайплайны',problems),layoutrow('5 Details',[],nested={'kind':'RowsLayout','spec':{'rows':details}})]
+rows=[layoutrow('1 Status — current REST snapshot; independent of the time range',status),layoutrow('2 Now — running tasks, queues and agents',current),layoutrow('3 Deployments — Prod only',deploy),layoutrow('4 Problems — recent failures and pipeline rankings',problems),layoutrow('5 Details',[],nested={'kind':'RowsLayout','spec':{'rows':details}})]
 annotations=[{'kind':'AnnotationQuery','spec':{'name':'Pod restarts','enable':True,'hide':False,'iconColor':'orange','query':prom('sum by(namespace,pod)(increase(kube_pod_container_status_restarts_total{'+S+'}[5m]))>0','Restart {{pod}}')}}]
 aquery=source('octopus','D',N['octopus']+' | .[] | select(.finish!=null) | {time:(.finish*1000),title:("Prod deploy "+.workflow),text:(.status+" · "+(.url//"")),tags:"Prod,Octopus"}',True,[col('time','time','timestamp_epoch'),col('title'),col('text'),col('tags')])
 param(aquery,'fromCompletedDate','${__timeFrom:date:iso}');param(aquery,'toCompletedDate','${__timeTo:date:iso}');param(aquery,'take','1000')
 annotations.append({'kind':'AnnotationQuery','spec':{'name':'Prod deployments','enable':True,'hide':False,'iconColor':'blue','query':aquery}})
 doc={'apiVersion':'dashboard.grafana.app/v2','kind':'Dashboard','metadata':{'name':'cicd-operational-health'},'spec':{'title':'CI/CD Operational Health','editable':True,'cursorSync':'Off','liveNow':False,'preload':False,'tags':['cicd','review','infinity','prometheus'],'timeSettings':P['metadata']['timeSettings'],'variables':variables,'links':[],'annotations':annotations,'elements':elements,'layout':{'kind':'RowsLayout','spec':{'rows':rows}}}}
+# Some Grafana JSON editors reject a null base threshold despite the core
+# resource schema permitting it. A numeric base preserves the same first color:
+# getActiveThreshold starts with steps[0], including values below that base.
+# Normalize only threshold configs, leaving null/missing API data untouched.
+def numeric_threshold_bases(value):
+    if isinstance(value,dict):
+        if value.get('mode') in ('absolute','percentage') and isinstance(value.get('steps'),list):
+            for i,step in enumerate(value['steps']):
+                if step.get('value') is None:
+                    if i!=0:raise ValueError('Only the base threshold can be null')
+                    step['value']=0
+        for child in value.values():numeric_threshold_bases(child)
+    elif isinstance(value,list):
+        for child in value:numeric_threshold_bases(child)
+numeric_threshold_bases(doc)
 (OUT/'cicd-health-dashboard.json').write_text(json.dumps(doc,ensure_ascii=False,indent=2)+'\n')
 print(len(elements),'panels; 5 primary rows; 4 collapsed detail rows; Grafana v2')

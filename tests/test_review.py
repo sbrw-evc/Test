@@ -35,30 +35,33 @@ class ReviewTests(unittest.TestCase):
      for b in items[i+1:]:self.assertFalse(a['x']<b['x']+b['width'] and a['x']+a['width']>b['x'] and a['y']<b['y']+b['height'] and a['y']+a['height']>b['y'])
   check(S['layout'])
  def test_queue_zero_is_valid(self):
+  checked=0
   for e in S['elements'].values():
-   if '— очередь: задачи' not in e['spec']['title']:continue
+   if '— queue size' not in e['spec']['title']:continue
+   checked+=1
    q=e['spec']['data']['spec']['queries'][0]['spec']['query']['spec'];system=q['url']
    data={'build':[]} if '/buildQueue' in system else {'items':[]} if '/queue/' in system else {'Items':[],'TotalResults':0}
    rows=self.jq(q['root_selector'],data);self.assertEqual(rows[0]['count'],0)
+  self.assertEqual(checked,3)
  def test_rank_switches(self):
-  e=next(e for e in S['elements'].values() if e['spec']['title']=='TeamCity — проблемные пайплайны')
+  e=next(e for e in S['elements'].values() if e['spec']['title']=='TeamCity — pipeline rankings')
   q=e['spec']['data']['spec']['queries'][0]['spec']['query']['spec']['root_selector']
   b=[{'id':i,'buildTypeId':'A','status':s,'state':'finished','startDate':f'20261012T10000{i}+0300','finishDate':f'20261012T10001{i}+0300','webUrl':'https://example.test/build'} for i,s in enumerate(['SUCCESS','FAILURE','SUCCESS','FAILURE'])]
   rows=self.jq(q,{'build':b});self.assertEqual(rows[0]['failures'],2);self.assertEqual(rows[0]['alternations'],3);self.assertTrue(rows[0]['suspected_flaky'])
  def test_deployment_metadata_lookup(self):
-  e=next(e for e in S['elements'].values() if 'Octopus — последний Prod-деплой' in e['spec']['title'])
+  e=next(e for e in S['elements'].values() if 'Octopus — latest Prod deployment' in e['spec']['title'])
   q=e['spec']['data']['spec']['queries'][0]['spec']['query']['spec']['root_selector']
   mapping={'Task-1':{'project':'Projects-1','version':'Releases-5','trigger':'deploy-user'}}
   q=q.replace('${octopus_metadata:json}',json.dumps(json.dumps(mapping)))
   data={'Items':[{'Id':'Task-1','Name':'Deploy','State':'Success','StartTime':'2026-10-12T10:00:00Z','CompletedTime':'2026-10-12T10:05:00Z','Description':'Deploy app'}]}
   rows=self.jq(q,data);self.assertEqual(rows[0]['project'],'Projects-1');self.assertEqual(rows[0]['trigger'],'deploy-user');self.assertEqual(rows[0]['version'],'Releases-5')
  def test_invalid_date_is_not_dropped(self):
-  e=next(e for e in S['elements'].values() if e['spec']['title']=='TeamCity — проблемные пайплайны')
+  e=next(e for e in S['elements'].values() if e['spec']['title']=='TeamCity — pipeline rankings')
   q=e['spec']['data']['spec']['queries'][0]['spec']['query']['spec']['root_selector']
   r=subprocess.run(['jq','-c',substitute(q)],input=json.dumps({'build':[{'id':1,'buildTypeId':'A','status':'FAILURE','startDate':'bad','finishDate':'bad'}]}),text=True,capture_output=True)
   self.assertNotEqual(r.returncode,0)
  def test_prod_environment_guard(self):
-  e=next(e for e in S['elements'].values() if 'Octopus — последний Prod-деплой' in e['spec']['title'])
+  e=next(e for e in S['elements'].values() if 'Octopus — latest Prod deployment' in e['spec']['title'])
   q=e['spec']['data']['spec']['queries'][0]['spec']['query']['spec'];self.assertTrue(any(p['key']=='environment' for p in q['url_options']['params']))
   r=subprocess.run(['jq','-c',substitute(q['root_selector'].replace('${octopus_environment:raw}','__select_prod__'))],input='{"Items":[]}',text=True,capture_output=True);self.assertNotEqual(r.returncode,0)
  def test_transformation_schema(self):
@@ -90,8 +93,8 @@ class ReviewTests(unittest.TestCase):
  def test_metadata_interpolation_object_and_string(self):
   maps={'octopus_metadata':{'Task-1':{'project':'Projects-1','version':'1.2.3','trigger':'deploy-user'}},'octopus_project_names':{'Projects-1':'App "quoted" \\ path'},'jenkins_agent_map':{'https://jenkins.example/job/app/7/':'agent "one" \\ runner'}}
   fixtures={
-   'Jenkins — текущие выполнения':{'jobs':[{'fullName':'app','builds':[{'number':7,'building':True,'timestamp':1700000000000,'duration':0,'url':'https://jenkins.example/job/app/7/'}]}]},
-   'Octopus — текущие выполнения':{'Items':[{'Id':'Task-1','Name':'Deploy','State':'Executing','StartTime':'2026-10-12T10:00:00Z','CompletedTime':None}], 'TotalResults':1}}
+   'Jenkins — current executions':{'jobs':[{'fullName':'app','builds':[{'number':7,'building':True,'timestamp':1700000000000,'duration':0,'url':'https://jenkins.example/job/app/7/'}]}]},
+   'Octopus — current executions':{'Items':[{'Id':'Task-1','Name':'Deploy','State':'Executing','StartTime':'2026-10-12T10:00:00Z','CompletedTime':None}], 'TotalResults':1}}
   for encoded in (True,False):
    for title,data in fixtures.items():
     with self.subTest(title=title,encoded=encoded):
@@ -102,24 +105,61 @@ class ReviewTests(unittest.TestCase):
      else:self.assertEqual(rows[0]['workflow'],maps['octopus_project_names']['Projects-1']+' [Projects-1]')
  def test_success_rate_with_interpolated_object(self):
   fixtures={
-   'Jenkins — успешность последних 100':{'jobs':[{'fullName':'app','builds':[{'number':7,'building':False,'result':'SUCCESS','timestamp':1700000000000,'duration':10000,'url':'https://jenkins.example/job/app/7/'}]}]},
-   'Octopus · Prod — успешность последних 100':{'Items':[{'Id':'Task-1','ProjectId':'Projects-1','Name':'Deploy','State':'Success','StartTime':'2026-10-12T10:00:00Z','CompletedTime':'2026-10-12T10:05:00Z'}]}}
+   'Jenkins — success rate of the latest 100':{'jobs':[{'fullName':'app','builds':[{'number':7,'building':False,'result':'SUCCESS','timestamp':1700000000000,'duration':10000,'url':'https://jenkins.example/job/app/7/'}]}]},
+   'Octopus · Prod — success rate of the latest 100':{'Items':[{'Id':'Task-1','ProjectId':'Projects-1','Name':'Deploy','State':'Success','StartTime':'2026-10-12T10:00:00Z','CompletedTime':'2026-10-12T10:05:00Z'}]}}
   for title,data in fixtures.items():
    e=next(e for e in S['elements'].values() if e['spec']['title']==title)
    q=e['spec']['data']['spec']['queries'][0]['spec']['query']['spec']['root_selector']
    rows=self.jq(q,data,encoded=False);self.assertEqual(rows[0]['value'],100)
  def test_malformed_metadata_is_error(self):
-  e=next(e for e in S['elements'].values() if e['spec']['title']=='Octopus — текущие выполнения')
+  e=next(e for e in S['elements'].values() if e['spec']['title']=='Octopus — current executions')
   q=e['spec']['data']['spec']['queries'][0]['spec']['query']['spec']['root_selector']
   for bad in ('[]','null','42','"not json"'):
    r=subprocess.run(['jq','-c',substitute(q.replace('${octopus_project_names:json}',bad))],input='{"Items":[],"TotalResults":0}',text=True,capture_output=True)
    self.assertNotEqual(r.returncode,0)
  def test_reason_frames_are_merged(self):
+  checked=0
   for e in S['elements'].values():
-   if '— причины состояния' in e['spec']['title']:self.assertEqual(e['spec']['data']['spec']['transformations'][0]['group'],'merge')
+   if '— status reasons' in e['spec']['title']:
+    checked+=1;self.assertEqual(e['spec']['data']['spec']['transformations'][0]['group'],'merge')
+  self.assertEqual(checked,3)
  def test_pvc_percent_scale(self):
-  e=next(e for e in S['elements'].values() if e['spec']['title']=='PVC — заполнение сейчас')
+  e=next(e for e in S['elements'].values() if e['spec']['title']=='PVC — current usage')
   viz=e['spec']['vizConfig']['spec'];self.assertEqual(viz['fieldConfig']['defaults']['min'],0);self.assertEqual(viz['fieldConfig']['defaults']['max'],100);self.assertEqual(viz['options']['orientation'],'horizontal')
+ def test_dashboard_is_english(self):
+  # Includes titles, descriptions, column/transform references, variables,
+  # links, status mappings, fallback values and messages generated by jq.
+  self.assertIsNone(re.search('[\u0400-\u04ff]',json.dumps(D,ensure_ascii=False)))
+ def test_numeric_thresholds_and_operational_boundaries(self):
+  configs=[]
+  def walk(value):
+   if isinstance(value,dict):
+    if value.get('mode') in ('absolute','percentage') and isinstance(value.get('steps'),list):configs.append(value)
+    for child in value.values():walk(child)
+   elif isinstance(value,list):
+    for child in value:walk(child)
+  walk(D);self.assertEqual(len(configs),45)
+  for c in configs:
+   values=[s['value'] for s in c['steps']]
+   self.assertTrue(all(isinstance(v,(int,float)) for v in values))
+   self.assertEqual(values,sorted(values))
+  expected={
+   'PVC — current usage':[(0,'green'),(80,'orange'),(90,'red')],
+   'Nexus — Pod Ready':[(0,'red'),(1,'green')],
+   'CI pods — restarts in rolling 15m':[(0,'green'),(1,'orange'),(3,'red')]}
+  for title,steps in expected.items():
+   e=next(e for e in S['elements'].values() if e['spec']['title']==title)
+   actual=e['spec']['vizConfig']['spec']['fieldConfig']['defaults']['thresholds']['steps']
+   self.assertEqual([(x['value'],x['color']) for x in actual],steps)
+ def test_missing_queue_timestamp_remains_unknown(self):
+  fixtures={
+   'TeamCity':{'build':[{'id':1,'buildTypeId':'A'}]},
+   'Jenkins':{'items':[{'id':1,'task':{'fullName':'app'}}]},
+   'Octopus':{'Items':[{'Id':'Task-1'}],'TotalResults':1}}
+  for system,data in fixtures.items():
+   e=next(e for e in S['elements'].values() if e['spec']['title']==system+' — queue size and waiting reasons')
+   q=e['spec']['data']['spec']['queries'][0]['spec']['query']['spec']['root_selector']
+   rows=self.jq(q,data);self.assertEqual(rows[0]['count'],1);self.assertIsNone(rows[0]['oldest'])
  def test_queries_compile(self):
   for e in S['elements'].values():
    for q in e['spec']['data']['spec']['queries']:

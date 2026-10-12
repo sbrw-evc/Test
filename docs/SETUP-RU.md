@@ -1,5 +1,7 @@
 # Внедрение новой версии Infinity и Prometheus
 
+Интерфейс dashboard полностью на английском. Базовые пороги записаны числом `0` для совместимости с JSON editor, который подчёркивает `null`; данные API без значений остаются `No data`.
+
 1. Использовать существующий Prometheus с kube-state-metrics и kubelet/cAdvisor. Проверить `kube_pod_status_ready`, `kube_pod_container_status_restarts_total`, `container_cpu_usage_seconds_total`, `container_memory_working_set_bytes`, `kube_pod_container_resource_requests/limits` и `kubelet_volume_stats_used/available/capacity_bytes`.
 2. В Grafana проверить текущие Infinity datasources TeamCity/Jenkins/Octopus из `cicd-health/review-source-profile.json`. HTTP endpoints и относительный TeamCity URL сохранены из рабочего экспорта. Credentials хранить в secureJsonData, оставить действующие base URL/allowedHosts/TLS настройки. Prometheus UID также взят из экспорта; шаблон datasource YAML — только пример для новых установок.
 3. Импортировать `cicd-health/cicd-health-dashboard.json` в Grafana v2. Он использует UID `cicd-operational-health` и пять главных RowsLayout блоков. При изменениях генератора выполнить `python scripts/build_operational_review.py` и `python scripts/validate_dashboard.py`.
