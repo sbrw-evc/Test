@@ -5,7 +5,8 @@ LABEL={'teamcity':'TeamCity','jenkins':'Jenkins','octopus':'Octopus'}
 ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/'cicd-health'
 P=json.loads((OUT/'review-source-profile.json').read_text())
 NS='cicd-mia-899|octopus-worker-mia-899';PROM=P['prometheus_uid'];elements={};counter=100
-COMMON=P['common'].replace('  capture(', '  (capture(').replace('$") |', '$") // error("Invalid timestamp")) |')+'''\ndef failed: .=="FAILURE" or .=="Failed" or .=="TimedOut";
+COMMON=P['common'].replace('  capture(', '  (capture(').replace('$") |', '$") // error("Invalid timestamp")) |')+'''\ndef json_object: (if type=="string" then fromjson else . end) | if type=="object" then . else error("Metadata must be a JSON object") end;
+def failed: .=="FAILURE" or .=="Failed" or .=="TimedOut";
 def degraded: failed or .=="UNSTABLE";\ndef success: .=="SUCCESS" or .=="Success";\ndef ranked:\n  group_by(.workflow) | map(. as $g | ($g | map(select(.status|failed))|length) as $f |\n  ($g|sort_by(.start)|map(select((.status|failed) or (.status|success)))|map(.status|success)) as $s |\n  ([range(1;$s|length) as $i | select($s[$i]!=$s[$i-1])]|length) as $changes |\n  {workflow:$g[0].workflow,failures:$f,mean:($g|map(.duration|select(.!=null and .>0))|mean),max:($g|map(.duration|select(.!=null))|max),samples:($g|length),alternations:$changes,suspected_flaky:(($s|length)>=4 and ($changes/(($s|length)-1))>=0.5)}) | sort_by(-.failures,-(.mean//0));\n'''
 # Keep the original datasource UIDs, context paths and automatic API variables.
 def source(system,ref='D',root=None,table=False,columns=None):
@@ -28,7 +29,7 @@ def extra(system,url,root,params=None,columns=None):
 def col(selector,text=None,typ='string'):return {'selector':selector,'text':text or selector,'type':typ}
 def cols(*names):return [col(n) for n in names]
 def prom(expr,legend='',instant=False):return {'kind':'DataQuery','group':'prometheus','datasource':{'name':PROM},'version':'v0','spec':{'expr':expr,'instant':instant,'range':not instant,'format':'time_series','legendFormat':legend}}
-def expr(kind,expression,ref):return {'kind':'DataQuery','group':'__expr__','datasource':{'name':'__expr__'},'version':'v0','spec':{'type':kind,'expression':expression,'refId':ref,**({'reducer':'last','settings':{'mode':'strict'}} if kind=='reduce' else {})}}
+def expr(kind,expression,ref):return {'kind':'DataQuery','group':'__expr__','datasource':{'name':'__expr__'},'version':'v0','spec':{'type':kind,'expression':expression,'refId':ref,**({'reducer':'last'} if kind=='reduce' else {})}}
 def queries(qs):return [{'kind':'PanelQuery','spec':{'refId':ref,'hidden':hide,'query':q}} for ref,q,hide in qs]
 def override(field,props):return {'matcher':{'id':'byName','options':field},'properties':[{'id':k,'value':v} for k,v in props.items()]}
 STATUS={'SUCCESS':{'text':'SUCCESS','color':'green'},'Success':{'text':'SUCCESS','color':'green'},'FAILURE':{'text':'FAILED','color':'red'},'Failed':{'text':'FAILED','color':'red'},'TimedOut':{'text':'TIMEOUT','color':'red'},'UNSTABLE':{'text':'UNSTABLE','color':'orange'},'ABORTED':{'text':'ABORTED','color':'gray'},'CANCELED':{'text':'CANCELED','color':'gray'},'Canceled':{'text':'CANCELED','color':'gray'}}
@@ -96,13 +97,13 @@ variables.append(clock)
 names=copy.deepcopy(meta);names['spec'].update(name='octopus_project_names',label='Project names',current={'text':'projects','value':'{}'})
 nq=names['spec']['query']['spec']['infinityQuery'];nq['url']='http://octopus.admortgage.com/api/${octopus_space}/projects';nq['url_options']={'method':'GET','params':[{'key':'take','value':'1000'}]};nq['root_selector']=COMMON+'complete_inventory("Items") | map({key:.Id,value:.Name}) | from_entries | {__text:"projects",__value:tojson}'
 variables.append(names)
-N['octopus']=N['octopus'].replace('[arr("Items")[] |', '(${octopus_metadata:json}|fromjson) as $meta | [arr("Items")[] | . as $task | .+{ProjectId:(.ProjectId//.Arguments.ProjectId//$meta[.Id].project),ReleaseVersion:(.ReleaseVersion//$meta[.Id].version),Arguments:((.Arguments//{})+{DeployedBy:(.Arguments.DeployedBy//$meta[.Id].trigger)})} |')
-N['octopus']='(${octopus_project_names:json}|fromjson) as $names | '+N['octopus']+' | map(.workflow as $id | if $names[$id]!=null then .workflow=($names[$id]+" ["+$id+"]") else . end)'
+N['octopus']=N['octopus'].replace('[arr("Items")[] |', '(${octopus_metadata:json}|json_object) as $meta | [arr("Items")[] | . as $task | .+{ProjectId:(.ProjectId//.Arguments.ProjectId//$meta[.Id].project),ReleaseVersion:(.ReleaseVersion//$meta[.Id].version),Arguments:((.Arguments//{})+{DeployedBy:(.Arguments.DeployedBy//$meta[.Id].trigger)})} |')
+N['octopus']='(${octopus_project_names:json}|json_object) as $names | '+N['octopus']+' | map(.workflow as $id | if $names[$id]!=null then .workflow=($names[$id]+" ["+$id+"]") else . end)'
 # Pipeline runs often omit builtOn. Match their URL with computer executors.
 jv=copy.deepcopy(next(v for v in variables if v['spec']['name']=='jenkins_pipeline'));jv['spec'].update(name='jenkins_agent_map',label='Executor map',hide='hideVariable',includeAll=False,multi=False,current={'text':'agents','value':'{}'},refresh='onTimeRangeChanged')
 jq=jv['spec']['query']['spec']['infinityQuery'];jq['url']='http://jenkins.admortgage.com/computer/api/json';jq['url_options']={'method':'GET','params':[{'key':'tree','value':'computer[displayName,executors[currentExecutable[url]]]'}]};jq['root_selector']=COMMON+'arr("computer") | [.[] | .displayName as $agent | .executors[]? | select(.currentExecutable.url!=null) | {key:.currentExecutable.url,value:$agent}] | from_entries | {__text:"agents",__value:tojson}'
 variables.append(jv)
-N['jenkins']='(${jenkins_agent_map:json}|fromjson) as $agents | '+N['jenkins'].replace('agent:.builtOn','agent:(.builtOn//$agents[.url])')
+N['jenkins']='(${jenkins_agent_map:json}|json_object) as $agents | '+N['jenkins'].replace('agent:.builtOn','agent:(.builtOn//$agents[.url])')
 
 
 def history(system,table=True,ref='D',tail='',columns=None):return source(system,ref,N[system]+tail,table,columns)
@@ -134,7 +135,7 @@ for i,system in enumerate(('teamcity','jenkins','octopus')):
         if system=='octopus' and ref=='C':continue
         root=P['sources'][system][ref]['root']+' | if '+condition+' then {cause:('+text+')} else empty end'
         reasons.append((ref,source(system,ref,root,True,[col('cause','Причина')]),False))
-    reason=panel(LABEL[system]+' — причины состояния',reasons,desc='Те же условия и пороги, что у плитки. Error/No data источника не означает отсутствие проблем.')
+    reason=panel(LABEL[system]+' — причины состояния',reasons,desc='Те же условия и пороги, что у плитки. Error/No data источника не означает отсутствие проблем.',transforms=[{'kind':'merge','spec':{'id':'merge','options':{}}}])
     reasonkeys[system]=reason
     link_vars='&'.join('${'+v+':queryparam}' for v in ('teamcity_pipeline','jenkins_pipeline','octopus_space','octopus_project','octopus_environment','namespace','pod'))
     elements[key]['spec']['links']=[{'title':'Открыть причины','url':P.get('dashboard_path','/grafana/d/cicd-operational-health')+'?viewPanel='+str(elements[reason]['spec']['id'])+'&from=${__from}&to=${__to}&'+link_vars}]
@@ -151,7 +152,8 @@ PCT='100*'+USED+'/('+CAP+'>0)'
 NEXUS='min(max by(namespace,pod)(kube_pod_status_ready{namespace="cicd-mia-899",pod=~".*nexus.*",condition="true"}))'
 nskey=panel('Nexus — Pod Ready',[('A',prom(NEXUS,instant=True),False)],'stat',desc='Nexus в CI namespace; отсутствие метрики = нет данных.',thresholds=[{'color':'red','value':None},{'color':'green','value':1}],options={'colorMode':'background'})
 status.append((nskey,6,5))
-status.append((panel('PVC — заполнение сейчас',[('A',prom(PCT,'{{namespace}} · {{persistentvolumeclaim}}',True),False)],'bargauge',unit='percent',desc='По каждому PVC CI-контура. Warning 80%, critical 90%.',thresholds=[{'color':'green','value':None},{'color':'orange','value':80},{'color':'red','value':90}]),10,5))
+status.append((panel('PVC — заполнение сейчас',[('A',prom(PCT,'{{namespace}} · {{persistentvolumeclaim}}',True),False)],'bargauge',unit='percent',options={'orientation':'horizontal','displayMode':'basic'},desc='По каждому PVC CI-контура. Шкала 0–100%; warning 80%, critical 90%.',thresholds=[{'color':'green','value':None},{'color':'orange','value':80},{'color':'red','value':90}]),10,5))
+pvc=elements[status[-1][0]]['spec']['vizConfig']['spec']['fieldConfig']['defaults'];pvc.update(min=0,max=100,decimals=1)
 # Sum of linear slopes, after deduplicating kubelet scraping series.
 SLOPE='max by(namespace,persistentvolumeclaim)(deriv(kubelet_volume_stats_available_bytes{'+PVC+'}[6h]))'
 status.append((panel('PVC — до заполнения, линейная оценка',[('A',prom(AVAIL+'/(-('+SLOPE+'<0))','{{persistentvolumeclaim}}',True),False)],'stat','s',desc='available / темп убывания за 6h. При отсутствии убывания прогноз не выводится; это не SLA.',thresholds=[{'color':'red','value':None},{'color':'orange','value':86400},{'color':'green','value':604800}]),8,5))

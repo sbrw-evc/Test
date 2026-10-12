@@ -3,12 +3,15 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 D=json.loads((ROOT/'cicd-health/cicd-health-dashboard.json').read_text())
 S=D['spec']
-def substitute(q):
+def substitute(q,mappings=None,encoded=True):
     for k,v in {'jenkins_pipeline':'*','octopus_space':'Spaces-1','octopus_project':'Projects-1','octopus_environment':'Environments-1'}.items():q=q.replace('${'+k+':raw}',v).replace('${'+k+'}',v)
-    return q.replace("${octopus_metadata:json}",json.dumps("{}")).replace("${jenkins_agent_map:json}",json.dumps("{}")).replace("${octopus_project_names:json}",json.dumps("{}"))
+    for name in ('octopus_metadata','jenkins_agent_map','octopus_project_names'):
+        value=(mappings or {}).get(name,{})
+        q=q.replace('${'+name+':json}',json.dumps(json.dumps(value) if encoded else value))
+    return q
 class ReviewTests(unittest.TestCase):
- def jq(self,q,data):
-  r=subprocess.run(['jq','-c',substitute(q)],input=json.dumps(data),text=True,capture_output=True)
+ def jq(self,q,data,mappings=None,encoded=True):
+  r=subprocess.run(['jq','-c',substitute(q,mappings,encoded)],input=json.dumps(data),text=True,capture_output=True)
   self.assertEqual(r.returncode,0,r.stderr)
   return [json.loads(x) for x in r.stdout.splitlines() if x]
  def test_five_rows(self):self.assertEqual(len(S['layout']['spec']['rows']),5)
@@ -69,6 +72,54 @@ class ReviewTests(unittest.TestCase):
     self.assertIn('${teamcity_pipeline:queryparam}',link['url'])
     self.assertIn('/grafana/d/',link['url'])
  def test_annotations(self):self.assertEqual(len(S['annotations']),2)
+ def test_reduce_backend_contract(self):
+  # Grafana UnmarshalReduceCommand: strict is the default when mode is absent.
+  # Explicit modes are only dropNN and replaceNN; mode='strict' rejects the query.
+  reduced=[]
+  for e in S['elements'].values():
+   for q in e['spec']['data']['spec']['queries']:
+    spec=q['spec']['query']['spec']
+    if spec.get('type')=='reduce':
+     reduced.append(spec)
+     self.assertNotIn('settings',spec)
+     self.assertEqual(spec['reducer'],'last')
+  self.assertEqual(len(reduced),18)
+  alerts=(ROOT/'cicd-health/grafana-alert-rules.yml').read_text()
+  self.assertNotIn('mode: strict',alerts)
+  self.assertIn('reducer: last',alerts)
+ def test_metadata_interpolation_object_and_string(self):
+  maps={'octopus_metadata':{'Task-1':{'project':'Projects-1','version':'1.2.3','trigger':'deploy-user'}},'octopus_project_names':{'Projects-1':'App "quoted" \\ path'},'jenkins_agent_map':{'https://jenkins.example/job/app/7/':'agent "one" \\ runner'}}
+  fixtures={
+   'Jenkins — текущие выполнения':{'jobs':[{'fullName':'app','builds':[{'number':7,'building':True,'timestamp':1700000000000,'duration':0,'url':'https://jenkins.example/job/app/7/'}]}]},
+   'Octopus — текущие выполнения':{'Items':[{'Id':'Task-1','Name':'Deploy','State':'Executing','StartTime':'2026-10-12T10:00:00Z','CompletedTime':None}], 'TotalResults':1}}
+  for encoded in (True,False):
+   for title,data in fixtures.items():
+    with self.subTest(title=title,encoded=encoded):
+     e=next(e for e in S['elements'].values() if e['spec']['title']==title)
+     q=e['spec']['data']['spec']['queries'][0]['spec']['query']['spec']['root_selector']
+     rows=self.jq(q,data,maps,encoded);self.assertEqual(len(rows),1)
+     if title.startswith('Jenkins'):self.assertEqual(rows[0]['agent'],maps['jenkins_agent_map']['https://jenkins.example/job/app/7/'])
+     else:self.assertEqual(rows[0]['workflow'],maps['octopus_project_names']['Projects-1']+' [Projects-1]')
+ def test_success_rate_with_interpolated_object(self):
+  fixtures={
+   'Jenkins — успешность последних 100':{'jobs':[{'fullName':'app','builds':[{'number':7,'building':False,'result':'SUCCESS','timestamp':1700000000000,'duration':10000,'url':'https://jenkins.example/job/app/7/'}]}]},
+   'Octopus · Prod — успешность последних 100':{'Items':[{'Id':'Task-1','ProjectId':'Projects-1','Name':'Deploy','State':'Success','StartTime':'2026-10-12T10:00:00Z','CompletedTime':'2026-10-12T10:05:00Z'}]}}
+  for title,data in fixtures.items():
+   e=next(e for e in S['elements'].values() if e['spec']['title']==title)
+   q=e['spec']['data']['spec']['queries'][0]['spec']['query']['spec']['root_selector']
+   rows=self.jq(q,data,encoded=False);self.assertEqual(rows[0]['value'],100)
+ def test_malformed_metadata_is_error(self):
+  e=next(e for e in S['elements'].values() if e['spec']['title']=='Octopus — текущие выполнения')
+  q=e['spec']['data']['spec']['queries'][0]['spec']['query']['spec']['root_selector']
+  for bad in ('[]','null','42','"not json"'):
+   r=subprocess.run(['jq','-c',substitute(q.replace('${octopus_project_names:json}',bad))],input='{"Items":[],"TotalResults":0}',text=True,capture_output=True)
+   self.assertNotEqual(r.returncode,0)
+ def test_reason_frames_are_merged(self):
+  for e in S['elements'].values():
+   if '— причины состояния' in e['spec']['title']:self.assertEqual(e['spec']['data']['spec']['transformations'][0]['group'],'merge')
+ def test_pvc_percent_scale(self):
+  e=next(e for e in S['elements'].values() if e['spec']['title']=='PVC — заполнение сейчас')
+  viz=e['spec']['vizConfig']['spec'];self.assertEqual(viz['fieldConfig']['defaults']['min'],0);self.assertEqual(viz['fieldConfig']['defaults']['max'],100);self.assertEqual(viz['options']['orientation'],'horizontal')
  def test_queries_compile(self):
   for e in S['elements'].values():
    for q in e['spec']['data']['spec']['queries']:

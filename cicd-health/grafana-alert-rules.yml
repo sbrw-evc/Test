@@ -113,8 +113,6 @@ groups:
         type: reduce
         expression: A
         reducer: last
-        settings:
-          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -189,8 +187,6 @@ groups:
         type: reduce
         expression: A
         reducer: last
-        settings:
-          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -266,8 +262,6 @@ groups:
         type: reduce
         expression: A
         reducer: last
-        settings:
-          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -347,8 +341,6 @@ groups:
         type: reduce
         expression: A
         reducer: last
-        settings:
-          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -424,8 +416,6 @@ groups:
         type: reduce
         expression: A
         reducer: last
-        settings:
-          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -510,8 +500,6 @@ groups:
         type: reduce
         expression: A
         reducer: last
-        settings:
-          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -589,8 +577,6 @@ groups:
         type: reduce
         expression: A
         reducer: last
-        settings:
-          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -667,8 +653,6 @@ groups:
         type: reduce
         expression: A
         reducer: last
-        settings:
-          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -752,8 +736,6 @@ groups:
         type: reduce
         expression: A
         reducer: last
-        settings:
-          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -830,8 +812,6 @@ groups:
         type: reduce
         expression: A
         reducer: last
-        settings:
-          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -919,8 +899,6 @@ groups:
         type: reduce
         expression: A
         reducer: last
-        settings:
-          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -1002,8 +980,6 @@ groups:
         type: reduce
         expression: A
         reducer: last
-        settings:
-          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -1080,8 +1056,6 @@ groups:
         type: reduce
         expression: A
         reducer: last
-        settings:
-          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -1169,8 +1143,6 @@ groups:
         type: reduce
         expression: A
         reducer: last
-        settings:
-          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -1219,8 +1191,6 @@ groups:
         type: reduce
         expression: A
         reducer: last
-        settings:
-          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -1269,8 +1239,6 @@ groups:
         type: reduce
         expression: A
         reducer: last
-        settings:
-          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -1318,8 +1286,6 @@ groups:
         type: reduce
         expression: A
         reducer: last
-        settings:
-          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -1367,8 +1333,6 @@ groups:
         type: reduce
         expression: A
         reducer: last
-        settings:
-          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -1416,8 +1380,6 @@ groups:
         type: reduce
         expression: A
         reducer: last
-        settings:
-          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
@@ -1466,8 +1428,6 @@ groups:
         type: reduce
         expression: A
         reducer: last
-        settings:
-          mode: strict
     - refId: B
       datasourceUid: __expr__
       relativeTimeRange:
